@@ -166,9 +166,9 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         }
         
         .navbar-content {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 0 1rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -205,18 +205,18 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         
         .main-layout {
             display: flex;
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 2rem auto;
-            padding: 0 2rem;
+            padding: 0 1rem;
             gap: 2rem;
             align-items: flex-start;
         }
         
         .sidebar {
-            width: 280px;
+            width: 240px;
             background: white;
             border-radius: 16px;
-            padding: 1.5rem;
+            padding: 1rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             position: sticky;
             top: 2rem;
