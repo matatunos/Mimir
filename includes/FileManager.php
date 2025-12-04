@@ -116,7 +116,7 @@ class FileManager {
                        s.max_downloads as share_max_downloads, 
                        s.current_downloads as share_download_count, 
                        s.is_active as share_is_active,
-                       NULL as share_has_password
+                       s.requires_password as share_has_password
                 FROM files f
                 LEFT JOIN public_shares s ON f.id = s.file_id AND s.is_active = 1
                 WHERE f.user_id = ?";

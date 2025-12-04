@@ -923,6 +923,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                         <tr>
                             <th>Nombre</th>
                             <th style="width: 100px;">Tamaño</th>
+                            <th style="width: 180px;">Descargas</th>
                             <th style="width: 200px;">Estado</th>
                             <th style="width: 140px;">Subido</th>
                             <th style="width: 250px;">Acciones</th>
@@ -936,6 +937,28 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                 <?php echo escapeHtml($file['original_filename']); ?>
                             </td>
                             <td><?php echo formatBytes($file['file_size']); ?></td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <!-- Descargas locales -->
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span class="badge" style="background: #dbeafe; color: #1e40af; display: inline-flex; align-items: center; gap: 0.375rem;">
+                                            <i class="fas fa-user"></i> Local: <?php echo (int)$file['download_count']; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Descargas externas (compartidas) -->
+                                    <?php if ($file['share_id']): ?>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <span class="badge" style="background: #d1fae5; color: #065f46; display: inline-flex; align-items: center; gap: 0.375rem;">
+                                                <i class="fas fa-globe"></i> Externa: <?php echo (int)$file['share_download_count']; ?>
+                                                <?php if ($file['share_max_downloads']): ?>
+                                                    / <?php echo $file['share_max_downloads']; ?>
+                                                <?php endif; ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
                             <td>
                                 <?php if ($file['share_id']): ?>
                                     <div class="share-status">
@@ -955,12 +978,6 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                                 <?php endif;
                                             else: ?>
                                                 <small><i class="fas fa-infinity"></i> Sin vencimiento</small>
-                                            <?php endif; ?>
-                                            
-                                            <?php if ($file['share_max_downloads']): ?>
-                                                <small><i class="fas fa-download"></i> <?php echo $file['share_download_count']; ?>/<?php echo $file['share_max_downloads']; ?></small>
-                                            <?php else: ?>
-                                                <small><i class="fas fa-download"></i> <?php echo $file['share_download_count']; ?> descargas</small>
                                             <?php endif; ?>
                                             
                                             <?php if ($file['share_has_password']): ?>
