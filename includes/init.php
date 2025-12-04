@@ -1,0 +1,68 @@
+<?php
+/**
+ * Initialization file - include this in all PHP pages
+ */
+
+// Start session
+session_name(SESSION_NAME);
+session_start();
+
+// Include configuration
+require_once __DIR__ . '/../config/config.php';
+
+// Include all classes
+require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/Auth.php';
+require_once __DIR__ . '/AuditLog.php';
+require_once __DIR__ . '/SystemConfig.php';
+require_once __DIR__ . '/FileManager.php';
+require_once __DIR__ . '/FolderManager.php';
+require_once __DIR__ . '/ShareManager.php';
+require_once __DIR__ . '/Notification.php';
+
+/**
+ * CSRF Token functions
+ */
+function generateCsrfToken() {
+    if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
+        $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION[CSRF_TOKEN_NAME];
+}
+
+function verifyCsrfToken($token) {
+    return isset($_SESSION[CSRF_TOKEN_NAME]) && hash_equals($_SESSION[CSRF_TOKEN_NAME], $token);
+}
+
+/**
+ * Utility functions
+ */
+function formatBytes($bytes, $precision = 2) {
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+    $bytes /= (1 << (10 * $pow));
+    return round($bytes, $precision) . ' ' . $units[$pow];
+}
+
+function timeAgo($timestamp) {
+    $time = strtotime($timestamp);
+    $diff = time() - $time;
+    
+    if ($diff < 60) {
+        return $diff . ' seconds ago';
+    } elseif ($diff < 3600) {
+        return floor($diff / 60) . ' minutes ago';
+    } elseif ($diff < 86400) {
+        return floor($diff / 3600) . ' hours ago';
+    } elseif ($diff < 2592000) {
+        return floor($diff / 86400) . ' days ago';
+    } else {
+        return date('Y-m-d', $time);
+    }
+}
+
+function escapeHtml($str) {
+    return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+}
