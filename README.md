@@ -43,6 +43,24 @@ Sistema de almacenamiento personal en la nube con gestión de usuarios, comparti
 
 ## Instalación
 
+### Inicio Rápido para Desarrollo
+
+Si quieres probar Mimir rápidamente sin configurar Apache:
+
+```bash
+git clone https://github.com/matatunos/Mimir.git
+cd Mimir
+cp config/config.example.php config/config.php
+# Edita config.php con tus credenciales de base de datos
+php setup.php
+php -S localhost:8000 -t public/
+# Accede a http://localhost:8000
+```
+
+📖 Ver [DEVELOPMENT.md](DEVELOPMENT.md) para más opciones (XAMPP, Docker, hosting online)
+
+### Instalación Completa
+
 ### 1. Clonar el Repositorio
 
 ```bash
