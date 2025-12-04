@@ -123,6 +123,27 @@ $stmt->execute($params);
 $totalFiles = $stmt->fetchColumn();
 $totalPages = ceil($totalFiles / $perPage);
 
+// Build ORDER BY clause dynamically
+$orderByClause = '';
+switch ($sortBy) {
+    case 'original_filename':
+        $orderByClause = "f.original_filename " . strtoupper($sortDir);
+        break;
+    case 'username':
+        $orderByClause = "u.username " . strtoupper($sortDir);
+        break;
+    case 'file_size':
+        $orderByClause = "f.file_size " . strtoupper($sortDir);
+        break;
+    case 'is_shared':
+        $orderByClause = "(CASE WHEN ps.id IS NOT NULL AND ps.is_active = 1 THEN 1 ELSE 0 END) " . strtoupper($sortDir);
+        break;
+    case 'created_at':
+    default:
+        $orderByClause = "f.created_at " . strtoupper($sortDir);
+        break;
+}
+
 // Get files
 $sql = "
     SELECT 
@@ -141,23 +162,11 @@ $sql = "
     INNER JOIN users u ON f.user_id = u.id
     LEFT JOIN public_shares ps ON f.id = ps.file_id AND ps.is_active = 1
     $whereClause
-    ORDER BY 
-        CASE 
-            WHEN :sortBy = 'original_filename' THEN f.original_filename
-            WHEN :sortBy = 'username' THEN u.username
-            WHEN :sortBy = 'is_shared' THEN CAST(CASE WHEN ps.id IS NOT NULL AND ps.is_active = 1 THEN 1 ELSE 0 END AS CHAR)
-            ELSE NULL
-        END " . ($sortDir === 'asc' ? 'ASC' : 'DESC') . ",
-        CASE 
-            WHEN :sortBy = 'file_size' THEN f.file_size
-            WHEN :sortBy = 'created_at' THEN UNIX_TIMESTAMP(f.created_at)
-            ELSE NULL
-        END " . ($sortDir === 'asc' ? 'ASC' : 'DESC') . "
+    ORDER BY $orderByClause
     LIMIT $perPage OFFSET $offset
 ";
 
 $stmt = $db->prepare($sql);
-$params['sortBy'] = $sortBy;
 $stmt->execute($params);
 $files = $stmt->fetchAll();
 
