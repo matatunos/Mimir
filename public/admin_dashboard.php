@@ -491,6 +491,9 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 <a href="admin_files.php">
                     <i class="fas fa-folder"></i> Archivos
                 </a>
+                <a href="admin_config.php">
+                    <i class="fas fa-cog"></i> Configuración
+                </a>
                 <a href="logout.php">
                     <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
                 </a>
