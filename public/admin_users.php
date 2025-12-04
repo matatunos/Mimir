@@ -13,6 +13,56 @@ $messageType = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
+            case 'create_user':
+                $username = trim($_POST['username'] ?? '');
+                $email = trim($_POST['email'] ?? '');
+                $password = $_POST['password'] ?? '';
+                $passwordConfirm = $_POST['password_confirm'] ?? '';
+                $role = $_POST['role'] ?? 'user';
+                $quota = $_POST['storage_quota'] ?? 10737418240;
+                $isActive = isset($_POST['is_active']) ? 1 : 0;
+                
+                // Validate
+                if (empty($username) || empty($email) || empty($password)) {
+                    $message = 'Todos los campos obligatorios deben estar completos';
+                    $messageType = 'error';
+                } elseif ($password !== $passwordConfirm) {
+                    $message = 'Las contraseñas no coinciden';
+                    $messageType = 'error';
+                } elseif (strlen($password) < 6) {
+                    $message = 'La contraseña debe tener al menos 6 caracteres';
+                    $messageType = 'error';
+                } elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+                    $message = 'El usuario solo puede contener letras, números y guiones bajos';
+                    $messageType = 'error';
+                } else {
+                    // Check if username or email already exists
+                    $stmt = $db->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
+                    $stmt->execute([$username, $email]);
+                    $exists = $stmt->fetchColumn();
+                    
+                    if ($exists > 0) {
+                        $message = 'El usuario o email ya existe';
+                        $messageType = 'error';
+                    } else {
+                        // Create user
+                        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+                        $stmt = $db->prepare("INSERT INTO users (username, email, password, role, storage_quota, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+                        
+                        if ($stmt->execute([$username, $email, $passwordHash, $role, $quota, $isActive])) {
+                            $newUserId = $db->lastInsertId();
+                            $message = 'Usuario creado correctamente';
+                            $messageType = 'success';
+                            
+                            AuditLog::log(Auth::getUserId(), 'user_created', 'user', $newUserId, "Admin created user: $username");
+                        } else {
+                            $message = 'Error al crear el usuario';
+                            $messageType = 'error';
+                        }
+                    }
+                }
+                break;
+                
             case 'update_user':
                 $userId = $_POST['user_id'] ?? null;
                 $role = $_POST['role'] ?? 'user';
@@ -876,6 +926,12 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             </div>
         </div>
         
+        <div style="margin-bottom: 2rem;">
+            <button type="button" class="btn btn-primary" onclick="showCreateUserModal()" style="font-size: 1rem; padding: 0.75rem 1.5rem;">
+                <i class="fas fa-user-plus"></i> Crear Nuevo Usuario
+            </button>
+        </div>
+        
         <div class="filters-card">
             <div class="filters-header">
                 <h2><i class="fas fa-filter"></i> Filtros</h2>
@@ -1144,6 +1200,70 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         </div>
     </div>
     
+    <!-- Create User Modal -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-user-plus"></i> Crear Nuevo Usuario</h3>
+                <button class="modal-close" onclick="closeCreateModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="createForm" method="POST">
+                <input type="hidden" name="action" value="create_user">
+                
+                <div class="form-group">
+                    <label>Usuario *</label>
+                    <input type="text" name="username" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9_]+" placeholder="johndoe">
+                    <div class="form-hint">Solo letras, números y guiones bajos. Mínimo 3 caracteres.</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" name="email" required placeholder="usuario@ejemplo.com">
+                </div>
+                
+                <div class="form-group">
+                    <label>Contraseña *</label>
+                    <input type="password" name="password" required minlength="6" placeholder="Mínimo 6 caracteres">
+                </div>
+                
+                <div class="form-group">
+                    <label>Confirmar Contraseña *</label>
+                    <input type="password" name="password_confirm" required minlength="6" placeholder="Repetir contraseña">
+                </div>
+                
+                <div class="form-group">
+                    <label>Rol</label>
+                    <select name="role" id="createRole">
+                        <option value="user">Usuario</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Cuota de Almacenamiento (bytes)</label>
+                    <input type="number" name="storage_quota" value="10737418240" required>
+                    <div class="form-hint">Por defecto: 10 GB (10737418240 bytes)</div>
+                </div>
+                
+                <div class="form-group form-group-checkbox">
+                    <input type="checkbox" name="is_active" id="createActive" value="1" checked>
+                    <label for="createActive">Usuario Activo</label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Crear Usuario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <script>
         // Select all checkbox
         document.getElementById('selectAll').addEventListener('change', function() {
@@ -1184,6 +1304,27 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         function closeModal() {
             document.getElementById('editModal').classList.remove('show');
         }
+        
+        function showCreateUserModal() {
+            document.getElementById('createForm').reset();
+            document.getElementById('createModal').classList.add('show');
+        }
+        
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('show');
+        }
+        
+        // Validate password confirmation
+        document.getElementById('createForm').addEventListener('submit', function(e) {
+            const password = this.querySelector('input[name="password"]').value;
+            const confirm = this.querySelector('input[name="password_confirm"]').value;
+            
+            if (password !== confirm) {
+                e.preventDefault();
+                alert('Las contraseñas no coinciden');
+                return false;
+            }
+        });
         
         function deleteUser(userId, username) {
             document.getElementById('deleteUserId').value = userId;
