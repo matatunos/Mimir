@@ -85,19 +85,37 @@ class LdapAuth {
             $userDn = $this->findUserDn($ldap, $username);
             
             if (!$userDn) {
+                error_log("LDAP: Could not determine user DN for: $username");
                 ldap_close($ldap);
                 return false;
             }
 
+            error_log("LDAP: Attempting authentication with DN: $userDn");
+
             // Try to bind with user credentials
             if (@ldap_bind($ldap, $userDn, $password)) {
+                error_log("LDAP: Authentication successful for: $username");
+                
                 // Get user information
                 $userInfo = $this->getUserInfo($ldap, $userDn);
                 ldap_close($ldap);
                 
+                if ($userInfo) {
+                    error_log("LDAP: User info retrieved successfully");
+                } else {
+                    error_log("LDAP: Warning - Could not retrieve user info, using defaults");
+                    // Return basic info if we can't get details
+                    $userInfo = [
+                        'username' => $username,
+                        'email' => $username . '@' . $this->extractDomain(),
+                        'displayName' => $username
+                    ];
+                }
+                
                 return $userInfo;
             } else {
-                error_log("LDAP: Authentication failed for user: $username");
+                $error = ldap_error($ldap);
+                error_log("LDAP: Authentication failed for user '$username' with DN '$userDn': $error");
                 ldap_close($ldap);
                 return false;
             }
@@ -112,53 +130,94 @@ class LdapAuth {
      * Find user DN by username
      */
     private function findUserDn($ldap, $username) {
-        // If userDn pattern is specified, use it directly
+        // If userDn pattern is specified, use it directly (best for AD without admin credentials)
         if (!empty($this->userDn)) {
-            return str_replace('{username}', $username, $this->userDn);
+            $userDn = str_replace('{username}', $username, $this->userDn);
+            error_log("LDAP: Using DN pattern: $userDn");
+            return $userDn;
         }
 
-        // Otherwise search for user
+        // Try common Active Directory DN patterns first (no search needed)
+        $commonPatterns = [
+            "CN={username},CN=Users,{baseDn}",
+            "{username}@{domain}",
+            "DOMAIN\\{username}"
+        ];
+        
+        // Extract domain from baseDn (DC=favala,DC=es -> favala.es)
+        $domain = '';
+        if (preg_match_all('/DC=([^,]+)/i', $this->baseDn, $matches)) {
+            $domain = implode('.', $matches[1]);
+        }
+        
+        foreach ($commonPatterns as $pattern) {
+            $tryDn = str_replace(
+                ['{username}', '{baseDn}', '{domain}', 'DOMAIN'],
+                [$username, $this->baseDn, $domain, strtoupper(explode('.', $domain)[0] ?? 'DOMAIN')],
+                $pattern
+            );
+            
+            error_log("LDAP: Trying DN pattern: $tryDn");
+            
+            // We can't test the bind here, just return the DN to try
+            // The authenticate() method will test if it works
+            if (strpos($pattern, 'CN=') === 0) {
+                return $tryDn; // Return the first CN= pattern for Active Directory
+            }
+        }
+
+        // If no pattern worked, try to search (requires admin credentials or anonymous bind)
         try {
             // Bind with admin credentials if provided
             if (!empty($this->adminDn) && !empty($this->adminPassword)) {
+                error_log("LDAP: Attempting admin bind: {$this->adminDn}");
                 if (!@ldap_bind($ldap, $this->adminDn, $this->adminPassword)) {
-                    error_log("LDAP: Admin bind failed");
-                    return false;
+                    $error = ldap_error($ldap);
+                    error_log("LDAP: Admin bind failed: $error");
+                    // Still try to construct a DN
+                    return "CN=$username,CN=Users,{$this->baseDn}";
                 }
             } else {
                 // Try anonymous bind
+                error_log("LDAP: Attempting anonymous bind");
                 if (!@ldap_bind($ldap)) {
-                    error_log("LDAP: Anonymous bind failed");
-                    return false;
+                    $error = ldap_error($ldap);
+                    error_log("LDAP: Anonymous bind failed: $error. Trying default CN pattern.");
+                    // Return default AD pattern
+                    return "CN=$username,CN=Users,{$this->baseDn}";
                 }
             }
 
             // Search for user
             $filter = str_replace('{username}', ldap_escape($username, '', LDAP_ESCAPE_FILTER), $this->userFilter);
-            $search = @ldap_search($ldap, $this->baseDn, $filter, [$this->usernameAttribute]);
+            error_log("LDAP: Searching with filter: $filter in {$this->baseDn}");
+            
+            $search = @ldap_search($ldap, $this->baseDn, $filter, [$this->usernameAttribute, 'distinguishedName']);
             
             if (!$search) {
-                error_log("LDAP: Search failed for user: $username");
-                return false;
+                $error = ldap_error($ldap);
+                error_log("LDAP: Search failed: $error. Using default CN pattern.");
+                return "CN=$username,CN=Users,{$this->baseDn}";
             }
 
             $entries = ldap_get_entries($ldap, $search);
             
             if ($entries['count'] === 0) {
-                error_log("LDAP: User not found: $username");
-                return false;
+                error_log("LDAP: User not found in search. Using default CN pattern.");
+                return "CN=$username,CN=Users,{$this->baseDn}";
             }
 
             if ($entries['count'] > 1) {
-                error_log("LDAP: Multiple users found for: $username");
-                return false;
+                error_log("LDAP: Multiple users found for: $username. Using first one.");
             }
 
-            return $entries[0]['dn'];
+            $foundDn = $entries[0]['dn'];
+            error_log("LDAP: Found user DN: $foundDn");
+            return $foundDn;
 
         } catch (Exception $e) {
-            error_log("LDAP findUserDn error: " . $e->getMessage());
-            return false;
+            error_log("LDAP findUserDn error: " . $e->getMessage() . ". Using default CN pattern.");
+            return "CN=$username,CN=Users,{$this->baseDn}";
         }
     }
 
@@ -226,6 +285,16 @@ class LdapAuth {
             return $entry[$attr][0];
         }
         return '';
+    }
+
+    /**
+     * Extract domain from base DN (DC=favala,DC=es -> favala.es)
+     */
+    private function extractDomain() {
+        if (preg_match_all('/DC=([^,]+)/i', $this->baseDn, $matches)) {
+            return implode('.', $matches[1]);
+        }
+        return $this->server;
     }
 
     /**

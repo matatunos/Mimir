@@ -63,20 +63,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
         case 'update_ldap':
             SystemConfig::set('ldap_enabled', isset($_POST['ldap_enabled']) ? 'true' : 'false', 'boolean');
-            SystemConfig::set('ldap_host', $_POST['ldap_host'] ?? '', 'string');
+            SystemConfig::set('ldap_server', $_POST['ldap_server'] ?? '', 'string');
             SystemConfig::set('ldap_port', $_POST['ldap_port'] ?? '389', 'integer');
-            SystemConfig::set('ldap_use_tls', isset($_POST['ldap_use_tls']) ? 'true' : 'false', 'boolean');
+            SystemConfig::set('ldap_use_ssl', isset($_POST['ldap_use_ssl']) ? 'true' : 'false', 'boolean');
+            SystemConfig::set('ldap_use_starttls', isset($_POST['ldap_use_starttls']) ? 'true' : 'false', 'boolean');
             SystemConfig::set('ldap_base_dn', $_POST['ldap_base_dn'] ?? '', 'string');
-            SystemConfig::set('ldap_bind_dn', $_POST['ldap_bind_dn'] ?? '', 'string');
+            SystemConfig::set('ldap_user_dn', $_POST['ldap_user_dn'] ?? '', 'string');
+            SystemConfig::set('ldap_admin_dn', $_POST['ldap_admin_dn'] ?? '', 'string');
             
-            if (!empty($_POST['ldap_bind_password'])) {
-                SystemConfig::set('ldap_bind_password', $_POST['ldap_bind_password'], 'string');
+            if (!empty($_POST['ldap_admin_password'])) {
+                SystemConfig::set('ldap_admin_password', $_POST['ldap_admin_password'], 'string');
             }
             
-            SystemConfig::set('ldap_user_filter', $_POST['ldap_user_filter'] ?? '(sAMAccountName=%s)', 'string');
-            SystemConfig::set('ldap_username_attribute', $_POST['ldap_username_attribute'] ?? 'sAMAccountName', 'string');
-            SystemConfig::set('ldap_email_attribute', $_POST['ldap_email_attribute'] ?? 'mail', 'string');
-            SystemConfig::set('ldap_fullname_attribute', $_POST['ldap_fullname_attribute'] ?? 'displayName', 'string');
+            SystemConfig::set('ldap_user_filter', $_POST['ldap_user_filter'] ?? '(sAMAccountName={username})', 'string');
+            SystemConfig::set('ldap_username_attr', $_POST['ldap_username_attr'] ?? 'sAMAccountName', 'string');
+            SystemConfig::set('ldap_email_attr', $_POST['ldap_email_attr'] ?? 'mail', 'string');
+            SystemConfig::set('ldap_displayname_attr', $_POST['ldap_displayname_attr'] ?? 'displayName', 'string');
             
             SystemConfig::clearCache();
             $message = 'Configuración LDAP actualizada correctamente';
@@ -123,15 +125,17 @@ $footerLinks = SystemConfig::get('footer_links', []);
 
 // LDAP config
 $ldapEnabled = SystemConfig::get('ldap_enabled', false);
-$ldapHost = SystemConfig::get('ldap_host', '');
+$ldapServer = SystemConfig::get('ldap_server', '');
 $ldapPort = SystemConfig::get('ldap_port', 389);
-$ldapUseTls = SystemConfig::get('ldap_use_tls', false);
+$ldapUseSsl = SystemConfig::get('ldap_use_ssl', false);
+$ldapUseStartTls = SystemConfig::get('ldap_use_starttls', false);
 $ldapBaseDn = SystemConfig::get('ldap_base_dn', '');
-$ldapBindDn = SystemConfig::get('ldap_bind_dn', '');
-$ldapUserFilter = SystemConfig::get('ldap_user_filter', '(sAMAccountName=%s)');
-$ldapUsernameAttr = SystemConfig::get('ldap_username_attribute', 'sAMAccountName');
-$ldapEmailAttr = SystemConfig::get('ldap_email_attribute', 'mail');
-$ldapFullnameAttr = SystemConfig::get('ldap_fullname_attribute', 'displayName');
+$ldapUserDn = SystemConfig::get('ldap_user_dn', '');
+$ldapAdminDn = SystemConfig::get('ldap_admin_dn', '');
+$ldapUserFilter = SystemConfig::get('ldap_user_filter', '(sAMAccountName={username})');
+$ldapUsernameAttr = SystemConfig::get('ldap_username_attr', 'sAMAccountName');
+$ldapEmailAttr = SystemConfig::get('ldap_email_attr', 'mail');
+$ldapDisplaynameAttr = SystemConfig::get('ldap_displayname_attr', 'displayName');
 
 // Security config
 $enablePasswordShares = SystemConfig::get('enable_password_shares', true);
@@ -770,9 +774,9 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Servidor LDAP</label>
-                            <input type="text" name="ldap_host" value="<?php echo escapeHtml($ldapHost); ?>" placeholder="ldap.empresa.com">
-                            <div class="form-hint">Hostname o IP del servidor LDAP/AD</div>
+                            <label>Servidor LDAP/AD</label>
+                            <input type="text" name="ldap_server" value="<?php echo escapeHtml($ldapServer); ?>" placeholder="192.168.1.254">
+                            <div class="form-hint">IP o hostname del servidor Active Directory</div>
                         </div>
                         
                         <div class="form-group">
@@ -782,53 +786,68 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
                         </div>
                     </div>
                     
-                    <div class="form-group-checkbox">
-                        <input type="checkbox" name="ldap_use_tls" id="ldapUseTls" <?php echo $ldapUseTls ? 'checked' : ''; ?>>
-                        <label for="ldapUseTls">Usar TLS/SSL</label>
+                    <div class="form-row">
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" name="ldap_use_ssl" id="ldapUseSsl" <?php echo $ldapUseSsl ? 'checked' : ''; ?>>
+                            <label for="ldapUseSsl">Usar SSL (LDAPS puerto 636)</label>
+                        </div>
+                        
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" name="ldap_use_starttls" id="ldapUseStartTls" <?php echo $ldapUseStartTls ? 'checked' : ''; ?>>
+                            <label for="ldapUseStartTls">Usar StartTLS (cifrar puerto 389)</label>
+                        </div>
                     </div>
                     
                     <div class="form-group">
                         <label>Base DN</label>
-                        <input type="text" name="ldap_base_dn" value="<?php echo escapeHtml($ldapBaseDn); ?>" placeholder="DC=empresa,DC=com">
-                        <div class="form-hint">Distinguished Name base para búsquedas LDAP</div>
+                        <input type="text" name="ldap_base_dn" value="<?php echo escapeHtml($ldapBaseDn); ?>" placeholder="DC=favala,DC=es">
+                        <div class="form-hint">Distinguished Name base. Ejemplo: DC=favala,DC=es</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Patrón User DN (RECOMENDADO para Active Directory sin admin)</label>
+                        <input type="text" name="ldap_user_dn" value="<?php echo escapeHtml($ldapUserDn); ?>" placeholder="CN={username},CN=Users,DC=favala,DC=es">
+                        <div class="form-hint"><strong>Patrón del DN completo.</strong> {username} se reemplaza por el nombre de usuario.<br>
+                        Ejemplo: CN={username},CN=Users,DC=favala,DC=es<br>
+                        Si usas esto, NO necesitas DN Admin ni Password Admin.</div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Bind DN (Usuario de Servicio)</label>
-                            <input type="text" name="ldap_bind_dn" value="<?php echo escapeHtml($ldapBindDn); ?>" placeholder="CN=admin,DC=empresa,DC=com">
-                            <div class="form-hint">Usuario para conectar al servidor LDAP</div>
+                            <label>DN Admin (Solo si falla la búsqueda)</label>
+                            <input type="text" name="ldap_admin_dn" value="<?php echo escapeHtml($ldapAdminDn); ?>" placeholder="CN=admin,CN=Users,DC=favala,DC=es">
+                            <div class="form-hint">Dejar vacío si usas Patrón User DN arriba</div>
                         </div>
                         
                         <div class="form-group">
-                            <label>Contraseña del Bind DN</label>
-                            <input type="password" name="ldap_bind_password" placeholder="••••••••">
+                            <label>Password Admin</label>
+                            <input type="password" name="ldap_admin_password" placeholder="••••••••">
                             <div class="form-hint">Dejar vacío para no cambiar</div>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label>Filtro de Búsqueda de Usuarios</label>
-                        <input type="text" name="ldap_user_filter" value="<?php echo escapeHtml($ldapUserFilter); ?>">
-                        <div class="form-hint">%s será reemplazado por el nombre de usuario. Para AD: (sAMAccountName=%s)</div>
+                        <input type="text" name="ldap_user_filter" value="<?php echo escapeHtml($ldapUserFilter); ?>" placeholder="(sAMAccountName={username})">
+                        <div class="form-hint">{username} será reemplazado. Para Active Directory: (sAMAccountName={username})</div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Atributo de Usuario</label>
-                            <input type="text" name="ldap_username_attribute" value="<?php echo escapeHtml($ldapUsernameAttr); ?>">
+                            <label>Atributo Username</label>
+                            <input type="text" name="ldap_username_attr" value="<?php echo escapeHtml($ldapUsernameAttr); ?>" placeholder="sAMAccountName">
                             <div class="form-hint">Para AD: sAMAccountName</div>
                         </div>
                         
                         <div class="form-group">
-                            <label>Atributo de Email</label>
-                            <input type="text" name="ldap_email_attribute" value="<?php echo escapeHtml($ldapEmailAttr); ?>">
+                            <label>Atributo Email</label>
+                            <input type="text" name="ldap_email_attr" value="<?php echo escapeHtml($ldapEmailAttr); ?>" placeholder="mail">
                             <div class="form-hint">Para AD: mail</div>
                         </div>
                         
                         <div class="form-group">
-                            <label>Atributo de Nombre Completo</label>
-                            <input type="text" name="ldap_fullname_attribute" value="<?php echo escapeHtml($ldapFullnameAttr); ?>">
+                            <label>Atributo Nombre Completo</label>
+                            <input type="text" name="ldap_displayname_attr" value="<?php echo escapeHtml($ldapDisplaynameAttr); ?>" placeholder="displayName">
                             <div class="form-hint">Para AD: displayName</div>
                         </div>
                     </div>
