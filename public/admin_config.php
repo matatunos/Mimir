@@ -523,7 +523,7 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
                     <i class="fas fa-users"></i> Usuarios
                 </a>
                 <a href="admin_files.php">
-                    <i class="fas fa-folder"></i> Archivos
+                    <i class="fas fa-file-alt"></i> Archivos
                 </a>
                 <a href="admin_config.php" class="active">
                     <i class="fas fa-cog"></i> Configuración

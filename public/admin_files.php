@@ -16,6 +16,21 @@ $filterDateFrom = $_GET['date_from'] ?? '';
 $filterDateTo = $_GET['date_to'] ?? '';
 $searchTerm = $_GET['search'] ?? '';
 
+// Sorting
+$sortBy = $_GET['sort'] ?? 'created_at';
+$sortDir = $_GET['dir'] ?? 'desc';
+
+// Validate sort column
+$allowedSortColumns = ['original_filename', 'username', 'file_size', 'is_shared', 'created_at'];
+if (!in_array($sortBy, $allowedSortColumns)) {
+    $sortBy = 'created_at';
+}
+
+// Validate sort direction
+if (!in_array(strtolower($sortDir), ['asc', 'desc'])) {
+    $sortDir = 'desc';
+}
+
 // Handle bulk delete
 $message = '';
 $messageType = '';
@@ -126,11 +141,23 @@ $sql = "
     INNER JOIN users u ON f.user_id = u.id
     LEFT JOIN public_shares ps ON f.id = ps.file_id AND ps.is_active = 1
     $whereClause
-    ORDER BY f.created_at DESC
+    ORDER BY 
+        CASE 
+            WHEN :sortBy = 'original_filename' THEN f.original_filename
+            WHEN :sortBy = 'username' THEN u.username
+            WHEN :sortBy = 'is_shared' THEN CAST(CASE WHEN ps.id IS NOT NULL AND ps.is_active = 1 THEN 1 ELSE 0 END AS CHAR)
+            ELSE NULL
+        END " . ($sortDir === 'asc' ? 'ASC' : 'DESC') . ",
+        CASE 
+            WHEN :sortBy = 'file_size' THEN f.file_size
+            WHEN :sortBy = 'created_at' THEN UNIX_TIMESTAMP(f.created_at)
+            ELSE NULL
+        END " . ($sortDir === 'asc' ? 'ASC' : 'DESC') . "
     LIMIT $perPage OFFSET $offset
 ";
 
 $stmt = $db->prepare($sql);
+$params['sortBy'] = $sortBy;
 $stmt->execute($params);
 $files = $stmt->fetchAll();
 
@@ -512,12 +539,12 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
     <div class="navbar">
         <div class="navbar-content">
             <div class="navbar-brand">
-                <i class="fas fa-shield-alt"></i>
+                <i class="fas fa-cloud"></i>
                 <?php echo escapeHtml($siteName); ?>
             </div>
             <div class="navbar-menu">
                 <a href="dashboard.php">
-                    <i class="fas fa-folder"></i> Mis Archivos
+                    <i class="fas fa-home"></i> Dashboard
                 </a>
                 <a href="admin_dashboard.php">
                     <i class="fas fa-chart-line"></i> Panel Admin
@@ -639,11 +666,62 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                 <th class="checkbox-cell">
                                     <input type="checkbox" id="selectAllCheckbox" onchange="toggleAll(this)">
                                 </th>
-                                <th>Archivo</th>
-                                <th>Propietario</th>
-                                <th style="width: 100px;">Tamaño</th>
-                                <th style="width: 120px;">Compartido</th>
-                                <th style="width: 140px;">Fecha</th>
+                                <?php
+                                function buildSortUrl($column, $currentSort, $currentDir, $params) {
+                                    $newDir = ($currentSort === $column && $currentDir === 'asc') ? 'desc' : 'asc';
+                                    $queryParams = array_merge($params, ['sort' => $column, 'dir' => $newDir]);
+                                    return '?' . http_build_query($queryParams);
+                                }
+                                
+                                function getSortIcon($column, $currentSort, $currentDir) {
+                                    if ($currentSort !== $column) {
+                                        return '<i class="fas fa-sort sort-icon"></i>';
+                                    }
+                                    return $currentDir === 'asc' 
+                                        ? '<i class="fas fa-sort-up sort-icon"></i>'
+                                        : '<i class="fas fa-sort-down sort-icon"></i>';
+                                }
+                                
+                                $queryParams = [
+                                    'page' => $page,
+                                    'owner' => $filterOwner,
+                                    'shared' => $filterShared,
+                                    'date_from' => $filterDateFrom,
+                                    'date_to' => $filterDateTo,
+                                    'search' => $searchTerm
+                                ];
+                                $queryParams = array_filter($queryParams, fn($v) => $v !== '');
+                                ?>
+                                <th class="sortable <?php echo $sortBy === 'original_filename' ? 'active' : ''; ?>">
+                                    <a href="<?php echo buildSortUrl('original_filename', $sortBy, $sortDir, $queryParams); ?>">
+                                        Archivo
+                                        <?php echo getSortIcon('original_filename', $sortBy, $sortDir); ?>
+                                    </a>
+                                </th>
+                                <th class="sortable <?php echo $sortBy === 'username' ? 'active' : ''; ?>">
+                                    <a href="<?php echo buildSortUrl('username', $sortBy, $sortDir, $queryParams); ?>">
+                                        Propietario
+                                        <?php echo getSortIcon('username', $sortBy, $sortDir); ?>
+                                    </a>
+                                </th>
+                                <th class="sortable <?php echo $sortBy === 'file_size' ? 'active' : ''; ?>" style="width: 100px;">
+                                    <a href="<?php echo buildSortUrl('file_size', $sortBy, $sortDir, $queryParams); ?>">
+                                        Tamaño
+                                        <?php echo getSortIcon('file_size', $sortBy, $sortDir); ?>
+                                    </a>
+                                </th>
+                                <th class="sortable <?php echo $sortBy === 'is_shared' ? 'active' : ''; ?>" style="width: 120px;">
+                                    <a href="<?php echo buildSortUrl('is_shared', $sortBy, $sortDir, $queryParams); ?>">
+                                        Compartido
+                                        <?php echo getSortIcon('is_shared', $sortBy, $sortDir); ?>
+                                    </a>
+                                </th>
+                                <th class="sortable <?php echo $sortBy === 'created_at' ? 'active' : ''; ?>" style="width: 140px;">
+                                    <a href="<?php echo buildSortUrl('created_at', $sortBy, $sortDir, $queryParams); ?>">
+                                        Fecha
+                                        <?php echo getSortIcon('created_at', $sortBy, $sortDir); ?>
+                                    </a>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -684,8 +762,11 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             
             <?php if ($totalPages > 1): ?>
                 <div class="pagination">
+                    <?php 
+                    $paginationParams = array_merge($queryParams, ['sort' => $sortBy, 'dir' => $sortDir]);
+                    ?>
                     <?php if ($page > 1): ?>
-                        <a href="?page=<?php echo $page - 1; ?><?php echo !empty($filterOwner) ? '&owner=' . urlencode($filterOwner) : ''; ?><?php echo !empty($filterShared) ? '&shared=' . urlencode($filterShared) : ''; ?><?php echo !empty($filterDateFrom) ? '&date_from=' . urlencode($filterDateFrom) : ''; ?><?php echo !empty($filterDateTo) ? '&date_to=' . urlencode($filterDateTo) : ''; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?>">
+                        <a href="?<?php echo http_build_query(array_merge($paginationParams, ['page' => $page - 1])); ?>">
                             <i class="fas fa-chevron-left"></i> Anterior
                         </a>
                     <?php else: ?>
@@ -697,7 +778,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     $endPage = min($totalPages, $page + 2);
                     
                     if ($startPage > 1): ?>
-                        <a href="?page=1<?php echo !empty($filterOwner) ? '&owner=' . urlencode($filterOwner) : ''; ?><?php echo !empty($filterShared) ? '&shared=' . urlencode($filterShared) : ''; ?><?php echo !empty($filterDateFrom) ? '&date_from=' . urlencode($filterDateFrom) : ''; ?><?php echo !empty($filterDateTo) ? '&date_to=' . urlencode($filterDateTo) : ''; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?>">1</a>
+                        <a href="?<?php echo http_build_query(array_merge($paginationParams, ['page' => 1])); ?>">1</a>
                         <?php if ($startPage > 2): ?>
                             <span>...</span>
                         <?php endif; ?>
@@ -707,7 +788,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                         <?php if ($i == $page): ?>
                             <span class="active"><?php echo $i; ?></span>
                         <?php else: ?>
-                            <a href="?page=<?php echo $i; ?><?php echo !empty($filterOwner) ? '&owner=' . urlencode($filterOwner) : ''; ?><?php echo !empty($filterShared) ? '&shared=' . urlencode($filterShared) : ''; ?><?php echo !empty($filterDateFrom) ? '&date_from=' . urlencode($filterDateFrom) : ''; ?><?php echo !empty($filterDateTo) ? '&date_to=' . urlencode($filterDateTo) : ''; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?>"><?php echo $i; ?></a>
+                            <a href="?<?php echo http_build_query(array_merge($paginationParams, ['page' => $i])); ?>"><?php echo $i; ?></a>
                         <?php endif; ?>
                     <?php endfor; ?>
                     
@@ -715,11 +796,11 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                         <?php if ($endPage < $totalPages - 1): ?>
                             <span>...</span>
                         <?php endif; ?>
-                        <a href="?page=<?php echo $totalPages; ?><?php echo !empty($filterOwner) ? '&owner=' . urlencode($filterOwner) : ''; ?><?php echo !empty($filterShared) ? '&shared=' . urlencode($filterShared) : ''; ?><?php echo !empty($filterDateFrom) ? '&date_from=' . urlencode($filterDateFrom) : ''; ?><?php echo !empty($filterDateTo) ? '&date_to=' . urlencode($filterDateTo) : ''; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?>"><?php echo $totalPages; ?></a>
+                        <a href="?<?php echo http_build_query(array_merge($paginationParams, ['page' => $totalPages])); ?>"><?php echo $totalPages; ?></a>
                     <?php endif; ?>
                     
                     <?php if ($page < $totalPages): ?>
-                        <a href="?page=<?php echo $page + 1; ?><?php echo !empty($filterOwner) ? '&owner=' . urlencode($filterOwner) : ''; ?><?php echo !empty($filterShared) ? '&shared=' . urlencode($filterShared) : ''; ?><?php echo !empty($filterDateFrom) ? '&date_from=' . urlencode($filterDateFrom) : ''; ?><?php echo !empty($filterDateTo) ? '&date_to=' . urlencode($filterDateTo) : ''; ?><?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?>">
+                        <a href="?<?php echo http_build_query(array_merge($paginationParams, ['page' => $page + 1])); ?>">
                             Siguiente <i class="fas fa-chevron-right"></i>
                         </a>
                     <?php else: ?>

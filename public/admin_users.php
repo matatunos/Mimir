@@ -801,7 +801,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     <i class="fas fa-users"></i> Usuarios
                 </a>
                 <a href="admin_files.php">
-                    <i class="fas fa-folder"></i> Archivos
+                    <i class="fas fa-file-alt"></i> Archivos
                 </a>
                 <a href="admin_config.php">
                     <i class="fas fa-cog"></i> Configuración

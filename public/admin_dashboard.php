@@ -475,12 +475,12 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
     <div class="navbar">
         <div class="navbar-content">
             <div class="navbar-brand">
-                <i class="fas fa-shield-alt"></i>
+                <i class="fas fa-cloud"></i>
                 <?php echo escapeHtml($siteName); ?>
             </div>
             <div class="navbar-menu">
                 <a href="dashboard.php">
-                    <i class="fas fa-folder"></i> Mis Archivos
+                    <i class="fas fa-home"></i> Dashboard
                 </a>
                 <a href="admin_dashboard.php" class="active">
                     <i class="fas fa-chart-line"></i> Panel Admin
@@ -489,7 +489,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     <i class="fas fa-users"></i> Usuarios
                 </a>
                 <a href="admin_files.php">
-                    <i class="fas fa-folder"></i> Archivos
+                    <i class="fas fa-file-alt"></i> Archivos
                 </a>
                 <a href="admin_config.php">
                     <i class="fas fa-cog"></i> Configuración
