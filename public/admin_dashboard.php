@@ -485,8 +485,11 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 <a href="admin_dashboard.php" class="active">
                     <i class="fas fa-chart-line"></i> Panel Admin
                 </a>
-                <a href="admin.php">
+                <a href="admin_users.php">
                     <i class="fas fa-users"></i> Usuarios
+                </a>
+                <a href="admin_files.php">
+                    <i class="fas fa-folder"></i> Archivos
                 </a>
                 <a href="logout.php">
                     <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
