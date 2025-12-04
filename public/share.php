@@ -449,22 +449,6 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                         </div>
                     </div>
                 </div>
-            <?php else: ?>
-                <div class="detail-item">
-                    <div class="detail-icon">
-                        <i class="fas fa-download"></i>
-                    </div>
-                    <div class="detail-content">
-                        <div class="detail-label">Descargas Restantes</div>
-                        <div class="detail-value">
-                            <?php echo ($share['max_downloads'] - $share['current_downloads']); ?> de <?php echo $share['max_downloads']; ?>
-                            <span class="badge badge-info" style="margin-left: 0.5rem;">
-                                <i class="fas fa-hashtag"></i>
-                                <?php echo $share['current_downloads']; ?> usadas
-                            </span>
-                        </div>
-                    </div>
-                </div>
             <?php endif; ?>
         </div>
         

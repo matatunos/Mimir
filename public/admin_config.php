@@ -96,6 +96,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Configuración de seguridad actualizada';
             $messageType = 'success';
             break;
+            
+        case 'update_email':
+            SystemConfig::set('enable_email_notifications', isset($_POST['enable_email_notifications']) ? 'true' : 'false', 'boolean');
+            SystemConfig::set('smtp_host', $_POST['smtp_host'] ?? '', 'string');
+            SystemConfig::set('smtp_port', $_POST['smtp_port'] ?? '587', 'integer');
+            SystemConfig::set('smtp_username', $_POST['smtp_username'] ?? '', 'string');
+            
+            if (!empty($_POST['smtp_password'])) {
+                SystemConfig::set('smtp_password', $_POST['smtp_password'], 'string');
+            }
+            
+            SystemConfig::set('smtp_from_email', $_POST['smtp_from_email'] ?? 'noreply@mimir.local', 'string');
+            SystemConfig::set('smtp_from_name', $_POST['smtp_from_name'] ?? 'Mimir Storage', 'string');
+            
+            $message = 'Configuración de email actualizada correctamente';
+            $messageType = 'success';
+            break;
     }
 }
 
@@ -119,6 +136,14 @@ $ldapFullnameAttr = SystemConfig::get('ldap_fullname_attribute', 'displayName');
 // Security config
 $enablePasswordShares = SystemConfig::get('enable_password_shares', true);
 $maxShareDays = SystemConfig::get('max_share_time_days', 30);
+
+// Email config
+$emailEnabled = SystemConfig::get('enable_email_notifications', false);
+$smtpHost = SystemConfig::get('smtp_host', '');
+$smtpPort = SystemConfig::get('smtp_port', 587);
+$smtpUsername = SystemConfig::get('smtp_username', '');
+$smtpFromEmail = SystemConfig::get('smtp_from_email', 'noreply@mimir.local');
+$smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -530,6 +555,9 @@ $maxShareDays = SystemConfig::get('max_share_time_days', 30);
             <div class="tab" onclick="switchTab('branding')">
                 <i class="fas fa-palette"></i> Personalización
             </div>
+            <div class="tab" onclick="switchTab('email')">
+                <i class="fas fa-envelope"></i> Email/SMTP
+            </div>
             <div class="tab" onclick="switchTab('ldap')">
                 <i class="fas fa-network-wired"></i> Active Directory
             </div>
@@ -628,6 +656,87 @@ $maxShareDays = SystemConfig::get('max_share_time_days', 30);
                     
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> Guardar Enlaces
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Email Settings -->
+        <div id="tab-email" class="tab-content">
+            <div class="info-box">
+                <strong><i class="fas fa-info-circle"></i> Notificaciones por Email</strong>
+                Configura el servidor SMTP para enviar notificaciones automáticas al compartir archivos. Los emails incluirán:
+                <ul>
+                    <li>Enlace de descarga directo</li>
+                    <li>Información de expiración</li>
+                    <li>Contraseña de acceso (si aplica)</li>
+                    <li>Copia automática al propietario</li>
+                </ul>
+            </div>
+            
+            <div class="section">
+                <div class="section-header">
+                    <h2><i class="fas fa-envelope"></i> Configuración SMTP</h2>
+                </div>
+                
+                <form method="POST">
+                    <input type="hidden" name="action" value="update_email">
+                    
+                    <div class="form-group-checkbox">
+                        <input type="checkbox" name="enable_email_notifications" id="emailEnabled" <?php echo $emailEnabled ? 'checked' : ''; ?>>
+                        <label for="emailEnabled">Habilitar Notificaciones por Email</label>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Servidor SMTP</label>
+                            <input type="text" name="smtp_host" value="<?php echo escapeHtml($smtpHost); ?>" placeholder="smtp.gmail.com">
+                            <div class="form-hint">Hostname del servidor SMTP</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Puerto SMTP</label>
+                            <input type="number" name="smtp_port" value="<?php echo $smtpPort; ?>">
+                            <div class="form-hint">587 (TLS) o 465 (SSL)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Usuario SMTP</label>
+                            <input type="text" name="smtp_username" value="<?php echo escapeHtml($smtpUsername); ?>" placeholder="usuario@dominio.com">
+                            <div class="form-hint">Usuario para autenticación SMTP</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Contraseña SMTP</label>
+                            <input type="password" name="smtp_password" placeholder="••••••••">
+                            <div class="form-hint">Dejar vacío para no cambiar</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Email Remitente</label>
+                            <input type="email" name="smtp_from_email" value="<?php echo escapeHtml($smtpFromEmail); ?>" placeholder="noreply@tudominio.com">
+                            <div class="form-hint">Dirección que aparecerá como remitente</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Nombre Remitente</label>
+                            <input type="text" name="smtp_from_name" value="<?php echo escapeHtml($smtpFromName); ?>" placeholder="Mimir Storage">
+                            <div class="form-hint">Nombre que aparecerá como remitente</div>
+                        </div>
+                    </div>
+                    
+                    <div class="warning-box">
+                        <strong>⚠️ Importante:</strong>
+                        Para Gmail, necesitas usar una "Contraseña de aplicación" en lugar de tu contraseña normal. 
+                        Para otros proveedores, consulta su documentación sobre SMTP.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar Configuración Email
                     </button>
                 </form>
             </div>

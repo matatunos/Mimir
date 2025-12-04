@@ -27,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shareType = $_POST['share_type'] ?? '';
     $value = $_POST['value'] ?? '';
     $password = $_POST['password'] ?? '';
+    $recipientEmail = $_POST['recipient_email'] ?? '';
     
     if (empty($shareType) || empty($value)) {
         $message = 'Por favor completa todos los campos';
@@ -35,7 +36,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $share = $shareManager->createShare($fileId, $userId, $shareType, $value, $password);
             $shareUrl = $share['url'];
-            $message = 'Enlace de compartir creado correctamente!';
+            
+            // Send email notification if recipient email is provided
+            if (!empty($recipientEmail) && filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+                // Get user info
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare("SELECT username, email FROM users WHERE id = ?");
+                $stmt->execute([$userId]);
+                $owner = $stmt->fetch();
+                
+                // Prepare email details
+                $expirationInfo = '';
+                if ($shareType === 'time') {
+                    $expirationInfo = "Expira el: " . date('d/m/Y H:i', strtotime("+$value days"));
+                } else {
+                    $expirationInfo = "Descargas máximas: $value";
+                }
+                
+                $passwordInfo = !empty($password) ? "\n\nContraseña de acceso: $password" : '';
+                
+                // Send to recipient
+                Notification::sendShareLink(
+                    $recipientEmail,
+                    $file['original_filename'],
+                    $shareUrl,
+                    $expirationInfo,
+                    $owner['username'],
+                    $passwordInfo
+                );
+                
+                // Send copy to owner
+                if (!empty($owner['email'])) {
+                    Notification::sendShareLinkCopy(
+                        $owner['email'],
+                        $recipientEmail,
+                        $file['original_filename'],
+                        $shareUrl,
+                        $expirationInfo
+                    );
+                }
+                
+                $message = 'Enlace creado y enviado por email correctamente!';
+            } else {
+                $message = 'Enlace de compartir creado correctamente!';
+            }
+            
             $messageType = 'success';
         } catch (Exception $e) {
             $message = 'Error al crear el enlace: ' . $e->getMessage();
@@ -527,6 +572,22 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     </div>
                 </div>
                 <?php endif; ?>
+                
+                <div class="form-section" style="margin-top: 1.5rem;">
+                    <h3><i class="fas fa-envelope"></i> Enviar por Email (Opcional)</h3>
+                    <div class="value-input-container">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="recipient_email">
+                                <i class="fas fa-at"></i>
+                                Email del Destinatario
+                            </label>
+                            <input type="email" id="recipient_email" name="recipient_email" placeholder="destinatario@ejemplo.com">
+                            <div class="form-hint" style="margin-top: 0.5rem; color: #64748b; font-size: 0.875rem;">
+                                Si introduces un email, se enviará el enlace automáticamente con información de expiración. También recibirás una copia.
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">
