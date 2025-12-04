@@ -22,6 +22,10 @@ require_once __DIR__ . '/Notification.php';
 
 /**
  * CSRF Token functions
+ * NOTE: CSRF protection is available but not currently enforced in forms.
+ * To enable: Add generateCsrfToken() to forms and verify in POST handlers.
+ * Example in form: <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+ * Example in handler: if (!verifyCsrfToken($_POST['csrf_token'])) { die('CSRF validation failed'); }
  */
 function generateCsrfToken() {
     if (!isset($_SESSION[CSRF_TOKEN_NAME])) {

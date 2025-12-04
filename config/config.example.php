@@ -45,6 +45,9 @@ ini_set('display_errors', 1);
 $dirs = [UPLOAD_DIR, TEMP_DIR, LOG_DIR];
 foreach ($dirs as $dir) {
     if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+        if (!@mkdir($dir, 0755, true)) {
+            error_log("Failed to create directory: $dir");
+            die("Error: Could not create required directory: $dir. Please create it manually and ensure proper permissions.");
+        }
     }
 }

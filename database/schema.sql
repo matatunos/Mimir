@@ -115,8 +115,3 @@ INSERT INTO system_config (config_key, config_value, config_type, description) V
 ('smtp_from_name', 'Mimir Storage', 'string', 'From name'),
 ('site_name', 'Mimir', 'string', 'Site name'),
 ('allow_registration', 'true', 'boolean', 'Allow user registration');
-
--- Create default admin user (password: admin123 - CHANGE THIS!)
--- Password hash for 'admin123' using PASSWORD_DEFAULT
-INSERT INTO users (username, email, password_hash, role, is_active) VALUES
-('admin', 'admin@mimir.local', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', TRUE);

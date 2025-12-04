@@ -150,9 +150,28 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
     
     function copyShareUrl() {
         const input = document.getElementById('shareUrl');
+        const url = input.value;
+        
+        // Modern Clipboard API with fallback
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Share URL copied to clipboard!');
+            }).catch(() => {
+                fallbackCopyToClipboard(input);
+            });
+        } else {
+            fallbackCopyToClipboard(input);
+        }
+    }
+    
+    function fallbackCopyToClipboard(input) {
         input.select();
-        document.execCommand('copy');
-        alert('Share URL copied to clipboard!');
+        try {
+            document.execCommand('copy');
+            alert('Share URL copied to clipboard!');
+        } catch (err) {
+            alert('Failed to copy. Please copy manually.');
+        }
     }
     </script>
 </body>

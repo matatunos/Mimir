@@ -95,7 +95,8 @@ class Auth {
      */
     public static function requireLogin() {
         if (!self::isLoggedIn()) {
-            header('Location: /login.php');
+            $baseUrl = rtrim(BASE_URL, '/');
+            header('Location: ' . $baseUrl . '/login.php');
             exit;
         }
     }
@@ -106,7 +107,8 @@ class Auth {
     public static function requireAdmin() {
         self::requireLogin();
         if (!self::isAdmin()) {
-            header('Location: /dashboard.php');
+            $baseUrl = rtrim(BASE_URL, '/');
+            header('Location: ' . $baseUrl . '/dashboard.php');
             exit;
         }
     }
