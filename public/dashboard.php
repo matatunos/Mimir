@@ -922,11 +922,11 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     <thead>
                         <tr>
                             <th>Nombre</th>
-                            <th style="width: 100px;">Tamaño</th>
-                            <th style="width: 180px;">Descargas</th>
-                            <th style="width: 200px;">Estado</th>
-                            <th style="width: 140px;">Subido</th>
-                            <th style="width: 250px;">Acciones</th>
+                            <th style="width: 90px;">Tamaño</th>
+                            <th style="width: 130px;">Descargas</th>
+                            <th style="width: 160px;">Estado</th>
+                            <th style="width: 120px;">Subido</th>
+                            <th style="width: 140px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -938,24 +938,17 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                             </td>
                             <td><?php echo formatBytes($file['file_size']); ?></td>
                             <td>
-                                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                                     <!-- Descargas locales -->
-                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                        <span class="badge" style="background: #dbeafe; color: #1e40af; display: inline-flex; align-items: center; gap: 0.375rem;">
-                                            <i class="fas fa-user"></i> Local: <?php echo (int)$file['download_count']; ?>
-                                        </span>
-                                    </div>
+                                    <span class="badge" style="background: #dbeafe; color: #1e40af; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                        <i class="fas fa-user" style="font-size: 0.7rem;"></i> <?php echo (int)$file['download_count']; ?>
+                                    </span>
                                     
                                     <!-- Descargas externas (compartidas) -->
                                     <?php if ($file['share_id']): ?>
-                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                            <span class="badge" style="background: #d1fae5; color: #065f46; display: inline-flex; align-items: center; gap: 0.375rem;">
-                                                <i class="fas fa-globe"></i> Externa: <?php echo (int)$file['share_download_count']; ?>
-                                                <?php if ($file['share_max_downloads']): ?>
-                                                    / <?php echo $file['share_max_downloads']; ?>
-                                                <?php endif; ?>
-                                            </span>
-                                        </div>
+                                        <span class="badge" style="background: #d1fae5; color: #065f46; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                            <i class="fas fa-globe" style="font-size: 0.7rem;"></i> <?php echo (int)$file['share_download_count']; ?><?php if ($file['share_max_downloads']): ?>/<?php echo $file['share_max_downloads']; ?><?php endif; ?>
+                                        </span>
                                     <?php endif; ?>
                                 </div>
                             </td>
