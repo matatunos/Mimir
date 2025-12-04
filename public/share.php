@@ -48,6 +48,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title><?php echo escapeHtml($siteName); ?> - Shared File</title>
     <link rel="stylesheet" href="css/style.css">
 </head>

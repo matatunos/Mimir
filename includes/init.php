@@ -3,12 +3,12 @@
  * Initialization file - include this in all PHP pages
  */
 
+// Include configuration first
+require_once __DIR__ . '/../config/config.php';
+
 // Start session
 session_name(SESSION_NAME);
 session_start();
-
-// Include configuration
-require_once __DIR__ . '/../config/config.php';
 
 // Include all classes
 require_once __DIR__ . '/Database.php';
@@ -19,6 +19,7 @@ require_once __DIR__ . '/FileManager.php';
 require_once __DIR__ . '/FolderManager.php';
 require_once __DIR__ . '/ShareManager.php';
 require_once __DIR__ . '/Notification.php';
+require_once __DIR__ . '/LdapAuth.php';
 
 /**
  * CSRF Token functions

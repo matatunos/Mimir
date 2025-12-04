@@ -17,19 +17,19 @@ function showTab(tabName) {
 
 // Modal functions
 function showUploadModal() {
-    document.getElementById('uploadModal').style.display = 'block';
+    document.getElementById('uploadModal').classList.add('active');
 }
 
 function closeUploadModal() {
-    document.getElementById('uploadModal').style.display = 'none';
+    document.getElementById('uploadModal').classList.remove('active');
 }
 
 function showCreateFolderModal() {
-    document.getElementById('createFolderModal').style.display = 'block';
+    document.getElementById('createFolderModal').classList.add('active');
 }
 
 function closeCreateFolderModal() {
-    document.getElementById('createFolderModal').style.display = 'none';
+    document.getElementById('createFolderModal').classList.remove('active');
 }
 
 // Close modal when clicking outside
@@ -38,11 +38,11 @@ window.onclick = function(event) {
     const folderModal = document.getElementById('createFolderModal');
     
     if (event.target == uploadModal) {
-        uploadModal.style.display = 'none';
+        uploadModal.classList.remove('active');
     }
     
     if (event.target == folderModal) {
-        folderModal.style.display = 'none';
+        folderModal.classList.remove('active');
     }
 }
 

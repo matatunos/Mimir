@@ -1,11 +1,7 @@
 <?php
-require_once __DIR__ . '/../includes/init.php';
-
-Auth::requireAdmin();
-
-$tab = $_GET['tab'] ?? 'dashboard';
-$message = '';
-$messageType = '';
+// Redirect to new unified admin dashboard
+header('Location: admin_dashboard.php');
+exit;
 
 // Handle configuration updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -100,10 +96,11 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
     <div class="container">
         <div class="admin-panel">
             <div class="admin-sidebar">
-                <a href="?tab=dashboard" class="<?php echo $tab === 'dashboard' ? 'active' : ''; ?>">Dashboard</a>
-                <a href="?tab=users" class="<?php echo $tab === 'users' ? 'active' : ''; ?>">Users</a>
-                <a href="?tab=settings" class="<?php echo $tab === 'settings' ? 'active' : ''; ?>">Settings</a>
-                <a href="?tab=audit" class="<?php echo $tab === 'audit' ? 'active' : ''; ?>">Audit Log</a>
+                <a href="admin_dashboard.php">📊 Dashboard</a>
+                <a href="users.php">👥 Users</a>
+                <a href="?tab=settings" class="<?php echo $tab === 'settings' ? 'active' : ''; ?>">⚙️ Settings</a>
+                <a href="ldap_config.php">🔐 LDAP / AD Config</a>
+                <a href="?tab=audit" class="<?php echo $tab === 'audit' ? 'active' : ''; ?>">📋 Audit Log</a>
             </div>
             
             <div class="admin-content">

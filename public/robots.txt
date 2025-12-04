@@ -1,0 +1,21 @@
+User-agent: *
+Disallow: /share.php
+Disallow: /download.php
+Disallow: /delete_file.php
+Disallow: /share_file.php
+Disallow: /admin
+Disallow: /admin_dashboard.php
+Disallow: /users.php
+Disallow: /system_settings.php
+Disallow: /audit_logs.php
+Disallow: /ldap_config.php
+
+# Allow only public pages
+Allow: /index.php
+Allow: /login.php
+Allow: /css/
+Allow: /js/
+
+# Prevent indexing of shared files
+Disallow: /*?token=*
+Disallow: /*share*

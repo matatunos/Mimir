@@ -29,9 +29,57 @@ class Auth {
     }
 
     /**
-     * Login user
+     * Login user (hybrid: local first, then LDAP)
      */
     public function login($username, $password) {
+        // Try local authentication first
+        $localUser = $this->loginLocal($username, $password);
+        if ($localUser) {
+            return true;
+        }
+
+        // If local auth fails, try LDAP if enabled
+        require_once __DIR__ . '/LdapAuth.php';
+        $ldap = new LdapAuth();
+        
+        if ($ldap->isEnabled()) {
+            $ldapUser = $ldap->authenticate($username, $password);
+            
+            if ($ldapUser) {
+                // Create or update LDAP user in local database
+                $userId = $this->syncLdapUser($ldapUser);
+                
+                if ($userId) {
+                    // Update last login
+                    $updateStmt = $this->db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+                    $updateStmt->execute([$userId]);
+
+                    // Get user from database
+                    $stmt = $this->db->prepare("SELECT * FROM users WHERE id = ?");
+                    $stmt->execute([$userId]);
+                    $user = $stmt->fetch();
+
+                    // Set session
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['role'] = $user['role'];
+                    $_SESSION['email'] = $user['email'];
+                    $_SESSION['is_ldap'] = true;
+
+                    AuditLog::log($user['id'], 'user_login', 'user', $user['id'], "User logged in via LDAP: $username");
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Login with local credentials
+     */
+    private function loginLocal($username, $password) {
         try {
             $stmt = $this->db->prepare("SELECT * FROM users WHERE username = ? AND is_active = 1");
             $stmt->execute([$username]);
@@ -47,14 +95,50 @@ class Auth {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['email'] = $user['email'];
+                $_SESSION['is_ldap'] = false;
 
-                AuditLog::log($user['id'], 'user_login', 'user', $user['id'], "User logged in: $username");
+                AuditLog::log($user['id'], 'user_login', 'user', $user['id'], "User logged in locally: $username");
 
                 return true;
             }
             return false;
         } catch (PDOException $e) {
-            error_log("Login failed: " . $e->getMessage());
+            error_log("Local login failed: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Sync LDAP user to local database
+     */
+    private function syncLdapUser($ldapUser) {
+        try {
+            // Check if user already exists
+            $stmt = $this->db->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt->execute([$ldapUser['username']]);
+            $existing = $stmt->fetch();
+
+            if ($existing) {
+                // Update existing user
+                $updateStmt = $this->db->prepare("UPDATE users SET email = ? WHERE id = ?");
+                $updateStmt->execute([$ldapUser['email'], $existing['id']]);
+                return $existing['id'];
+            } else {
+                // Create new user (no password for LDAP users)
+                $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, role, is_active) VALUES (?, ?, ?, 'user', 1)");
+                $stmt->execute([
+                    $ldapUser['username'],
+                    $ldapUser['email'],
+                    '' // Empty password for LDAP users
+                ]);
+                
+                $userId = $this->db->lastInsertId();
+                AuditLog::log($userId, 'user_created_ldap', 'user', $userId, "LDAP user synced: {$ldapUser['username']}");
+                
+                return $userId;
+            }
+        } catch (PDOException $e) {
+            error_log("Sync LDAP user failed: " . $e->getMessage());
             return false;
         }
     }
@@ -95,8 +179,7 @@ class Auth {
      */
     public static function requireLogin() {
         if (!self::isLoggedIn()) {
-            $baseUrl = rtrim(BASE_URL, '/');
-            header('Location: ' . $baseUrl . '/login.php');
+            header('Location: login.php');
             exit;
         }
     }
@@ -107,8 +190,7 @@ class Auth {
     public static function requireAdmin() {
         self::requireLogin();
         if (!self::isAdmin()) {
-            $baseUrl = rtrim(BASE_URL, '/');
-            header('Location: ' . $baseUrl . '/dashboard.php');
+            header('Location: dashboard.php');
             exit;
         }
     }

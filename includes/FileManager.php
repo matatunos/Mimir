@@ -109,16 +109,35 @@ class FileManager {
      * Get files for a user
      */
     public function getUserFiles($userId, $folderId = null, $limit = 100, $offset = 0) {
+        $sql = "SELECT f.*, 
+                       s.id as share_id, 
+                       s.share_token as share_token, 
+                       s.expires_at as share_expires_at, 
+                       s.max_downloads as share_max_downloads, 
+                       s.current_downloads as share_download_count, 
+                       s.is_active as share_is_active,
+                       NULL as share_has_password
+                FROM files f
+                LEFT JOIN public_shares s ON f.id = s.file_id AND s.is_active = 1
+                WHERE f.user_id = ?";
+        
         if ($folderId === null) {
-            $stmt = $this->db->prepare("SELECT * FROM files WHERE user_id = ? AND folder_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?");
-            $stmt->execute([$userId, $limit, $offset]);
+            $sql .= " AND f.folder_id IS NULL";
+            $params = [$userId];
         } else {
-            $stmt = $this->db->prepare("SELECT * FROM files WHERE user_id = ? AND folder_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
-            $stmt->execute([$userId, $folderId, $limit, $offset]);
+            $sql .= " AND f.folder_id = ?";
+            $params = [$userId, $folderId];
         }
+        
+        $sql .= " ORDER BY f.created_at DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
-
+    
     /**
      * Download file
      */
