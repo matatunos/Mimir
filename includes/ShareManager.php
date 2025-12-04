@@ -12,7 +12,7 @@ class ShareManager {
     /**
      * Create a public share link
      */
-    public function createShare($fileId, $userId, $shareType, $value) {
+    public function createShare($fileId, $userId, $shareType, $value, $password = null) {
         try {
             // Validate share type
             if (!in_array($shareType, ['time', 'downloads'])) {
@@ -42,9 +42,17 @@ class ShareManager {
                 $maxDownloads = (int)$value;
             }
 
+            // Handle password protection
+            $passwordHash = null;
+            $requiresPassword = false;
+            if (!empty($password) && SystemConfig::get('enable_password_shares', true)) {
+                $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+                $requiresPassword = true;
+            }
+
             // Insert share
-            $stmt = $this->db->prepare("INSERT INTO public_shares (file_id, user_id, share_token, share_type, expires_at, max_downloads) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$fileId, $userId, $token, $shareType, $expiresAt, $maxDownloads]);
+            $stmt = $this->db->prepare("INSERT INTO public_shares (file_id, user_id, share_token, password_hash, requires_password, share_type, expires_at, max_downloads) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$fileId, $userId, $token, $passwordHash, $requiresPassword, $shareType, $expiresAt, $maxDownloads]);
 
             $shareId = $this->db->lastInsertId();
 
@@ -74,6 +82,21 @@ class ShareManager {
                                      WHERE s.share_token = ? AND s.is_active = 1");
         $stmt->execute([$token]);
         return $stmt->fetch();
+    }
+
+    /**
+     * Verify share password
+     */
+    public function verifySharePassword($share, $password) {
+        if (!$share['requires_password']) {
+            return true;
+        }
+
+        if (empty($password)) {
+            return false;
+        }
+
+        return password_verify($password, $share['password_hash']);
     }
 
     /**

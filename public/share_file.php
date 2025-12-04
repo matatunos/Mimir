@@ -26,18 +26,19 @@ $shareUrl = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shareType = $_POST['share_type'] ?? '';
     $value = $_POST['value'] ?? '';
+    $password = $_POST['password'] ?? '';
     
     if (empty($shareType) || empty($value)) {
-        $message = 'Please fill all fields';
+        $message = 'Por favor completa todos los campos';
         $messageType = 'error';
     } else {
         try {
-            $share = $shareManager->createShare($fileId, $userId, $shareType, $value);
+            $share = $shareManager->createShare($fileId, $userId, $shareType, $value, $password);
             $shareUrl = $share['url'];
-            $message = 'Share link created successfully!';
+            $message = 'Enlace de compartir creado correctamente!';
             $messageType = 'success';
         } catch (Exception $e) {
-            $message = 'Failed to create share: ' . $e->getMessage();
+            $message = 'Error al crear el enlace: ' . $e->getMessage();
             $messageType = 'error';
         }
     }
@@ -508,6 +509,24 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                         </div>
                     </div>
                 </div>
+                
+                <?php if (SystemConfig::get('enable_password_shares', true)): ?>
+                <div class="form-section" style="margin-top: 1.5rem;">
+                    <h3><i class="fas fa-lock"></i> Protección con Contraseña (Opcional)</h3>
+                    <div class="value-input-container">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="password">
+                                <i class="fas fa-key"></i>
+                                Contraseña para Descargar
+                            </label>
+                            <input type="password" id="password" name="password" placeholder="Dejar vacío para no proteger">
+                            <div class="form-hint" style="margin-top: 0.5rem; color: #64748b; font-size: 0.875rem;">
+                                Si añades una contraseña, será necesaria para descargar el archivo
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
                 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">

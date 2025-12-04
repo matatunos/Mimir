@@ -2,6 +2,9 @@
 require_once __DIR__ . '/../includes/init.php';
 
 $token = $_GET['token'] ?? null;
+$error = '';
+$requiresPassword = false;
+$passwordVerified = false;
 
 if (!$token) {
     die('Invalid share link');
@@ -14,8 +17,34 @@ if (!$share || !$shareManager->isShareValid($share)) {
     die('This share link is invalid or has expired');
 }
 
+// Check if password is required
+$requiresPassword = !empty($share['requires_password']);
+
+// Handle password submission
+if ($requiresPassword && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $password = $_POST['password'] ?? '';
+    
+    if ($shareManager->verifySharePassword($share, $password)) {
+        $passwordVerified = true;
+        // Store in session to avoid re-entering
+        $_SESSION['verified_shares'][$token] = true;
+    } else {
+        $error = 'Contraseña incorrecta';
+    }
+}
+
+// Check if already verified in session
+if ($requiresPassword && isset($_SESSION['verified_shares'][$token])) {
+    $passwordVerified = true;
+}
+
 // Download file
 if (isset($_GET['download'])) {
+    // Verify password if required
+    if ($requiresPassword && !$passwordVerified) {
+        die('Password required');
+    }
+    
     // Increment download count
     $shareManager->incrementDownloadCount($share['id']);
     
@@ -236,6 +265,96 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             background: #dbeafe;
             color: #1e40af;
         }
+        
+        .password-form {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .password-form h3 {
+            color: #92400e;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .password-form p {
+            color: #92400e;
+            margin-bottom: 1.5rem;
+            font-size: 0.9375rem;
+        }
+        
+        .password-input {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .password-input input {
+            flex: 1;
+            padding: 0.875rem;
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .password-input input:focus {
+            outline: none;
+            border-color: #d97706;
+        }
+        
+        .password-input button {
+            padding: 0.875rem 1.5rem;
+            background: #f59e0b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .password-input button:hover {
+            background: #d97706;
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            color: #991b1b;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .footer-links {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #f1f5f9;
+        }
+        
+        .footer-links a {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 0.8125rem;
+            padding: 0 0.75rem;
+            border-right: 1px solid #cbd5e1;
+        }
+        
+        .footer-links a:last-child {
+            border-right: none;
+        }
+        
+        .footer-links a:hover {
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -248,13 +367,49 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             <p>Archivo Compartido de forma Segura</p>
         </div>
         
-        <div class="file-preview">
-            <div class="file-icon">
-                <i class="fas fa-file-alt"></i>
+        <?php if ($requiresPassword && !$passwordVerified): ?>
+            <!-- Password Required -->
+            <?php if ($error): ?>
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <?php echo escapeHtml($error); ?>
+                </div>
+            <?php endif; ?>
+            
+            <div class="password-form">
+                <h3>
+                    <i class="fas fa-lock"></i>
+                    Archivo Protegido
+                </h3>
+                <p>Este archivo está protegido con contraseña. Por favor, introduce la contraseña para acceder.</p>
+                
+                <form method="POST">
+                    <div class="password-input">
+                        <input type="password" name="password" placeholder="Introduce la contraseña" required autofocus>
+                        <button type="submit">
+                            <i class="fas fa-unlock"></i>
+                            Verificar
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div class="file-name"><?php echo escapeHtml($share['original_filename']); ?></div>
-            <div class="file-size"><?php echo formatBytes($share['file_size']); ?></div>
-        </div>
+            
+            <div class="file-preview">
+                <div class="file-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="file-name"><?php echo escapeHtml($share['original_filename']); ?></div>
+                <div class="file-size"><?php echo formatBytes($share['file_size']); ?></div>
+            </div>
+        <?php else: ?>
+            <!-- File Details -->
+            <div class="file-preview">
+                <div class="file-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="file-name"><?php echo escapeHtml($share['original_filename']); ?></div>
+                <div class="file-size"><?php echo formatBytes($share['file_size']); ?></div>
+            </div>
         
         <div class="file-details">
             <div class="detail-item">
@@ -320,8 +475,23 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         
         <div class="footer-note">
             <i class="fas fa-shield-alt"></i>
-            Este enlace es de un solo uso y seguro
+            Este enlace es seguro
         </div>
+        <?php endif; ?>
+        
+        <?php 
+        // Footer links
+        $footerLinks = SystemConfig::get('footer_links', []);
+        if (!empty($footerLinks)): 
+        ?>
+            <div class="footer-links">
+                <?php foreach ($footerLinks as $link): ?>
+                    <a href="<?php echo escapeHtml($link['url']); ?>" target="_blank" rel="noopener noreferrer">
+                        <?php echo escapeHtml($link['label']); ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 </body>
 </html>
