@@ -143,8 +143,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $share = $shareManager->createShare($fileIdToShare, $userId, $shareType, $value, $password);
                     $shareUrl = $share['url'] ?? (BASE_URL . '/share.php?token=' . ($share['token'] ?? ''));
-                    // Audit log
-                    try { AuditLog::log($userId, 'share_created', 'file', $fileIdToShare, "Created share for file: $originalFilename"); } catch (Exception $e) {}
+                    // Audit log with extra details
+                    try {
+                        $details = sprintf('Created share for file: %s; type=%s; value=%s; recipient=%s', $originalFilename, $shareType, $value, $recipientEmail ?: '-');
+                        AuditLog::log($userId, 'share_created', 'file', $fileIdToShare, $details);
+                    } catch (Exception $e) {}
                     // Notify recipient if provided
                     if (!empty($recipientEmail) && filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
                         $db = Database::getInstance()->getConnection();
@@ -263,6 +266,8 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
     <div id="content">
         <div id="ajax-shares-container" class="hidden"></div>
         </script>
+            <!-- QR code lib (lightweight) -->
+            <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <script>
     // AJAX upload handler with progress
     document.addEventListener('DOMContentLoaded', function(){
@@ -370,11 +375,14 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
                         var url = json.share_url || '';
                         result.innerHTML = '<div class="card" style="padding:12px;margin-top:8px;">'
                             + '<h4 class="h4-title">Enlace creado</h4>'
+                            + '<div style="display:flex;gap:12px;align-items:center;">'
+                            + '<div id="shareQrContainer" style="width:120px;height:120px;background:#fff;border-radius:8px;padding:8px;display:flex;align-items:center;justify-content:center;border:1px solid #eef2f6"></div>'
+                            + '<div style="flex:1">'
                             + '<input type="text" id="shareUrlInput" class="monospace-secret" readonly value="' + url + '" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px;margin-top:6px;">'
                             + '<div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end;">'
                             + '<button id="copyShareBtn" class="btn btn-secondary">Copiar enlace</button>'
                             + '<a href="' + url + '" target="_blank" class="btn btn-primary">Abrir enlace</a>'
-                            + '</div></div>';
+                            + '</div></div></div></div>';
 
                         // attach copy handler
                         var copyBtn = document.getElementById('copyShareBtn');
@@ -385,6 +393,50 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
                                 document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-error">No se pudo copiar automáticamente. Selecciona el enlace y cópialo manualmente.</div>';
                             });
                         });
+
+                        // render QR into container using qrcode lib if available
+                        if (window.QRCode && document.getElementById('shareQrContainer')) {
+                            try {
+                                // prefer to render a canvas
+                                QRCode.toCanvas(document.getElementById('shareQrContainer'), url, { width: 112, margin: 0 });
+                            } catch (e) {
+                                // fallback: toDataURL
+                                QRCode.toDataURL(url).then(function(dataUrl){
+                                    var img = document.createElement('img'); img.src = dataUrl; img.style.maxWidth = '100%'; img.style.maxHeight = '100%';
+                                    var c = document.getElementById('shareQrContainer'); c.innerHTML = ''; c.appendChild(img);
+                                }).catch(function(){/* ignore */});
+                            }
+                        }
+
+                        // Update file row in DOM to reflect new share state
+                        var row = document.querySelector('tr[data-file-id="' + (json.original_filename ? '' : '') + '"]');
+                        // Try to find by file id from form
+                        var fileId = document.getElementById('shareFileId').value;
+                        if (!row) row = document.querySelector('tr[data-file-id="' + fileId + '"]');
+                        if (row) {
+                            // add badge and change share button
+                            var badges = row.querySelector('.badge-download');
+                            if (badges) {
+                                // ensure share badge exists
+                                var shareBadge = row.querySelector('.badge-share');
+                                if (!shareBadge) {
+                                    var span = document.createElement('span');
+                                    span.className = 'badge-share badge';
+                                    span.innerHTML = '<i class="fas fa-globe" style="font-size:0.7rem"></i> 0';
+                                    badges.parentNode.appendChild(span);
+                                }
+                            }
+                            // change share button to view
+                            var btn = row.querySelector('button[onclick^="showShareModal"]');
+                            if (btn) {
+                                var viewBtn = document.createElement('a');
+                                viewBtn.className = 'btn btn-sm btn-primary';
+                                viewBtn.href = 'dashboard.php';
+                                viewBtn.title = 'Ver compartido';
+                                viewBtn.innerHTML = '<i class="fas fa-eye"></i>';
+                                btn.parentNode.replaceChild(viewBtn, btn);
+                            }
+                        }
 
                         // Keep modal open so user can copy; do not reload
                     } else {
@@ -537,7 +589,7 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
                     </thead>
                     <tbody>
                         <?php foreach ($files as $file): ?>
-                        <tr>
+                        <tr data-file-id="<?php echo $file['id']; ?>">
                             <td>
                                 <i class="fas fa-file-alt icon-muted"></i>
                                 <?php echo escapeHtml($file['original_filename']); ?>

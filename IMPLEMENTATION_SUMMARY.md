@@ -35,8 +35,7 @@ Se ha implementado completamente el sistema de almacenamiento personal en la nub
 
 **Archivos**:
 - `includes/ShareManager.php` - Gestión de comparticiones
-- `public/share_file.php` - Crear compartición
-- `public/shares.php` - Gestionar comparticiones
+- Sharing UI: now implemented as a modal in `public/dashboard.php` (replaces `public/share_file.php` and `public/shares.php`).
 - `public/share.php` - Página pública de descarga
 - Base de datos: tabla `public_shares`
 

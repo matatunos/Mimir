@@ -260,8 +260,7 @@ Mimir/
 │   ├── index.php           # Página principal
 │   ├── login.php           # Login/Registro
 │   ├── dashboard.php       # Dashboard de usuario
-│   ├── share_file.php      # Crear compartición
-│   ├── shares.php          # Gestionar comparticiones
+│   ├── share modal in `dashboard.php`  # Crear/gestionar comparticiones (reemplaza `share_file.php`/`shares.php`)
 │   ├── share.php           # Acceso público a compartición
 │   ├── admin.php           # Panel de administración
 │   └── ...
