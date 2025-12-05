@@ -8,6 +8,14 @@ require_once __DIR__ . '/../config/config.php';
 
 // Start session
 session_name(SESSION_NAME);
+session_set_cookie_params([
+    'lifetime' => SESSION_LIFETIME,
+    'path' => '/',
+    'domain' => 'mimir.local',
+    'secure' => false, // true si usas https
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
 session_start();
 
 // Include all classes

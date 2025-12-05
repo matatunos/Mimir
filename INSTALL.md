@@ -4,10 +4,22 @@
 
 ### Paso 1: Requisitos Previos
 
+
 Asegúrate de tener instalado:
 - PHP 7.4 o superior
 - MySQL 5.7 / MariaDB 10.2 o superior
 - Apache con mod_rewrite habilitado
+- Extensiones PHP: mbstring, gd
+- Composer (para dependencias PHP)
+
+#### Requisitos de doble factor (TOTP/QR):
+- spomky-labs/otphp (TOTP)
+- endroid/qr-code (QR)
+
+Instala dependencias con:
+```bash
+composer require spomky-labs/otphp endroid/qr-code
+```
 
 ### Paso 2: Descargar el Código
 

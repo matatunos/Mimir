@@ -869,27 +869,30 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
         <div id="tab-security" class="tab-content">
             <div class="section">
                 <div class="section-header">
-                    <h2><i class="fas fa-lock"></i> Seguridad de Compartir Archivos</h2>
-                    <p>Configura opciones de seguridad para enlaces compartidos</p>
+                    <h2><i class="fas fa-shield-alt"></i> Seguridad de Compartir Archivos</h2>
+                    <p>Configura las opciones de seguridad para los enlaces compartidos. <i class="fas fa-info-circle" style="color:#667eea;"></i></p>
                 </div>
-                
+                <div class="info-box" style="margin-bottom:2rem;">
+                    <strong><i class="fas fa-question-circle"></i> ¿Qué puedes configurar aquí?</strong>
+                    <ul>
+                        <li><b>Protección con contraseña:</b> Permite a los usuarios añadir una contraseña opcional al compartir archivos, aumentando la seguridad de los enlaces.</li>
+                        <li><b>Tiempo máximo de validez:</b> Limita la duración máxima de los enlaces compartidos para evitar accesos prolongados no deseados.</li>
+                    </ul>
+                </div>
                 <form method="POST">
                     <input type="hidden" name="action" value="update_security">
-                    
                     <div class="form-group-checkbox">
                         <input type="checkbox" name="enable_password_shares" id="enablePasswordShares" <?php echo $enablePasswordShares ? 'checked' : ''; ?>>
-                        <label for="enablePasswordShares">Permitir protección con contraseña en enlaces compartidos</label>
+                        <label for="enablePasswordShares"><i class="fas fa-key"></i> Permitir protección con contraseña en enlaces compartidos</label>
                     </div>
                     <div class="form-hint" style="margin-bottom: 1.5rem;">
-                        Los usuarios podrán añadir una contraseña opcional al compartir archivos
+                        <i class="fas fa-lightbulb"></i> Los usuarios podrán añadir una contraseña opcional al compartir archivos para mayor seguridad.
                     </div>
-                    
                     <div class="form-group">
-                        <label>Tiempo máximo para enlaces compartidos (días)</label>
-                        <input type="number" name="max_share_time_days" value="<?php echo $maxShareDays; ?>" min="1" max="365">
-                        <div class="form-hint">Los usuarios no podrán crear enlaces que duren más de este tiempo</div>
+                        <label for="maxShareDays"><i class="fas fa-clock"></i> Tiempo máximo para enlaces compartidos (días)</label>
+                        <input type="number" id="maxShareDays" name="max_share_time_days" value="<?php echo $maxShareDays; ?>" min="1" max="365">
+                        <div class="form-hint"><i class="fas fa-info-circle"></i> Los usuarios no podrán crear enlaces que duren más de este tiempo. Recomendado: 30 días.</div>
                     </div>
-                    
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> Guardar Configuración
                     </button>

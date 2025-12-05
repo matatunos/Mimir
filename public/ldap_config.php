@@ -107,17 +107,18 @@ $ldapConfig = [
                                 <div class="col-md-8">
                                     <div class="mb-3">
                                         <label for="ldap_server" class="form-label">LDAP Server <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="ldap_server" name="ldap_server" 
-                                               value="<?php echo htmlspecialchars($ldapConfig['server']); ?>" 
-                                               placeholder="ldap.example.com or 192.168.1.100">
+                                             <input type="text" class="form-control" id="ldap_server" name="ldap_server" 
+                                                 value="<?php echo htmlspecialchars($ldapConfig['server']); ?>" 
+                                                 placeholder="ldap.ejemplo.com o 192.168.1.100">
                                         <small class="form-text text-muted">Hostname or IP address of LDAP/AD server</small>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="mb-3">
                                         <label for="ldap_port" class="form-label">Port <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="ldap_port" name="ldap_port" 
-                                               value="<?php echo htmlspecialchars($ldapConfig['port']); ?>">
+                                             <input type="number" class="form-control" id="ldap_port" name="ldap_port" 
+                                                 value="<?php echo htmlspecialchars($ldapConfig['port']); ?>"
+                                                 placeholder="389 o 636">
                                         <small class="form-text text-muted">389 (LDAP) or 636 (LDAPS)</small>
                                     </div>
                                 </div>
@@ -125,9 +126,9 @@ $ldapConfig = [
 
                             <div class="mb-3">
                                 <label for="ldap_base_dn" class="form-label">Base DN <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="ldap_base_dn" name="ldap_base_dn" 
-                                       value="<?php echo htmlspecialchars($ldapConfig['base_dn']); ?>" 
-                                       placeholder="dc=example,dc=com">
+                                    <input type="text" class="form-control" id="ldap_base_dn" name="ldap_base_dn" 
+                                        value="<?php echo htmlspecialchars($ldapConfig['base_dn']); ?>" 
+                                        placeholder="dc=empresa,dc=com">
                                 <small class="form-text text-muted">Base Distinguished Name for user searches</small>
                             </div>
 
@@ -152,16 +153,17 @@ $ldapConfig = [
 
                             <div class="mb-3">
                                 <label for="ldap_user_dn" class="form-label">User DN Pattern (optional)</label>
-                                <input type="text" class="form-control" id="ldap_user_dn" name="ldap_user_dn" 
-                                       value="<?php echo htmlspecialchars($ldapConfig['user_dn']); ?>" 
-                                       placeholder="cn={username},ou=users,dc=example,dc=com">
+                                    <input type="text" class="form-control" id="ldap_user_dn" name="ldap_user_dn" 
+                                        value="<?php echo htmlspecialchars($ldapConfig['user_dn']); ?>" 
+                                        placeholder="cn={username},ou=usuarios,dc=empresa,dc=com">
                                 <small class="form-text text-muted">If specified, will be used directly. Leave empty to search.</small>
                             </div>
 
                             <div class="mb-3">
                                 <label for="ldap_user_filter" class="form-label">User Search Filter</label>
-                                <input type="text" class="form-control" id="ldap_user_filter" name="ldap_user_filter" 
-                                       value="<?php echo htmlspecialchars($ldapConfig['user_filter']); ?>">
+                                    <input type="text" class="form-control" id="ldap_user_filter" name="ldap_user_filter" 
+                                        value="<?php echo htmlspecialchars($ldapConfig['user_filter']); ?>"
+                                        placeholder="(sAMAccountName={username}) o (uid={username})">
                                 <small class="form-text text-muted">
                                     AD: (sAMAccountName={username}) | OpenLDAP: (uid={username})
                                 </small>
@@ -174,15 +176,15 @@ $ldapConfig = [
 
                             <div class="mb-3">
                                 <label for="ldap_admin_dn" class="form-label">Bind DN</label>
-                                <input type="text" class="form-control" id="ldap_admin_dn" name="ldap_admin_dn" 
-                                       value="<?php echo htmlspecialchars($ldapConfig['admin_dn']); ?>" 
-                                       placeholder="cn=admin,dc=example,dc=com">
+                                    <input type="text" class="form-control" id="ldap_admin_dn" name="ldap_admin_dn" 
+                                        value="<?php echo htmlspecialchars($ldapConfig['admin_dn']); ?>" 
+                                        placeholder="cn=admin,dc=empresa,dc=com">
                             </div>
 
                             <div class="mb-3">
                                 <label for="ldap_admin_password" class="form-label">Bind Password</label>
-                                <input type="password" class="form-control" id="ldap_admin_password" name="ldap_admin_password" 
-                                       placeholder="Leave empty to keep current password">
+                                    <input type="password" class="form-control" id="ldap_admin_password" name="ldap_admin_password" 
+                                        placeholder="Dejar vacío para mantener la actual">
                             </div>
 
                             <hr>
@@ -193,22 +195,25 @@ $ldapConfig = [
                                 <div class="col-md-4">
                                     <div class="mb-3">
                                         <label for="ldap_username_attr" class="form-label">Username Attribute</label>
-                                        <input type="text" class="form-control" id="ldap_username_attr" name="ldap_username_attr" 
-                                               value="<?php echo htmlspecialchars($ldapConfig['username_attr']); ?>">
+                                             <input type="text" class="form-control" id="ldap_username_attr" name="ldap_username_attr" 
+                                                 value="<?php echo htmlspecialchars($ldapConfig['username_attr']); ?>"
+                                                 placeholder="sAMAccountName o uid">
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="mb-3">
                                         <label for="ldap_email_attr" class="form-label">Email Attribute</label>
-                                        <input type="text" class="form-control" id="ldap_email_attr" name="ldap_email_attr" 
-                                               value="<?php echo htmlspecialchars($ldapConfig['email_attr']); ?>">
+                                             <input type="text" class="form-control" id="ldap_email_attr" name="ldap_email_attr" 
+                                                 value="<?php echo htmlspecialchars($ldapConfig['email_attr']); ?>"
+                                                 placeholder="mail">
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="mb-3">
                                         <label for="ldap_displayname_attr" class="form-label">Display Name Attribute</label>
-                                        <input type="text" class="form-control" id="ldap_displayname_attr" name="ldap_displayname_attr" 
-                                               value="<?php echo htmlspecialchars($ldapConfig['displayname_attr']); ?>">
+                                             <input type="text" class="form-control" id="ldap_displayname_attr" name="ldap_displayname_attr" 
+                                                 value="<?php echo htmlspecialchars($ldapConfig['displayname_attr']); ?>"
+                                                 placeholder="displayName">
                                     </div>
                                 </div>
                             </div>

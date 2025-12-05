@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     ldap_enabled BOOLEAN DEFAULT FALSE,
     ldap_dn VARCHAR(255),
     twofa_enabled BOOLEAN DEFAULT FALSE,
-    twofa_secret VARCHAR(64),
+    twofa_secret VARCHAR(128),
     duo_enabled BOOLEAN DEFAULT FALSE,
     duo_user_id VARCHAR(128),
     INDEX idx_username (username),

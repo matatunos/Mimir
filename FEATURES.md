@@ -321,8 +321,13 @@ Mimir es un sistema completo de almacenamiento personal en la nube desarrollado 
 7. **Documentado**: Documentación completa incluida
 8. **Open Source**: Código fuente disponible y modificable
 
-## Próximas Características Potenciales
 
+## Autenticación de dos factores (2FA)
+- Soporte TOTP (Google Authenticator, Authy, etc.)
+- Generación de QR para apps móviles
+- Gestión de 2FA por el administrador (activar, regenerar, bloquear)
+
+## Próximas Características Potenciales
 - Previsualización de archivos (imágenes, PDFs)
 - Búsqueda de archivos
 - Etiquetas y metadatos personalizados
@@ -333,6 +338,5 @@ Mimir es un sistema completo de almacenamiento personal en la nube desarrollado 
 - Aplicación móvil
 - Integración con almacenamiento en la nube (S3, etc.)
 - Cifrado de archivos en reposo
-- Autenticación de dos factores
 - Temas personalizables
 - Multi-idioma

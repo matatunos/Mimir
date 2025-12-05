@@ -13,21 +13,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action']) && $_POST['action'] === 'login') {
         $username = $_POST['username'] ?? '';
         $password = $_POST['password'] ?? '';
-        
+        $totp = $_POST['totp'] ?? '';
+        $twofa_required = false;
+        $user = null;
         if (empty($username) || empty($password)) {
             $error = 'Please enter username and password';
         } else {
-            $auth = new Auth();
-            if ($auth->login($username, $password)) {
-                // Redirección según rol
-                if ($_SESSION['role'] === 'admin') {
-                    header('Location: admin_dashboard.php');
-                } else {
-                    header('Location: dashboard.php');
-                }
-                exit;
+            // Comprobar si el usuario tiene 2FA y si está activo globalmente
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare('SELECT id, twofa_enabled, twofa_secret, role FROM users WHERE username = ? AND is_active = 1');
+            $stmt->execute([$username]);
+            $user = $stmt->fetch();
+            $twofa_global = SystemConfig::get('twofa_enabled', false);
+            if ($user && $twofa_global && $user['twofa_enabled'] && !empty($user['twofa_secret'])) {
+                $twofa_required = true;
+            }
+            if ($twofa_required && empty($totp)) {
+                // Mostrar campo TOTP en el formulario
+                $show_totp = true;
+                $error = '';
             } else {
-                $error = 'Invalid username or password';
+                $auth = new Auth();
+                if ($auth->login($username, $password)) {
+                    // Si requiere 2FA, validar TOTP
+                    if ($twofa_required) {
+                        require_once __DIR__ . '/../vendor/autoload.php';
+                        $otp = \OTPHP\TOTP::create($user['twofa_secret']);
+                        if (!$otp->verify($totp)) {
+                            $error = 'Código TOTP inválido';
+                            $show_totp = true;
+                            // Cerrar sesión si se había abierto
+                            session_destroy();
+                        } else {
+                            // Redirección según rol
+                            if ($user['role'] === 'admin') {
+                                header('Location: admin_dashboard.php');
+                            } else {
+                                header('Location: dashboard.php');
+                            }
+                            exit;
+                        }
+                    } else {
+                        // Redirección según rol
+                        if ($_SESSION['role'] === 'admin') {
+                            header('Location: admin_dashboard.php');
+                        } else {
+                            header('Location: dashboard.php');
+                        }
+                        exit;
+                    }
+                } else {
+                    $error = 'Invalid username or password';
+                }
             }
         }
     } elseif (isset($_POST['action']) && $_POST['action'] === 'register') {
@@ -96,17 +133,20 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             <div id="login-tab" class="tab-content active">
                 <form method="POST" action="">
                     <input type="hidden" name="action" value="login">
-                    
                     <div class="form-group">
                         <label for="username">Username</label>
-                        <input type="text" id="username" name="username" required autofocus>
+                        <input type="text" id="username" name="username" required autofocus value="<?php echo isset($username) ? escapeHtml($username) : '' ?>">
                     </div>
-                    
                     <div class="form-group">
                         <label for="password">Password</label>
                         <input type="password" id="password" name="password" required>
                     </div>
-                    
+                    <?php if (!empty($show_totp)): ?>
+                    <div class="form-group">
+                        <label for="totp">Código TOTP</label>
+                        <input type="text" id="totp" name="totp" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+                    </div>
+                    <?php endif; ?>
                     <button type="submit" class="btn btn-primary">Login</button>
                 </form>
             </div>

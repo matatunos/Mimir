@@ -1,3 +1,75 @@
+/* Modal flotante genérico */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(30,41,59,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.modal-content {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(30,41,59,0.18);
+    padding: 2rem 2rem 1.5rem 2rem;
+    min-width: 320px;
+    max-width: 420px;
+    width: 100%;
+    position: relative;
+    animation: modalIn 0.18s ease;
+}
+@keyframes modalIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.2rem;
+}
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.3em;
+    color: #64748b;
+    cursor: pointer;
+    padding: 0.2em 0.4em;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+.modal-close:hover {
+    background: #f1f5f9;
+    color: #dc2626;
+}
+/* Botón icono circular para acciones rápidas (2FA, editar, etc) */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2em;
+    height: 2.2em;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #6366f1;
+    border: none;
+    font-size: 1.15em;
+    margin: 0 0.15em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.04);
+}
+.btn-icon:hover {
+    background: #6366f1;
+    color: #fff;
+}
+.btn-icon i {
+    pointer-events: none;
+}
 /* Estilos modernos para el árbol de carpetas en dashboard */
 .folder-grid {
     display: grid;
@@ -680,6 +752,47 @@ body {
     color: var(--primary-700);
     font-weight: 600;
 }
+
+/* Table badges and action buttons: compact, aligned */
+.data-table td {
+    vertical-align: middle;
+}
+.data-table td .badge {
+    margin-left: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+}
+.data-table td .actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.btn-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+    margin: 0 0.15em;
+}
+.btn-icon i {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+.data-table td .badge .fas, .data-table td .badge .far {
+    margin-right: 0.25rem;
+}
+
+/* Make action buttons less prominent but clear */
+.data-table td button {
+    background: transparent;
+    border: none;
+    padding: 0.15rem;
+    cursor: pointer;
+}
+.data-table td button:hover { opacity: 0.9; }
 
 .admin-table thead th {
     text-align: left;

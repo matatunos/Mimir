@@ -109,9 +109,51 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
 <head>
     <meta charset="UTF-8">
     <title>Panel de Administración - Mimir</title>
-    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
+        <!-- Modal de edición de usuario -->
+        <div id="editUserModal" class="modal" style="display:none;">
+            <div class="modal-content" style="max-width: 420px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-edit"></i> Editar Usuario</h3>
+                    <button class="modal-close" onclick="closeEditUserModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="editUserModalBody" style="padding: 1.5rem 0.5rem 0.5rem 0.5rem; text-align: left;">
+                    <form id="editUserForm">
+                        <input type="hidden" name="user_id" id="editUserId">
+                        <div style="margin-bottom:1em;">
+                            <label>Usuario:</label>
+                            <input type="text" name="username" id="editUsername" required>
+                        </div>
+                        <div style="margin-bottom:1em;">
+                            <label>Email:</label>
+                            <input type="email" name="email" id="editEmail" required>
+                        </div>
+                        <div style="margin-bottom:1em;">
+                            <label>Rol:</label>
+                            <select name="role" id="editRole">
+                                <option value="user">Usuario</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom:1em;">
+                            <label>Método de Doble Factor</label>
+                            <select name="twofa_method" id="edit2FAMethod">
+                                <option value="none">Ninguno</option>
+                                <option value="totp">TOTP (App Authenticator)</option>
+                                <option value="duo">Duo Security</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </form>
+                    <div id="editUserMsg" style="margin-top:1em;"></div>
+                </div>
+            </div>
+        </div>
     <div id="menu">
         <div class="logo">Mimir Admin</div>
         <div class="nav">
@@ -154,6 +196,15 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             <table class="data-table">
                 <thead>
                     <tr>
+                        <?php
+                        $twofa_method = 'none';
+                        if (!empty($user['duo_enabled'])) {
+                            $twofa_method = 'duo';
+                        } else if (!empty($user['twofa_enabled'])) {
+                            $twofa_method = 'totp';
+                        }
+                        ?>
+                        <tr data-user-id="<?php echo $user['id']; ?>" data-twofa-method="<?php echo $twofa_method; ?>">
                         <th>Usuario</th>
                         <th>Rol</th>
                         <th>Archivos</th>
@@ -247,6 +298,72 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             </table>
             <div id="auditLogPagination" style="margin:1em 0;"></div>
             <script>
+            function block2FA(userId) {
+                if (!confirm('¿Seguro que quieres desactivar el doble factor para este usuario?')) return;
+                fetch('./admin_user_2fa.php?action=block&user_id=' + encodeURIComponent(userId), {
+                    credentials: 'same-origin'
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Doble factor desactivado');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.error || 'No se pudo desactivar 2FA'));
+                    }
+                })
+                .catch(() => {
+                    alert('Error de red o backend');
+                });
+            }
+            // Modal edición usuario
+            function editUser(userId) {
+                // Buscar datos del usuario en la tabla
+                var row = document.querySelector('tr[data-user-id="'+userId+'"]');
+                if (!row) {
+                    // fallback: buscar por id en la tabla
+                    var rows = document.querySelectorAll('#userTable tbody tr');
+                    rows.forEach(function(r){
+                        if (r.cells[0].textContent == userId) row = r;
+                    });
+                }
+                // Si tienes los datos en JS, puedes hacer fetch a backend aquí
+                // Para demo, los tomamos de la tabla
+                document.getElementById('editUserId').value = userId;
+                document.getElementById('editUsername').value = row ? row.cells[0].textContent : '';
+                document.getElementById('editEmail').value = row ? row.cells[1].textContent : '';
+                document.getElementById('editRole').value = row ? row.cells[2].textContent.toLowerCase() : 'user';
+                    // Precargar método 2FA de atributo data-twofa-method
+                    let twofa = row ? row.getAttribute('data-twofa-method') : 'none';
+                    document.getElementById('edit2FAMethod').value = twofa;
+                document.getElementById('editUserModal').style.display = 'block';
+            }
+            function closeEditUserModal() {
+                document.getElementById('editUserModal').style.display = 'none';
+                document.getElementById('editUserForm').reset();
+                document.getElementById('editUserMsg').innerHTML = '';
+            }
+            document.getElementById('editUserForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                var form = e.target;
+                var data = new FormData(form);
+                fetch('admin_user_crud.php', {
+                    method: 'POST',
+                    body: data
+                })
+                .then(res => res.json())
+                .then(json => {
+                    if(json.success) {
+                        document.getElementById('editUserMsg').innerHTML = '<span style="color:green;">Usuario actualizado correctamente</span>';
+                        setTimeout(function(){
+                            closeEditUserModal();
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        document.getElementById('editUserMsg').innerHTML = '<span style="color:red;">'+(json.error||'Error al actualizar usuario')+'</span>';
+                    }
+                });
+            });
             let auditLogPage = 0;
             function loadAuditLogs(page=0, filter='') {
                 fetch('admin_auditlog_ajax.php?page='+page+'&filter='+encodeURIComponent(filter))
@@ -293,6 +410,13 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     <div class="config-item"><label>Rol</label>
                         <select name="role"><option value="user">Usuario</option><option value="admin">Administrador</option></select>
                     </div>
+                    <div class="config-item"><label>Método de Doble Factor</label>
+                        <select name="twofa_method" id="create2FAMethod">
+                            <option value="none">Ninguno</option>
+                            <option value="totp">TOTP (App Authenticator)</option>
+                            <option value="duo">Duo Security</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn-save">Guardar</button>
                     <button type="button" class="btn-save" style="background:#64748b;" onclick="hideUserForm()">Cancelar</button>
                 </form>
@@ -301,13 +425,14 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             <input type="text" id="userFilter" placeholder="Filtrar usuarios..." onkeyup="filterTable('userFilter','userTable')" style="margin-bottom:1em;">
             <table class="data-table" id="userTable">
                 <thead>
-                    <tr>
-                        <th onclick="sortTable('userTable',0)">Usuario</th>
-                        <th onclick="sortTable('userTable',1)">Email</th>
-                        <th onclick="sortTable('userTable',2)">Rol</th>
-                        <th onclick="sortTable('userTable',3)">Archivos</th>
-                        <th onclick="sortTable('userTable',4)">Espacio Ocupado</th>
-                        <th onclick="sortTable('userTable',5)">Último Login</th>
+                    <tr data-user-id="<?php echo $user['id']; ?>">
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Archivos</th>
+                        <th>Espacio Ocupado</th>
+                        <th>Último Login</th>
+                        <th>2FA</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -316,7 +441,15 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     $stmt = $db->query("SELECT u.*, COUNT(f.id) as file_count, COALESCE(SUM(f.file_size),0) as used FROM users u LEFT JOIN files f ON u.id = f.user_id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 100");
                     $users = $stmt->fetchAll();
                     foreach ($users as $user): ?>
-                    <tr>
+                    <?php
+                    $twofa_method = 'none';
+                    if (!empty($user['duo_enabled'])) {
+                        $twofa_method = 'duo';
+                    } else if (!empty($user['twofa_enabled'])) {
+                        $twofa_method = 'totp';
+                    }
+                    ?>
+                    <tr data-user-id="<?php echo $user['id']; ?>" data-twofa-method="<?php echo $twofa_method; ?>">
                         <td><?php echo escapeHtml($user['username']); ?></td>
                         <td><?php echo escapeHtml($user['email']); ?></td>
                         <td><span class="badge badge-<?php echo $user['role']; ?>"><?php echo strtoupper($user['role']); ?></span></td>
@@ -324,12 +457,86 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                         <td><?php echo formatBytes($user['used']); ?></td>
                         <td><?php echo $user['last_login'] ? date('d M Y H:i', strtotime($user['last_login'])) : 'Nunca'; ?></td>
                         <td>
-                            <button onclick="editUser('<?php echo $user['id']; ?>')">Editar</button>
-                            <button onclick="deleteUser('<?php echo $user['id']; ?>')" style="background:#ef4444;color:#fff;">Eliminar</button>
+                            <div class="actions">
+                            <?php if (!empty($user['duo_enabled'])): ?>
+                                <span class="badge badge-info"><i class="fas fa-user-shield"></i> Duo</span>
+                                <button type="button" class="btn-icon" title="Desactivar Duo" onclick="block2FA(<?php echo $user['id']; ?>)"><i class="fas fa-ban"></i></button>
+                            <?php elseif (!empty($user['twofa_enabled'])): ?>
+                                <span class="badge badge-success"><i class="fas fa-qrcode"></i> TOTP</span>
+                                <button type="button" class="btn-icon" title="Regenerar QR" onclick="show2FAModal(<?php echo $user['id']; ?>, '<?php echo escapeHtml($user['username']); ?>', true)"><i class="fas fa-sync-alt"></i></button>
+                                <button type="button" class="btn-icon" title="Desactivar 2FA" onclick="block2FA(<?php echo $user['id']; ?>)"><i class="fas fa-ban"></i></button>
+                            <?php else: ?>
+                                <span class="badge badge-secondary"><i class="fas fa-times-circle"></i> Ninguno</span>
+                                <button type="button" class="btn-icon" title="Activar TOTP" onclick="show2FAModal(<?php echo $user['id']; ?>, '<?php echo escapeHtml($user['username']); ?>', false)"><i class="fas fa-qrcode"></i></button>
+                            <?php endif; ?>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-sm" onclick="editUser('<?php echo $user['id']; ?>')"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteUser('<?php echo $user['id']; ?>')"><i class="fas fa-trash"></i></button>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
+                <!-- 2FA Modal -->
+                <div id="twofaModal" class="modal" style="display:none;">
+                    <div class="modal-content" style="max-width: 420px;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-qrcode"></i> Doble Factor (TOTP)</h3>
+                            <button class="modal-close" onclick="close2FAModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="twofaModalBody" style="padding: 1.5rem 0.5rem 0.5rem 0.5rem; text-align: center;">
+                            <div id="twofaLoading">Cargando...</div>
+                            <div id="twofaContent" style="display:none;">
+                                <img id="twofaQr" src="" alt="QR TOTP" style="margin-bottom: 1rem; max-width: 220px;">
+                                <div style="margin-bottom: 0.5rem; font-size: 1.1em; max-width: 220px; margin:auto; overflow-x:auto; white-space:nowrap;">
+                                    <strong>Secreto:</strong> <span id="twofaSecret" style="font-family:monospace; word-break:break-all; max-width:160px; display:inline-block; overflow-x:auto; white-space:nowrap;"></span>
+                                </div>
+                                <div style="color:#64748b; font-size:0.95em; margin-bottom:1rem;">Escanea el QR con Google Authenticator, Authy, etc.</div>
+                                <button class="btn btn-secondary" onclick="close2FAModal()">Cerrar</button>
+                            </div>
+                            <div id="twofaError" style="display:none; color:#dc2626;">Error al cargar el QR</div>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                function show2FAModal(userId, username, regenerate) {
+                    document.getElementById('twofaModal').style.display = 'flex';
+                    document.getElementById('twofaLoading').style.display = '';
+                    document.getElementById('twofaContent').style.display = 'none';
+                    document.getElementById('twofaError').style.display = 'none';
+                    // AJAX para obtener QR y secreto
+                    fetch('./admin_user_2fa.php?action=generate&user_id=' + encodeURIComponent(userId) + (regenerate ? '&regenerate=1' : ''), {
+                        credentials: 'same-origin'
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                document.getElementById('twofaQr').src = data.qr_url;
+                                document.getElementById('twofaSecret').textContent = data.secret;
+                                document.getElementById('twofaLoading').style.display = 'none';
+                                document.getElementById('twofaContent').style.display = '';
+                                setTimeout(function(){ location.reload(); }, 1200);
+                            } else {
+                                document.getElementById('twofaLoading').style.display = 'none';
+                                document.getElementById('twofaError').textContent = data.error || 'Error al cargar el QR';
+                                document.getElementById('twofaError').style.display = '';
+                            }
+                        })
+                        .catch((err) => {
+                            document.getElementById('twofaLoading').style.display = 'none';
+                            document.getElementById('twofaError').textContent = 'Error de red o backend';
+                            document.getElementById('twofaError').style.display = '';
+                        });
+                }
+                function close2FAModal() {
+                    document.getElementById('twofaModal').style.display = 'none';
+                }
+                </script>
             </table>
             <div id="userTable-controls" style="margin-bottom:1em;">
                 <button id="userTable-prev">Anterior</button>

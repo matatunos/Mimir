@@ -1,3 +1,67 @@
+    <!-- 2FA Modal -->
+    <div id="twofaModal" class="modal">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> Doble Factor (TOTP)</h3>
+                <button class="modal-close" onclick="close2FAModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="twofaModalBody" style="padding: 1.5rem 0.5rem 0.5rem 0.5rem; text-align: center;">
+                <div id="twofaLoading">Cargando...</div>
+                <div id="twofaContent" style="display:none;">
+                    <img id="twofaQr" src="" alt="QR TOTP" style="margin-bottom: 1rem; max-width: 220px;">
+                    <div style="margin-bottom: 0.5rem; font-size: 1.1em;">
+                        <strong>Secreto:</strong> <span id="twofaSecret" style="font-family:monospace;"></span>
+                    </div>
+                    <div style="color:#64748b; font-size:0.95em; margin-bottom:1rem;">Escanea el QR con Google Authenticator, Authy, etc.</div>
+                    <button class="btn btn-secondary" onclick="close2FAModal()">Cerrar</button>
+                </div>
+                <div id="twofaError" style="display:none; color:#dc2626;">Error al cargar el QR</div>
+            </div>
+        </div>
+    </div>
+    <script>
+    function show2FAModal(userId, username, regenerate) {
+        document.getElementById('twofaModal').classList.add('show');
+        document.getElementById('twofaLoading').style.display = '';
+        document.getElementById('twofaContent').style.display = 'none';
+        document.getElementById('twofaError').style.display = 'none';
+        // AJAX para obtener QR y secreto
+        fetch('admin_user_2fa.php?action=generate&user_id=' + encodeURIComponent(userId) + (regenerate ? '&regenerate=1' : ''))
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('twofaQr').src = data.qr_url;
+                    document.getElementById('twofaSecret').textContent = data.secret;
+                    document.getElementById('twofaLoading').style.display = 'none';
+                    document.getElementById('twofaContent').style.display = '';
+                } else {
+                    document.getElementById('twofaLoading').style.display = 'none';
+                    document.getElementById('twofaError').style.display = '';
+                }
+            })
+            .catch(() => {
+                document.getElementById('twofaLoading').style.display = 'none';
+                document.getElementById('twofaError').style.display = '';
+            });
+    }
+    function close2FAModal() {
+        document.getElementById('twofaModal').classList.remove('show');
+    }
+    // Proteger editUser para evitar errores si hay fallos JS previos
+    window.editUser = function(user) {
+        try {
+            document.getElementById('editUserId').value = user.id;
+            document.getElementById('editUsername').value = user.username;
+            document.getElementById('editEmail').value = user.email;
+            document.getElementById('editRole').value = user.role;
+            document.getElementById('editQuota').value = user.storage_quota;
+            document.getElementById('editActive').checked = user.is_active == 1;
+            document.getElementById('editModal').classList.add('show');
+        } catch (e) { alert('Error al abrir el editor de usuario'); }
+    }
+    </script>
 <?php
 require_once '../includes/init.php';
 
@@ -47,9 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         // Create user
                         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-                        $stmt = $db->prepare("INSERT INTO users (username, email, password_hash, role, storage_quota, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-                        
-                        if ($stmt->execute([$username, $email, $passwordHash, $role, $quota, $isActive])) {
+                        $twofa_method = $_POST['twofa_method'] ?? 'none';
+                        $twofa_enabled = ($twofa_method === 'totp') ? 1 : 0;
+                        $duo_enabled = ($twofa_method === 'duo') ? 1 : 0;
+                        $stmt = $db->prepare("INSERT INTO users (username, email, password_hash, role, storage_quota, is_active, created_at, twofa_enabled, duo_enabled) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)");
+                        if ($stmt->execute([$username, $email, $passwordHash, $role, $quota, $isActive, $twofa_enabled, $duo_enabled])) {
                             $newUserId = $db->lastInsertId();
                             $message = 'Usuario creado correctamente';
                             $messageType = 'success';
@@ -68,13 +134,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $role = $_POST['role'] ?? 'user';
                 $quota = $_POST['storage_quota'] ?? 1073741824;
                 $isActive = isset($_POST['is_active']) ? 1 : 0;
-                
+                $twofa_method = $_POST['twofa_method'] ?? 'none';
+                $twofa_enabled = ($twofa_method === 'totp') ? 1 : 0;
+                $duo_enabled = ($twofa_method === 'duo') ? 1 : 0;
                 if ($userId) {
-                    $stmt = $db->prepare("UPDATE users SET role = ?, storage_quota = ?, is_active = ? WHERE id = ?");
-                    $stmt->execute([$role, $quota, $isActive, $userId]);
+                    $stmt = $db->prepare("UPDATE users SET role = ?, storage_quota = ?, is_active = ?, twofa_enabled = ?, duo_enabled = ? WHERE id = ?");
+                    $stmt->execute([$role, $quota, $isActive, $twofa_enabled, $duo_enabled, $userId]);
                     $message = 'Usuario actualizado correctamente';
                     $messageType = 'success';
-                    
                     AuditLog::log(Auth::getUserId(), 'user_updated', 'user', $userId, "Admin updated user settings");
                 }
                 break;
@@ -1009,11 +1076,12 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                 <th>Usuario</th>
                                 <th>Rol</th>
                                 <th>Estado</th>
+                                <th>2FA</th>
                                 <th>Archivos</th>
                                 <th>Almacenamiento</th>
                                 <th>Último Login</th>
                                 <th>Registro</th>
-                                <th style="width: 100px;">Acciones</th>
+                                <th style="width: 140px;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1046,6 +1114,16 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                             <i class="fas fa-<?php echo $user['is_active'] ? 'check' : 'times'; ?>"></i>
                                             <?php echo $user['is_active'] ? 'Activo' : 'Inactivo'; ?>
                                         </span>
+                                    </td>
+                                    <td>
+                                        <?php if ($user['twofa_enabled']): ?>
+                                            <span class="badge badge-success"><i class="fas fa-shield-alt"></i> Activo</span>
+                                            <button type="button" class="btn-icon" title="Regenerar QR" onclick="show2FAModal(<?php echo $user['id']; ?>, '<?php echo escapeHtml($user['username']); ?>', true)"><i class="fas fa-sync-alt"></i></button>
+                                            <button type="button" class="btn-icon" title="Bloquear 2FA" onclick="block2FA(<?php echo $user['id']; ?>)"><i class="fas fa-ban"></i></button>
+                                        <?php else: ?>
+                                            <span class="badge badge-secondary"><i class="fas fa-shield-alt"></i> Inactivo</span>
+                                            <button type="button" class="btn-icon" title="Activar 2FA" onclick="show2FAModal(<?php echo $user['id']; ?>, '<?php echo escapeHtml($user['username']); ?>', false)"><i class="fas fa-qrcode"></i></button>
+                                        <?php endif; ?>
                                     </td>
                                     <td><?php echo number_format($user['file_count']); ?></td>
                                     <td>
@@ -1158,6 +1236,15 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     <input type="checkbox" name="is_active" id="editActive" value="1">
                     <label for="editActive">Usuario Activo</label>
                 </div>
+
+                <div class="form-group">
+                    <label>Método de Doble Factor</label>
+                    <select name="twofa_method" id="edit2FAMethod">
+                        <option value="none">Ninguno</option>
+                        <option value="totp">TOTP (App Authenticator)</option>
+                        <option value="duo">Duo Security</option>
+                    </select>
+                </div>
                 
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">
@@ -1220,7 +1307,11 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 
                 <div class="form-group">
                     <label>Email *</label>
-                    <input type="email" name="email" required placeholder="usuario@ejemplo.com">
+                    <input type="email" name="email" id="createEmail" required placeholder="usuario@ejemplo.com">
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" name="send_qr_email" id="sendQrEmail">
+                    <label for="sendQrEmail">Enviar QR de doble factor por email al usuario</label>
                 </div>
                 
                 <div class="form-group">
@@ -1250,6 +1341,16 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 <div class="form-group form-group-checkbox">
                     <input type="checkbox" name="is_active" id="createActive" value="1" checked>
                     <label for="createActive">Usuario Activo</label>
+                </div>
+
+                <div class="form-group">
+                    <label>Método de Doble Factor</label>
+                    <select name="twofa_method" id="create2FAMethod">
+                        <option value="none">Ninguno</option>
+                        <option value="totp">TOTP (App Authenticator)</option>
+                        <option value="duo">Duo Security</option>
+                    </select
+                </div>
                 </div>
                 
                 <div class="modal-actions">
@@ -1314,14 +1415,20 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             document.getElementById('createModal').classList.remove('show');
         }
         
-        // Validate password confirmation
+        // Validate password confirmation and email for QR
         document.getElementById('createForm').addEventListener('submit', function(e) {
             const password = this.querySelector('input[name="password"]').value;
             const confirm = this.querySelector('input[name="password_confirm"]').value;
-            
+            const email = this.querySelector('input[name="email"]').value;
+            const sendQr = this.querySelector('input[name="send_qr_email"]').checked;
             if (password !== confirm) {
                 e.preventDefault();
                 alert('Las contraseñas no coinciden');
+                return false;
+            }
+            if (sendQr && (!email || !/^\S+@\S+\.\S+$/.test(email))) {
+                e.preventDefault();
+                alert('Para enviar el QR por email, introduce un email válido.');
                 return false;
             }
         });
