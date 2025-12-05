@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         // Create user
                         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-                        $stmt = $db->prepare("INSERT INTO users (username, email, password, role, storage_quota, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+                        $stmt = $db->prepare("INSERT INTO users (username, email, password_hash, role, storage_quota, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
                         
                         if ($stmt->execute([$username, $email, $passwordHash, $role, $quota, $isActive])) {
                             $newUserId = $db->lastInsertId();

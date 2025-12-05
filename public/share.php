@@ -20,22 +20,47 @@ if (!$share || !$shareManager->isShareValid($share)) {
 // Check if password is required
 $requiresPassword = !empty($share['requires_password']);
 
-// Handle password submission
-if ($requiresPassword && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $password = $_POST['password'] ?? '';
-    
-    if ($shareManager->verifySharePassword($share, $password)) {
-        $passwordVerified = true;
-        // Store in session to avoid re-entering
-        $_SESSION['verified_shares'][$token] = true;
-    } else {
-        $error = 'Contraseña incorrecta';
-    }
+// Lógica de intentos y bloqueo progresivo
+if (!isset($_SESSION['share_attempts'])) $_SESSION['share_attempts'] = [];
+$attempts = &$_SESSION['share_attempts'][$token];
+if (!isset($attempts)) {
+    $attempts = ['count'=>0,'last'=>0,'block'=>0];
 }
-
 // Check if already verified in session
 if ($requiresPassword && isset($_SESSION['verified_shares'][$token])) {
     $passwordVerified = true;
+}
+// Handle password submission
+if ($requiresPassword && $_SERVER['REQUEST_METHOD'] === 'POST' && !$passwordVerified) {
+    $now = time();
+    $wait = 0;
+    if ($attempts['count'] >= 5 && $attempts['count'] < 15) {
+        $wait = 30;
+    } elseif ($attempts['count'] >= 15) {
+        $wait = 300;
+    }
+    if ($attempts['block'] > $now) {
+        $error = 'Demasiados intentos. Espera '.ceil(($attempts['block']-$now)/60).' minutos antes de volver a intentarlo.';
+    } else {
+        $password = $_POST['password'] ?? '';
+        if ($shareManager->verifySharePassword($share, $password)) {
+            $passwordVerified = true;
+            $_SESSION['verified_shares'][$token] = true;
+            $attempts = ['count'=>0,'last'=>0,'block'=>0];
+        } else {
+            $attempts['count']++;
+            $attempts['last'] = $now;
+            if ($attempts['count'] >= 5 && $attempts['count'] < 15) {
+                $attempts['block'] = $now + 30;
+                $error = 'Contraseña incorrecta. Espera 30 segundos antes de volver a intentarlo.';
+            } elseif ($attempts['count'] >= 15) {
+                $attempts['block'] = $now + 300;
+                $error = 'Demasiados intentos. Espera 5 minutos antes de volver a intentarlo.';
+            } else {
+                $error = 'Contraseña incorrecta';
+            }
+        }
+    }
 }
 
 // Download file
@@ -370,9 +395,29 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         <?php if ($requiresPassword && !$passwordVerified): ?>
             <!-- Password Required -->
             <?php if ($error): ?>
-                <div class="error-message">
+                <div class="error-message" id="errorMsg">
                     <i class="fas fa-exclamation-triangle"></i>
                     <?php echo escapeHtml($error); ?>
+                    <?php if ($attempts['block'] > time()): ?>
+                        <span id="blockCountdown" style="margin-left:1em;font-weight:bold;"></span>
+                        <script>
+                        let blockEnd = <?php echo $attempts['block']; ?>;
+                        function updateCountdown() {
+                            let now = Math.floor(Date.now()/1000);
+                            let left = blockEnd-now;
+                            if (left > 0) {
+                                let min = Math.floor(left/60);
+                                let sec = left%60;
+                                document.getElementById('blockCountdown').textContent = ` (${min>0?min+'m ':''}${sec}s restantes)`;
+                                setTimeout(updateCountdown, 1000);
+                            } else {
+                                document.getElementById('blockCountdown').textContent = '';
+                                document.getElementById('errorMsg').textContent = 'Puedes volver a intentarlo.';
+                            }
+                        }
+                        updateCountdown();
+                        </script>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
             
@@ -385,13 +430,36 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 
                 <form method="POST">
                     <div class="password-input">
-                        <input type="password" name="password" placeholder="Introduce la contraseña" required autofocus>
-                        <button type="submit">
+                        <input type="password" name="password" id="passwordField" placeholder="Introduce la contraseña" required autofocus>
+                        <button type="submit" id="passwordBtn">
                             <i class="fas fa-unlock"></i>
                             Verificar
                         </button>
                     </div>
                 </form>
+                <script>
+                <?php if ($attempts['block'] > time()): ?>
+                document.getElementById('passwordField').disabled = true;
+                document.getElementById('passwordBtn').disabled = true;
+                let blockEnd = <?php echo $attempts['block']; ?>;
+                function updateCountdown() {
+                    let now = Math.floor(Date.now()/1000);
+                    let left = blockEnd-now;
+                    if (left > 0) {
+                        let min = Math.floor(left/60);
+                        let sec = left%60;
+                        document.getElementById('blockCountdown').textContent = ` (${min>0?min+'m ':''}${sec}s restantes)`;
+                        setTimeout(updateCountdown, 1000);
+                    } else {
+                        document.getElementById('blockCountdown').textContent = '';
+                        document.getElementById('errorMsg').textContent = 'Puedes volver a intentarlo.';
+                        document.getElementById('passwordField').disabled = false;
+                        document.getElementById('passwordBtn').disabled = false;
+                    }
+                }
+                updateCountdown();
+                <?php endif; ?>
+                </script>
             </div>
             
             <div class="file-preview">

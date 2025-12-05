@@ -80,15 +80,21 @@ install_requirements() {
         install_needed=true
     fi
     
-    # Verificar extensiones PHP necesarias
+    # Verificar extensiones PHP necesarias (case-insensitive para PDO)
     local missing_extensions=()
     local required_extensions=("mysqli" "pdo" "pdo_mysql" "json" "fileinfo" "mbstring")
-    
     if command -v php &> /dev/null; then
         for ext in "${required_extensions[@]}"; do
-            if ! php -m | grep -q "^$ext$"; then
-                missing_extensions+=("$ext")
-                install_needed=true
+            if [ "$ext" = "pdo" ]; then
+                if ! php -m | grep -qi "^PDO$" && ! php -m | grep -q "^pdo_mysql$"; then
+                    missing_extensions+=("pdo")
+                    install_needed=true
+                fi
+            else
+                if ! php -m | grep -q "^$ext$"; then
+                    missing_extensions+=("$ext")
+                    install_needed=true
+                fi
             fi
         done
     fi
@@ -103,19 +109,12 @@ install_requirements() {
     fi
     
     print_warning "Se necesita instalar algunos paquetes del sistema"
-    read -p "¿Deseas instalar automáticamente los requisitos? (s/n): " -n 1 -r
-    echo
-    
-    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-        print_info "Instalación manual requerida. Abortando..."
-        exit 0
-    fi
+    # Forzar instalación automática en Debian/Ubuntu
     
     case "$OS" in
         debian|ubuntu)
             print_info "Instalando paquetes en sistema Debian/Ubuntu..."
             sudo apt-get update
-            
             # Instalar paquetes básicos si faltan
             if ! command -v php &> /dev/null || ! command -v mysql &> /dev/null; then
                 sudo apt-get install -y \
@@ -127,7 +126,6 @@ install_requirements() {
                     apache2 \
                     libapache2-mod-php
             fi
-            
             # Instalar extensiones PHP faltantes
             local php_packages=()
             for ext in "${missing_extensions[@]}"; do
@@ -152,18 +150,15 @@ install_requirements() {
                         ;;
                 esac
             done
-            
             # Eliminar duplicados e instalar
             if [ ${#php_packages[@]} -gt 0 ]; then
                 php_packages=($(echo "${php_packages[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
                 print_info "Instalando extensiones PHP: ${php_packages[*]}"
                 sudo apt-get install -y "${php_packages[@]}" php-xml php-curl
             fi
-            
             # Habilitar módulos de Apache
             sudo a2enmod rewrite 2>/dev/null || true
             sudo a2enmod php 2>/dev/null || true
-            
             # Iniciar servicios
             if command -v systemctl &> /dev/null; then
                 sudo systemctl start mariadb 2>/dev/null || true
@@ -171,7 +166,6 @@ install_requirements() {
                 sudo systemctl restart apache2 2>/dev/null || true
                 sudo systemctl enable apache2 2>/dev/null || true
             fi
-            
             print_success "Requisitos instalados correctamente en Debian/Ubuntu"
             ;;
             
@@ -326,15 +320,16 @@ check_requirements() {
     # Verificar extensiones PHP necesarias
     local required_extensions=("mysqli" "pdo" "pdo_mysql" "json" "fileinfo" "mbstring")
     for ext in "${required_extensions[@]}"; do
-        if php -m | grep -q "^$ext$"; then
-            print_success "Extensión PHP '$ext' disponible"
-        else
-            # PDO base puede estar listado como PDO (mayúscula)
-            if [ "$ext" = "pdo" ] && php -m | grep -qi "^PDO$"; then
+        if [ "$ext" = "pdo" ]; then
+            if php -m | grep -qi "^PDO$" || php -m | grep -q "^pdo_mysql$"; then
                 print_success "Extensión PHP 'PDO' disponible"
-            elif [ "$ext" = "pdo" ] && php -m | grep -q "^pdo_mysql$"; then
-                # Si pdo_mysql funciona, PDO está disponible
-                print_success "Extensión PHP 'pdo' disponible (vía pdo_mysql)"
+            else
+                print_error "Extensión PHP 'pdo' no disponible"
+                all_ok=false
+            fi
+        else
+            if php -m | grep -q "^$ext$"; then
+                print_success "Extensión PHP '$ext' disponible"
             else
                 print_error "Extensión PHP '$ext' no disponible"
                 all_ok=false

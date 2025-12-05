@@ -934,3 +934,25 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
     </script>
 </body>
 </html>
+
+<?php
+require_once __DIR__ . '/../includes/init.php';
+Auth::requireAdmin();
+header('Content-Type: application/json');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $db = Database::getInstance()->getConnection();
+    $success = true;
+    $errors = [];
+    foreach ($_POST as $key => $value) {
+        $stmt = $db->prepare("UPDATE system_config SET config_value = ? WHERE config_key = ?");
+        try {
+            $stmt->execute([$value, $key]);
+        } catch (Exception $e) {
+            $success = false;
+            $errors[$key] = $e->getMessage();
+        }
+    }
+    echo json_encode(['success' => $success, 'errors' => $errors]);
+    exit;
+}
+echo json_encode(['success' => false, 'error' => 'Método no permitido']);

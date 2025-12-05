@@ -34,9 +34,9 @@ class ShareManager {
             $maxDownloads = null;
 
             if ($shareType === 'time') {
-                // Validate time limit (max 30 days)
+                // Si no se especifica valor, usar 7 días por defecto
                 $maxDays = SystemConfig::get('max_share_time_days', MAX_SHARE_TIME_DAYS_DEFAULT);
-                $days = min((int)$value, $maxDays);
+                $days = $value !== null && $value !== '' ? min((int)$value, $maxDays) : 7;
                 $expiresAt = date('Y-m-d H:i:s', strtotime("+$days days"));
             } else if ($shareType === 'downloads') {
                 $maxDownloads = (int)$value;

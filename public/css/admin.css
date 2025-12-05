@@ -1,3 +1,79 @@
+/* Estilos modernos para el árbol de carpetas en dashboard */
+.folder-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.folder-item {
+    background: #f8fafc;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(100,116,139,0.06);
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.2rem 0.5rem;
+}
+.folder-item:hover {
+    background: #ede9fe;
+    border-color: #a78bfa;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(167, 139, 250, 0.13);
+}
+.folder-item a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    width: 100%;
+}
+.folder-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    color: #a78bfa;
+}
+.folder-name {
+    color: #475569;
+    font-weight: 500;
+    text-align: center;
+    font-size: 1.05rem;
+    word-break: break-word;
+}
+/* Ajustes específicos para dashboard: tabla de archivos más compacta y ancha */
+.content-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.2rem 1.2rem 1.5rem 1.2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-bottom: 1.2rem;
+    max-width: 100%;
+}
+
+.file-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-size: 0.97em;
+}
+
+.file-table th {
+    padding: 0.7rem 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.file-table td {
+    padding: 0.7rem 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    word-break: break-word;
+}
 /* Mimir Admin Panel - Modern Design inspired by GestionSocios */
 
 /* Color Variables */
@@ -58,6 +134,49 @@ body {
 .admin-container {
     display: flex;
     min-height: 100vh;
+}
+
+/* Menú superior fijo */
+#menu {
+    background: #334155;
+    color: #fff;
+    padding: 0;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+}
+#menu .logo {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-left: 30px;
+}
+#menu .nav {
+    margin-left: 50px;
+}
+#menu .nav a {
+    color: #fff;
+    text-decoration: none;
+    margin: 0 20px;
+    font-size: 1.1em;
+    padding: 8px 0;
+    border-bottom: 2px solid transparent;
+    transition: border 0.2s;
+}
+#menu .nav a.active, #menu .nav a:hover {
+    border-bottom: 2px solid #38bdf8;
+}
+#menu .user {
+    margin-left: auto;
+    margin-right: 30px;
+    font-size: 1em;
+}
+
+#content {
+    margin-top: 70px;
+    padding: 30px;
 }
 
 /* Sidebar */
@@ -163,14 +282,19 @@ body {
     margin-bottom: 2rem;
 }
 
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
 .stat-card {
-    background: white;
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
+    background: var(--bg-card);
     box-shadow: var(--shadow-md);
-    display: flex;
-    gap: 1rem;
-    transition: all 0.2s ease;
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    text-align: center;
     border: 1px solid var(--border-light);
 }
 
@@ -244,6 +368,14 @@ body {
     border: 1px solid var(--border-light);
 }
 
+.card {
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-md);
+    padding: 1.2em 1.5em;
+    margin-bottom: 1.5em;
+}
+
 .admin-card-header {
     display: flex;
     justify-content: space-between;
@@ -281,6 +413,16 @@ body {
     position: relative;
 }
 
+/* Chart wrapper */
+.chart-wrapper {
+    width: 100%;
+    min-height: 220px;
+    background: #fff;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 1em;
+}
+
 /* Activity Feed */
 .activity-feed {
     display: flex;
@@ -288,64 +430,25 @@ body {
     gap: 1rem;
 }
 
+.activity-list {
+    margin: 0;
+    padding: 0;
+}
 .activity-item {
     display: flex;
-    gap: 1rem;
-    padding: 1rem;
-    background: var(--bg-body);
-    border-radius: var(--radius-md);
-}
-
-.activity-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    flex-shrink: 0;
+    margin-bottom: 0.7em;
 }
-
-.activity-icon.primary {
-    background: var(--primary-100);
-    color: var(--primary-600);
+.activity-icon {
+    font-size: 1.5em;
+    margin-right: 0.7em;
 }
-
-.activity-icon.success {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.activity-icon.warning {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.activity-icon.danger {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.activity-content {
+.activity-details {
     flex: 1;
 }
-
-.activity-content strong {
-    color: var(--text-main);
-}
-
-.activity-content p {
-    margin: 0.25rem 0 0 0;
-    font-size: 0.875rem;
-    color: var(--text-muted);
-}
-
-.activity-time {
-    font-size: 0.75rem;
-    color: var(--text-light);
-    white-space: nowrap;
-}
+.activity-user { font-weight: 600; }
+.activity-action { color: var(--text-muted); font-size: 0.95em; }
+.activity-time { color: var(--text-light); font-size: 0.9em; }
 
 /* Top Users Table */
 .top-users-table {
@@ -452,6 +555,18 @@ body {
     color: #0e7490;
 }
 
+.badge {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 0.5em;
+    font-size: 0.85em;
+    font-weight: 600;
+    margin-left: 0.5em;
+}
+.badge-admin { background: var(--primary-500); color: #fff; }
+.badge-user { background: var(--secondary-500); color: #fff; }
+.badge-default { background: var(--text-light); color: #fff; }
+
 /* Buttons */
 .btn {
     display: inline-flex;
@@ -544,6 +659,26 @@ body {
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-md);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+.data-table th, .data-table td {
+    padding: 0.75em 1em;
+    border-bottom: 1px solid var(--border-light);
+    text-align: left;
+}
+.data-table th {
+    background: var(--primary-100);
+    color: var(--primary-700);
+    font-weight: 600;
 }
 
 .admin-table thead th {
@@ -680,6 +815,145 @@ body {
     margin-top: 1rem;
 }
 
+/* Configuración */
+.config-form {
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-md);
+    padding: 2em;
+    max-width: 700px;
+    margin: 2em auto;
+}
+.config-item {
+    margin-bottom: 1.5em;
+}
+.config-item label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.5em;
+}
+.config-item input,
+.config-item select,
+.config-item textarea {
+    width: 100%;
+    padding: 0.6em;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5em;
+    font-size: 1em;
+    background: #fff;
+    margin-bottom: 0.2em;
+}
+.btn-save {
+    background: var(--primary-500);
+    color: #fff;
+    border: none;
+    border-radius: 0.5em;
+    padding: 0.7em 2em;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 1em;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.2s;
+}
+.btn-save:hover {
+    background: var(--primary-700);
+}
+
+/* Configuración - pestañas */
+.config-tabs {
+    display: flex;
+    gap: 1em;
+    margin-bottom: 2em;
+    justify-content: center;
+}
+.tab-btn {
+    background: var(--primary-100);
+    color: var(--primary-700);
+    border: none;
+    border-radius: 0.5em 0.5em 0 0;
+    padding: 0.7em 2em;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.2s;
+}
+.tab-btn.active, .tab-btn:hover {
+    background: var(--primary-500);
+    color: #fff;
+}
+.config-tab {
+    display: block;
+    margin-bottom: 2em;
+}
+.config-tab h3 {
+    margin-top: 0;
+    color: var(--primary-700);
+    font-size: 1.2em;
+    margin-bottom: 1em;
+}
+
+/* Paginación */
+#userTable-controls, #fileTable-controls, #shareTable-controls {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    margin-bottom: 1em;
+}
+#userTable-controls button, #fileTable-controls button, #shareTable-controls button {
+    background: var(--primary-100);
+    color: var(--primary-700);
+    border: none;
+    border-radius: 0.5em;
+    padding: 0.5em 1.2em;
+    font-size: 1em;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.2s;
+}
+#userTable-controls button:hover, #fileTable-controls button:hover, #shareTable-controls button:hover {
+    background: var(--primary-500);
+    color: #fff;
+}
+#userTable-pagination, #fileTable-pagination, #shareTable-pagination {
+    font-weight: 600;
+    color: var(--primary-700);
+}
+
+/* Botones CRUD usuarios */
+#userTable button {
+    background: var(--primary-100);
+    color: var(--primary-700);
+    border: none;
+    border-radius: 0.5em;
+    padding: 0.4em 1em;
+    font-size: 0.95em;
+    margin-right: 0.3em;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.2s;
+}
+#userTable button:hover {
+    background: var(--primary-500);
+    color: #fff;
+}
+#userTable button[style*='background:#ef4444'] {
+    background: var(--danger-500);
+    color: #fff;
+}
+#userTable button[style*='background:#ef4444']:hover {
+    background: var(--danger-600);
+}
+#userForm {
+    background: var(--bg-card);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-md);
+    padding: 2em;
+    max-width: 400px;
+    margin: 2em auto;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .admin-sidebar {
@@ -702,6 +976,11 @@ body {
     .user-grid {
         grid-template-columns: 1fr;
     }
+}
+
+@media (max-width: 900px) {
+    #content { padding: 10px; }
+    .stats-grid, .grid-2 { grid-template-columns: 1fr; }
 }
 
 /* Utility Classes */

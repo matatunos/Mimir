@@ -104,543 +104,79 @@ $stmt = $db->query("
 $mostActiveUsers = $stmt->fetchAll();
 
 $siteName = SystemConfig::get('site_name', APP_NAME);
-?>
-<!DOCTYPE html>
+?><!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración - <?php echo escapeHtml($siteName); ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #1e293b;
-        }
-        
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 1rem 0;
-        }
-        
-        .navbar-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .navbar-brand {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .navbar-menu {
-            display: flex;
-            gap: 1rem;
-        }
-        
-        .navbar-menu a {
-            color: #64748b;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-        
-        .navbar-menu a:hover,
-        .navbar-menu a.active {
-            background: #f1f5f9;
-            color: #667eea;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 2rem;
-        }
-        
-        .page-header {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-        
-        .page-header h1 {
-            font-size: 2rem;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .page-header p {
-            color: #64748b;
-            font-size: 1rem;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border-left: 4px solid #667eea;
-        }
-        
-        .stat-card.warning {
-            border-left-color: #f59e0b;
-        }
-        
-        .stat-card.success {
-            border-left-color: #10b981;
-        }
-        
-        .stat-card.info {
-            border-left-color: #3b82f6;
-        }
-        
-        .stat-card h3 {
-            font-size: 0.875rem;
-            color: #64748b;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.75rem;
-        }
-        
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-subtitle {
-            font-size: 0.875rem;
-            color: #94a3b8;
-        }
-        
-        .alert-box {
-            background: #fef3c7;
-            border: 2px solid #fbbf24;
-            border-radius: 12px;
-            padding: 1rem 1.5rem;
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            color: #92400e;
-        }
-        
-        .grid-2 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        
-        .card h3 {
-            font-size: 1.25rem;
-            color: #1e293b;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .chart-wrapper {
-            height: 300px;
-            position: relative;
-        }
-        
-        .activity-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        
-        .activity-item {
-            display: flex;
-            gap: 1rem;
-            padding: 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            transition: background 0.2s;
-        }
-        
-        .activity-item:hover {
-            background: #f8fafc;
-        }
-        
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-        
-        .activity-icon {
-            font-size: 1.5rem;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            background: #f1f5f9;
-        }
-        
-        .activity-details {
-            flex: 1;
-        }
-        
-        .activity-user {
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 0.25rem;
-        }
-        
-        .activity-action {
-            color: #64748b;
-            font-size: 0.875rem;
-            margin-bottom: 0.25rem;
-        }
-        
-        .activity-time {
-            color: #94a3b8;
-            font-size: 0.75rem;
-        }
-        
-        .top-users-list {
-            list-style: none;
-        }
-        
-        .top-user-item {
-            display: flex;
-            gap: 1rem;
-            padding: 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            align-items: center;
-        }
-        
-        .top-user-item:last-child {
-            border-bottom: none;
-        }
-        
-        .rank-badge {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1.125rem;
-            background: #f1f5f9;
-            color: #64748b;
-        }
-        
-        .rank-badge.rank-1 {
-            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-            color: #92400e;
-        }
-        
-        .rank-badge.rank-2 {
-            background: linear-gradient(135deg, #c0c0c0 0%, #e0e0e0 100%);
-            color: #475569;
-        }
-        
-        .rank-badge.rank-3 {
-            background: linear-gradient(135deg, #cd7f32 0%, #e6a164 100%);
-            color: #fff;
-        }
-        
-        .top-user-info {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        
-        .top-user-name {
-            font-weight: 600;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .top-user-value {
-            font-size: 0.875rem;
-            color: #64748b;
-        }
-        
-        .progress-bar {
-            height: 6px;
-            background: #f1f5f9;
-            border-radius: 999px;
-            overflow: hidden;
-            margin-top: 0.25rem;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            transition: width 0.3s;
-        }
-        
-        .badge {
-            padding: 0.25rem 0.5rem;
-            border-radius: 6px;
-            font-size: 0.625rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .badge-admin {
-            background: #ede9fe;
-            color: #6d28d9;
-        }
-        
-        .badge-user {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .data-table thead {
-            background: #f8fafc;
-        }
-        
-        .data-table th {
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            color: #475569;
-            border-bottom: 2px solid #e2e8f0;
-            font-size: 0.875rem;
-        }
-        
-        .data-table td {
-            padding: 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 0.875rem;
-        }
-        
-        .data-table tbody tr {
-            transition: background 0.2s;
-        }
-        
-        .data-table tbody tr:hover {
-            background: #f8fafc;
-        }
-    </style>
+    <title>Panel de Administración - Mimir</title>
+    <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
-    <div class="navbar">
-        <div class="navbar-content">
-            <div class="navbar-brand">
-                <i class="fas fa-cloud"></i>
-                <?php echo escapeHtml($siteName); ?>
-            </div>
-            <div class="navbar-menu">
-                <a href="dashboard.php">
-                    <i class="fas fa-home"></i> Dashboard
-                </a>
-                <a href="admin_dashboard.php" class="active">
-                    <i class="fas fa-chart-line"></i> Panel Admin
-                </a>
-                <a href="admin_users.php">
-                    <i class="fas fa-users"></i> Usuarios
-                </a>
-                <a href="admin_files.php">
-                    <i class="fas fa-file-alt"></i> Archivos
-                </a>
-                <a href="admin_config.php">
-                    <i class="fas fa-cog"></i> Configuración
-                </a>
-                <a href="logout.php">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                </a>
-            </div>
+    <div id="menu">
+        <div class="logo">Mimir Admin</div>
+        <div class="nav">
+            <a href="#stats" class="active" onclick="showSection('stats')">Estadísticas</a>
+            <a href="#users" onclick="showSection('users')">Usuarios</a>
+            <a href="#files" onclick="showSection('files')">Archivos</a>
+            <a href="#shares" onclick="showSection('shares')">Compartidos</a>
+            <a href="#config" onclick="showSection('config')">Configuración</a>
+            <a href="logout.php">Salir</a>
         </div>
+        <div class="user">Administrador</div>
     </div>
-    
-    <div class="container">
-        <div class="page-header">
-            <h1>
-                <i class="fas fa-chart-pie"></i>
-                Panel de Administración
-            </h1>
-            <p>Vista general de la actividad y estadísticas del sistema</p>
-        </div>
-        
-        <div class="stats-grid">
-            <div class="stat-card info">
-                <h3>Total Usuarios</h3>
-                <div class="stat-value"><?php echo number_format($stats['total_users']); ?></div>
-                <div class="stat-subtitle"><?php echo $stats['active_users_30d']; ?> activos (30d)</div>
-            </div>
-            
-            <div class="stat-card success">
-                <h3>Total Archivos</h3>
-                <div class="stat-value"><?php echo number_format($stats['total_files']); ?></div>
-                <div class="stat-subtitle"><?php echo $stats['files_today']; ?> subidos hoy</div>
-            </div>
-            
-            <div class="stat-card <?php echo $stats['quota_percentage'] > 80 ? 'warning' : ''; ?>">
-                <h3>Almacenamiento</h3>
-                <div class="stat-value"><?php echo formatBytes($stats['total_storage']); ?></div>
-                <div class="stat-subtitle"><?php echo $stats['quota_percentage']; ?>% de la cuota</div>
-            </div>
-            
-            <div class="stat-card">
-                <h3>Enlaces Compartidos</h3>
-                <div class="stat-value"><?php echo number_format($stats['active_shares']); ?></div>
-                <div class="stat-subtitle">Enlaces activos</div>
-            </div>
-        </div>
-        
-        <?php if (count($inactiveUsers30d) > 0): ?>
-        <div class="alert-box">
-            <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem;"></i>
-            <div>
-                <strong>Usuarios Inactivos:</strong> 
-                <?php echo count($inactiveUsers30d); ?> usuarios sin login en 30+ días
-                <?php if ($inactiveUsers1y > 0): ?>
-                    (<?php echo $inactiveUsers1y; ?> en 1+ año)
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-        
-        <div class="grid-2">
-            <div class="card">
-                <h3>📈 Actividad de Subidas (Últimos 7 Días)</h3>
-                <div class="chart-wrapper">
-                    <canvas id="activityChart"></canvas>
+    <div id="content">
+        <div id="section-stats" class="section">
+            <!-- Estadísticas generales -->
+            <div class="stats-grid">
+                <div class="stat-card info">
+                    <h3>Total Usuarios</h3>
+                    <div class="stat-value"><?php echo number_format($stats['total_users']); ?></div>
+                    <div class="stat-subtitle"><?php echo $stats['active_users_30d']; ?> activos (30d)</div>
+                </div>
+                <div class="stat-card success">
+                    <h3>Total Archivos</h3>
+                    <div class="stat-value"><?php echo number_format($stats['total_files']); ?></div>
+                    <div class="stat-subtitle"><?php echo $stats['files_today']; ?> subidos hoy</div>
+                </div>
+                <div class="stat-card <?php echo $stats['quota_percentage'] > 80 ? 'warning' : ''; ?>">
+                    <h3>Almacenamiento</h3>
+                    <div class="stat-value"><?php echo formatBytes($stats['total_storage']); ?></div>
+                    <div class="stat-subtitle"><?php echo $stats['quota_percentage']; ?>% de la cuota</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Enlaces Compartidos</h3>
+                    <div class="stat-value"><?php echo number_format($stats['active_shares']); ?></div>
+                    <div class="stat-subtitle">Enlaces activos</div>
                 </div>
             </div>
-            
-            <div class="card">
-                <h3>🔔 Actividad Reciente</h3>
-                <div class="activity-list">
-                    <?php foreach ($recentLogs as $log): ?>
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <?php 
-                            if (strpos($log['action'], 'login') !== false) echo '🔐';
-                            elseif (strpos($log['action'], 'upload') !== false) echo '📤';
-                            elseif (strpos($log['action'], 'delete') !== false) echo '🗑️';
-                            elseif (strpos($log['action'], 'share') !== false) echo '🔗';
-                            else echo '📝';
-                            ?>
-                        </div>
-                        <div class="activity-details">
-                            <div class="activity-user"><?php echo escapeHtml($log['username'] ?? 'Sistema'); ?></div>
-                            <div class="activity-action"><?php echo escapeHtml($log['action']); ?></div>
-                            <div class="activity-time"><?php echo date('d M Y H:i', strtotime($log['created_at'])); ?></div>
-                        </div>
-                    </div>
+            <!-- Visualización de ocupación por usuario -->
+            <h2 style="margin-top:2em;">Ocupación por Usuario</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Archivos</th>
+                        <th>Espacio Ocupado</th>
+                        <th>Cuota</th>
+                        <th>% Ocupado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($topStorageUsers as $user): ?>
+                    <tr>
+                        <td><?php echo escapeHtml($user['username']); ?></td>
+                        <td><?php echo strtoupper($user['role']); ?></td>
+                        <td><?php echo number_format($user['file_count'] ?? 0); ?></td>
+                        <td><?php echo formatBytes($user['storage_used']); ?></td>
+                        <td><?php echo formatBytes($user['storage_quota']); ?></td>
+                        <td><?php echo round(($user['storage_used'] / max(1,$user['storage_quota']))*100,1); ?>%</td>
+                    </tr>
                     <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-        
-        <div class="grid-2">
-            <div class="card">
-                <h3>💾 Top 10 - Uso de Almacenamiento</h3>
-                <ul class="top-users-list">
-                    <?php foreach ($topStorageUsers as $index => $user): ?>
-                    <li class="top-user-item">
-                        <div class="rank-badge <?php echo $index < 3 ? 'rank-'.($index+1) : 'rank-default'; ?>">
-                            <?php echo $index + 1; ?>
-                        </div>
-                        <div class="top-user-info">
-                            <span class="top-user-name">
-                                <?php echo escapeHtml($user['username']); ?>
-                                <?php if ($user['role'] === 'admin'): ?>
-                                    <span class="badge badge-admin">ADMIN</span>
-                                <?php endif; ?>
-                            </span>
-                            <span class="top-user-value">
-                                <?php echo formatBytes($user['storage_used']); ?> / 
-                                <?php echo formatBytes($user['storage_quota']); ?>
-                            </span>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: <?php echo min(100, ($user['storage_used'] / $user['storage_quota']) * 100); ?>%"></div>
-                            </div>
-                        </div>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-            
-            <div class="card">
-                <h3>⚡ Más Activos (Últimos 7 Días)</h3>
-                <ul class="top-users-list">
-                    <?php foreach ($mostActiveUsers as $index => $user): ?>
-                    <li class="top-user-item">
-                        <div class="rank-badge <?php echo $index < 3 ? 'rank-'.($index+1) : 'rank-default'; ?>">
-                            <?php echo $index + 1; ?>
-                        </div>
-                        <div class="top-user-info">
-                            <span class="top-user-name">
-                                <?php echo escapeHtml($user['username']); ?>
-                                <?php if ($user['role'] === 'admin'): ?>
-                                    <span class="badge badge-admin">ADMIN</span>
-                                <?php endif; ?>
-                            </span>
-                            <span class="top-user-value">
-                                <?php echo number_format($user['action_count']); ?> acciones
-                                <?php if ($user['last_action']): ?>
-                                    - <?php echo date('d M H:i', strtotime($user['last_action'])); ?>
-                                <?php endif; ?>
-                            </span>
-                        </div>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        </div>
-        
-        <div class="card" style="margin-bottom: 2rem;">
-            <h3>📁 Top 10 - Cantidad de Archivos</h3>
+                </tbody>
+            </table>
+            <!-- Ranking de usuarios por archivos subidos -->
+            <h2 style="margin-top:2em;">Top Usuarios por Archivos Subidos</h2>
             <ul class="top-users-list">
                 <?php foreach ($topFileUsers as $index => $user): ?>
                 <li class="top-user-item">
@@ -659,120 +195,406 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 </li>
                 <?php endforeach; ?>
             </ul>
-        </div>
-        
-        <?php if (count($inactiveUsers30d) > 0): ?>
-        <div class="card">
-            <h3>😴 Usuarios Inactivos (30+ Días)</h3>
+            <!-- Listado de enlaces compartidos -->
+            <h2 style="margin-top:2em;">Enlaces Compartidos</h2>
             <table class="data-table">
                 <thead>
                     <tr>
+                        <th>Archivo</th>
                         <th>Usuario</th>
-                        <th>Email</th>
-                        <th>Rol</th>
-                        <th>Último Login</th>
-                        <th>Creado</th>
+                        <th>Tipo</th>
+                        <th>Token</th>
+                        <th>Expira</th>
+                        <th>Descargas</th>
+                        <th>Protegido</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($inactiveUsers30d as $user): ?>
+                    <?php 
+                    $stmt = $db->query("SELECT s.*, f.original_filename, u.username FROM public_shares s LEFT JOIN files f ON s.file_id = f.id LEFT JOIN users u ON s.user_id = u.id WHERE s.is_active = 1 ORDER BY s.created_at DESC LIMIT 50");
+                    $shares = $stmt->fetchAll();
+                    foreach ($shares as $share): ?>
+                    <tr>
+                        <td><?php echo escapeHtml($share['original_filename']); ?></td>
+                        <td><?php echo escapeHtml($share['username']); ?></td>
+                        <td><?php echo escapeHtml($share['share_type']); ?></td>
+                        <td><?php echo escapeHtml($share['share_token']); ?></td>
+                        <td><?php echo $share['expires_at'] ? date('d M Y H:i', strtotime($share['expires_at'])) : 'Sin límite'; ?></td>
+                        <td><?php echo $share['current_downloads']; ?> / <?php echo $share['max_downloads'] ?? '-'; ?></td>
+                        <td><?php echo $share['requires_password'] ? 'Sí' : 'No'; ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <!-- Logs de auditoría -->
+            <h2 style="margin-top:2em;">Logs de Auditoría Recientes</h2>
+            <input type="text" id="auditLogFilter" placeholder="Filtrar logs..." style="margin-bottom:1em;">
+            <table class="data-table" id="auditLogTable">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Acción</th>
+                        <th>Entidad</th>
+                        <th>ID</th>
+                        <th>Detalles</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody id="auditLogTableBody">
+                    <!-- Logs AJAX -->
+                </tbody>
+            </table>
+            <div id="auditLogPagination" style="margin:1em 0;"></div>
+            <script>
+            let auditLogPage = 0;
+            function loadAuditLogs(page=0, filter='') {
+                fetch('admin_auditlog_ajax.php?page='+page+'&filter='+encodeURIComponent(filter))
+                .then(res=>res.json())
+                .then(json=>{
+                    let rows = '';
+                    for(const log of json.logs) {
+                        rows += `<tr><td>${log.created_at}</td><td>${log.username||''}</td><td>${log.action}</td><td>${log.entity_type}</td><td>${log.entity_id}</td><td>${log.details||''}</td><td>${log.ip_address||''}</td></tr>`;
+                    }
+                    document.getElementById('auditLogTableBody').innerHTML = rows;
+                    let pag = '';
+                    for(let i=0;i<json.pages;i++) {
+                        pag += `<button onclick="loadAuditLogs(${i}, document.getElementById('auditLogFilter').value)" ${i===json.page?'style=\'font-weight:bold\'' : ''}>${i+1}</button> `;
+                    }
+                    document.getElementById('auditLogPagination').innerHTML = pag;
+                });
+            }
+            document.getElementById('auditLogFilter').addEventListener('input', function(){
+                auditLogPage = 0;
+                loadAuditLogs(0, this.value);
+            });
+            document.addEventListener('DOMContentLoaded', function(){
+                loadAuditLogs();
+            });
+            </script>
+            <!-- Sugerencias adicionales -->
+            <h2 style="margin-top:2em;">Sugerencias y Métricas Extra</h2>
+            <ul>
+                <li>Usuarios nunca conectados: <?php echo $stats['total_users'] - count($mostActiveUsers); ?></li>
+                <li>Usuarios inactivos (30+ días): <?php echo count($inactiveUsers30d); ?></li>
+                <li>Usuarios inactivos (1+ año): <?php echo $inactiveUsers1y; ?></li>
+                <li>Enlaces compartidos protegidos: <?php echo array_sum(array_map(function($s){return $s['requires_password']?1:0;}, $shares)); ?></li>
+                <li>Archivos subidos hoy: <?php echo $stats['files_today']; ?></li>
+            </ul>
+        </div>
+        <div id="section-users" class="section" style="display:none">
+            <h2>Usuarios</h2>
+            <button class="btn-save" onclick="showUserForm()">Añadir Usuario</button>
+            <div id="userForm" style="display:none; margin:2em 0;">
+                <form id="addUserForm">
+                    <div class="config-item"><label>Usuario</label><input type="text" name="username" required></div>
+                    <div class="config-item"><label>Email</label><input type="email" name="email" required></div>
+                    <div class="config-item"><label>Contraseña</label><input type="password" name="password" required></div>
+                    <div class="config-item"><label>Rol</label>
+                        <select name="role"><option value="user">Usuario</option><option value="admin">Administrador</option></select>
+                    </div>
+                    <button type="submit" class="btn-save">Guardar</button>
+                    <button type="button" class="btn-save" style="background:#64748b;" onclick="hideUserForm()">Cancelar</button>
+                </form>
+                <div id="userFormMsg" style="margin-top:1em;"></div>
+            </div>
+            <input type="text" id="userFilter" placeholder="Filtrar usuarios..." onkeyup="filterTable('userFilter','userTable')" style="margin-bottom:1em;">
+            <table class="data-table" id="userTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('userTable',0)">Usuario</th>
+                        <th onclick="sortTable('userTable',1)">Email</th>
+                        <th onclick="sortTable('userTable',2)">Rol</th>
+                        <th onclick="sortTable('userTable',3)">Archivos</th>
+                        <th onclick="sortTable('userTable',4)">Espacio Ocupado</th>
+                        <th onclick="sortTable('userTable',5)">Último Login</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $stmt = $db->query("SELECT u.*, COUNT(f.id) as file_count, COALESCE(SUM(f.file_size),0) as used FROM users u LEFT JOIN files f ON u.id = f.user_id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 100");
+                    $users = $stmt->fetchAll();
+                    foreach ($users as $user): ?>
                     <tr>
                         <td><?php echo escapeHtml($user['username']); ?></td>
                         <td><?php echo escapeHtml($user['email']); ?></td>
+                        <td><span class="badge badge-<?php echo $user['role']; ?>"><?php echo strtoupper($user['role']); ?></span></td>
+                        <td><?php echo $user['file_count']; ?></td>
+                        <td><?php echo formatBytes($user['used']); ?></td>
+                        <td><?php echo $user['last_login'] ? date('d M Y H:i', strtotime($user['last_login'])) : 'Nunca'; ?></td>
                         <td>
-                            <span class="badge badge-<?php echo $user['role']; ?>">
-                                <?php echo strtoupper($user['role']); ?>
-                            </span>
+                            <button onclick="editUser('<?php echo $user['id']; ?>')">Editar</button>
+                            <button onclick="deleteUser('<?php echo $user['id']; ?>')" style="background:#ef4444;color:#fff;">Eliminar</button>
                         </td>
-                        <td>
-                            <?php 
-                            if ($user['last_login']) {
-                                $days = floor((time() - strtotime($user['last_login'])) / 86400);
-                                echo date('d M Y', strtotime($user['last_login'])) . " (hace {$days} días)";
-                            } else {
-                                echo 'Nunca';
-                            }
-                            ?>
-                        </td>
-                        <td><?php echo date('d M Y', strtotime($user['created_at'])); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <div id="userTable-controls" style="margin-bottom:1em;">
+                <button id="userTable-prev">Anterior</button>
+                <span id="userTable-pagination"></span>
+                <button id="userTable-next">Siguiente</button>
+            </div>
+        </div>
+        <div id="section-files" class="section" style="display:none">
+            <h2>Archivos</h2>
+            <input type="text" id="fileFilter" placeholder="Filtrar archivos..." onkeyup="filterTable('fileFilter','fileTable')" style="margin-bottom:1em;">
+            <table class="data-table" id="fileTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('fileTable',0)">Archivo</th>
+                        <th onclick="sortTable('fileTable',1)">Usuario</th>
+                        <th onclick="sortTable('fileTable',2)">Tamaño</th>
+                        <th onclick="sortTable('fileTable',3)">Fecha</th>
+                        <th onclick="sortTable('fileTable',4)">Compartido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $stmt = $db->query("SELECT f.*, u.username, f.is_shared FROM files f LEFT JOIN users u ON f.user_id = u.id ORDER BY f.created_at DESC LIMIT 100");
+                    $files = $stmt->fetchAll();
+                    foreach ($files as $file): ?>
+                    <tr>
+                        <td><?php echo escapeHtml($file['original_filename']); ?></td>
+                        <td><?php echo escapeHtml($file['username']); ?></td>
+                        <td><?php echo formatBytes($file['file_size']); ?></td>
+                        <td><?php echo date('d M Y H:i', strtotime($file['created_at'])); ?></td>
+                        <td><?php echo $file['is_shared'] ? 'Sí' : 'No'; ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
-        <?php endif; ?>
-    </div>
+        <div id="section-shares" class="section" style="display:none">
+            <h2>Enlaces Compartidos</h2>
+            <input type="text" id="shareFilter" placeholder="Filtrar compartidos..." onkeyup="filterTable('shareFilter','shareTable')" style="margin-bottom:1em;">
+            <table class="data-table" id="shareTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('shareTable',0)">Archivo</th>
+                        <th onclick="sortTable('shareTable',1)">Usuario</th>
+                        <th onclick="sortTable('shareTable',2)">Tipo</th>
+                        <th onclick="sortTable('shareTable',3)">Token</th>
+                        <th onclick="sortTable('shareTable',4)">Expira</th>
+                        <th onclick="sortTable('shareTable',5)">Descargas</th>
+                        <th onclick="sortTable('shareTable',6)">Protegido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $stmt = $db->query("SELECT s.*, f.original_filename, u.username FROM public_shares s LEFT JOIN files f ON s.file_id = f.id LEFT JOIN users u ON s.user_id = u.id WHERE s.is_active = 1 ORDER BY s.created_at DESC LIMIT 100");
+                    $shares = $stmt->fetchAll();
+                    foreach ($shares as $share): ?>
+                    <tr>
+                        <td><?php echo escapeHtml($share['original_filename']); ?></td>
+                        <td><?php echo escapeHtml($share['username']); ?></td>
+                        <td><?php echo escapeHtml($share['share_type']); ?></td>
+                        <td><?php echo escapeHtml($share['share_token']); ?></td>
+                        <td><?php echo $share['expires_at'] ? date('d M Y H:i', strtotime($share['expires_at'])) : 'Sin límite'; ?></td>
+                        <td><?php echo $share['current_downloads']; ?> / <?php echo $share['max_downloads'] ?? '-'; ?></td>
+                        <td><?php echo $share['requires_password'] ? 'Sí' : 'No'; ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <!-- Configuración -->
+        <div id="section-config" class="section" style="display:none">
+            <h2>Configuración del Sistema</h2>
+            <div class="config-tabs">
+                <button class="tab-btn active" onclick="showConfigTab('general')">General</button>
+                <button class="tab-btn" onclick="showConfigTab('correo')">Correo</button>
+                <button class="tab-btn" onclick="showConfigTab('ldap')">LDAP</button>
+                <button class="tab-btn" onclick="showConfigTab('duo')">DUO</button>
+                <button class="tab-btn" onclick="showConfigTab('seguridad')">Seguridad</button>
+            </div>
+            <?php $configs = SystemConfig::getAll(); ?>
+            <form method="post" action="admin_config.php" class="config-form" id="configForm">
+                <div id="tab-general" class="config-tab">
+                    <h3>General</h3>
+                    <?php foreach ($configs as $conf): if (!in_array($conf['config_key'], ['smtp_host','smtp_port','smtp_username','smtp_password','smtp_from_email','smtp_from_name','ldap_enabled','ldap_host','ldap_port','ldap_base_dn','ldap_admin_dn','ldap_admin_password','ldap_user_filter','duo_enabled','duo_ikey','duo_skey','duo_host','duo_app_key','twofa_enabled'])): ?>
+                    <div class="config-item">
+                        <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
+                            <?php echo escapeHtml($conf['description']); ?>
+                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                        </label>
+                        <?php if ($conf['config_type'] === 'boolean'): ?>
+                            <select name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>">
+                                <option value="true" <?php if($conf['config_value']=='true')echo 'selected';?>>Sí</option>
+                                <option value="false" <?php if($conf['config_value']=='false')echo 'selected';?>>No</option>
+                            </select>
+                        <?php elseif ($conf['config_type'] === 'integer'): ?>
+                            <input type="number" name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" value="<?php echo escapeHtml($conf['config_value']); ?>">
+                        <?php elseif ($conf['config_type'] === 'json'): ?>
+                            <textarea name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" rows="2"><?php echo escapeHtml($conf['config_value']); ?></textarea>
+                        <?php else: ?>
+                            <input type="text" name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" value="<?php echo escapeHtml($conf['config_value']); ?>">
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; endforeach; ?>
+                </div>
+                <div id="tab-correo" class="config-tab" style="display:none">
+                    <h3>Correo</h3>
+                    <?php foreach ($configs as $conf): if (in_array($conf['config_key'], ['smtp_host','smtp_port','smtp_username','smtp_password','smtp_from_email','smtp_from_name'])): ?>
+                    <div class="config-item">
+                        <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
+                            <?php echo escapeHtml($conf['description']); ?>
+                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                        </label>
+                        <input type="text" name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" value="<?php echo escapeHtml($conf['config_value']); ?>">
+                    </div>
+                    <?php endif; endforeach; ?>
+                    <button type="button" class="btn-save" onclick="testMailConfig()">Probar Correo</button>
+                    <div id="mailTestMsg" style="margin-top:1em;"></div>
+                </div>
+                <div id="tab-ldap" class="config-tab" style="display:none">
+                    <h3>LDAP</h3>
+                    <?php foreach ($configs as $conf): if (in_array($conf['config_key'], ['ldap_enabled','ldap_host','ldap_port','ldap_base_dn','ldap_admin_dn','ldap_admin_password','ldap_user_filter'])): ?>
+                    <div class="config-item">
+                        <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
+                            <?php echo escapeHtml($conf['description']); ?>
+                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                        </label>
+                        <input type="text" name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" value="<?php echo escapeHtml($conf['config_value']); ?>">
+                    </div>
+                    <?php endif; endforeach; ?>
+                    <button type="button" class="btn-save" onclick="testLdapConfig()">Probar LDAP</button>
+                    <div id="ldapTestMsg" style="margin-top:1em;"></div>
+                </div>
+                <div id="tab-duo" class="config-tab" style="display:none">
+                    <h3>DUO</h3>
+                    <?php foreach ($configs as $conf): if (in_array($conf['config_key'], ['duo_enabled','duo_ikey','duo_skey','duo_host','duo_app_key'])): ?>
+                    <div class="config-item">
+                        <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
+                            <?php echo escapeHtml($conf['description']); ?>
+                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                        </label>
+                        <input type="text" name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" value="<?php echo escapeHtml($conf['config_value']); ?>">
+                    </div>
+                    <?php endif; endforeach; ?>
+                    <button type="button" class="btn-save" onclick="testDuoConfig()">Probar DUO</button>
+                    <div id="duoTestMsg" style="margin-top:1em;"></div>
+                </div>
+                <div id="tab-seguridad" class="config-tab" style="display:none">
+                    <h3>Seguridad</h3>
+                    <?php foreach ($configs as $conf): if (in_array($conf['config_key'], ['twofa_enabled'])): ?>
+                    <div class="config-item">
+                        <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
+                            <?php echo escapeHtml($conf['description']); ?>
+                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                        </label>
+                        <select name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>">
+                            <option value="true" <?php if($conf['config_value']=='true')echo 'selected';?>>Sí</option>
+                            <option value="false" <?php if($conf['config_value']=='false')echo 'selected';?>>No</option>
+                        </select>
+                    </div>
+                    <?php endif; endforeach; ?>
+                </div>
+                <button type="submit" class="btn-save">Guardar Cambios</button>
+            </form>
+            <div id="configMsg" style="margin-top:1em;"></div>
+        </div>
 
-    <script>
-        const ctx = document.getElementById('activityChart').getContext('2d');
-        const activityData = <?php echo json_encode($activityData); ?>;
-        
-        const labels = [];
-        const data = [];
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
-            labels.push(date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
-            
-            const found = activityData.find(d => d.date === dateStr);
-            data.push(found ? parseInt(found.count) : 0);
+        <script>
+        // Mostrar formulario de usuario
+        function showUserForm() {
+            document.getElementById('userForm').style.display = 'block';
         }
-        
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Archivos Subidos',
-                    data: data,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#667eea',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12,
-                        titleFont: { size: 14, weight: 'bold' },
-                        bodyFont: { size: 13 }
+        function hideUserForm() {
+            document.getElementById('userForm').style.display = 'none';
+            document.getElementById('addUserForm').reset();
+            document.getElementById('userFormMsg').innerHTML = '';
+        }
+        // Enviar formulario de usuario por AJAX
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('addUserForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                var form = e.target;
+                var data = new FormData(form);
+                fetch('admin_user_crud.php', {
+                    method: 'POST',
+                    body: data
+                })
+                .then(res => res.json())
+                .then(json => {
+                    if(json.success) {
+                        document.getElementById('userFormMsg').innerHTML = '<span style="color:green;">Usuario creado correctamente</span>';
+                        setTimeout(function(){
+                            hideUserForm();
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        document.getElementById('userFormMsg').innerHTML = '<span style="color:red;">'+(json.error||'Error al crear usuario')+'</span>';
                     }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1,
-                            color: '#64748b'
-                        },
-                        grid: {
-                            color: '#f1f5f9'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            color: '#64748b'
-                        },
-                        grid: {
-                            display: false
-                        }
-                    }
-                }
-            }
+                });
+            });
         });
-    </script>
-</body>
-</html>
+        function showConfigTab(tab) {
+            document.querySelectorAll('.config-tab').forEach(function(el){el.style.display='none';});
+            document.querySelectorAll('.tab-btn').forEach(function(btn){btn.classList.remove('active');});
+            document.getElementById('tab-'+tab).style.display = 'block';
+            document.querySelector('.tab-btn[onclick*="'+tab+'"]').classList.add('active');
+        }
+            function showSection(section) {
+                document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+                document.querySelector('.nav a[href="#'+section+'"]').classList.add('active');
+                document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+                document.getElementById('section-' + section).style.display = 'block';
+            }
+        </script>
+        <script>
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            const activityData = <?php echo json_encode($activityData); ?>;
+            
+            const labels = [];
+            const data = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                labels.push(date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
+                
+                const found = activityData.find(d => d.date === dateStr);
+                data.push(found ? parseInt(found.count) : 0);
+            }
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Archivos Subidos',
+                        data: data,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: '#64748b'
+                           

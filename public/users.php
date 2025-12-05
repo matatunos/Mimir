@@ -262,10 +262,16 @@ $pageTitle = 'User Management';
     </style>
 </head>
 <body>
-    <div class="admin-container">
-        <?php include __DIR__ . '/../includes/admin_sidebar.php'; ?>
-        
-        <div class="admin-content">
+    <div style="width:100%;max-width:1400px;margin:0 auto;">
+        <div id="user-menu" style="background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.07);padding:1.5rem 2rem 1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-radius:18px 18px 0 0;">
+            <div style="font-size:1.5rem;font-weight:700;color:#667eea;"><i class="fas fa-users"></i> Usuarios</div>
+            <div style="display:flex;gap:1.5rem;">
+                <a href="users.php" style="color:#64748b;text-decoration:none;font-weight:500;"><i class="fas fa-users"></i> Usuarios</a>
+                <a href="shares.php" style="color:#64748b;text-decoration:none;font-weight:500;"><i class="fas fa-share-alt"></i> Compartidos</a>
+                <a href="logout.php" style="color:#64748b;text-decoration:none;font-weight:500;"><i class="fas fa-sign-out-alt"></i> Salir</a>
+            </div>
+        </div>
+        <div id="user-content" style="background:#fff;border-radius:0 0 18px 18px;padding:2rem;box-shadow:0 2px 10px rgba(0,0,0,0.04);">
                 <div class="admin-header">
                     <div>
                         <h1>👥 User Management</h1>

@@ -538,7 +538,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                 <i class="fas fa-calendar-days"></i>
                                 Número de Días (máximo <?php echo $maxShareDays; ?>)
                             </label>
-                            <input type="number" id="time_days" name="value" min="1" max="<?php echo $maxShareDays; ?>" placeholder="Ej: 7">
+                            <input type="number" id="time_days" name="value" min="1" max="<?php echo $maxShareDays; ?>" value="7" placeholder="Ej: 7">
                         </div>
                     </div>
                 </div>

@@ -14,10 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         SystemConfig::set('default_storage_quota', intval($_POST['default_storage_quota'] ?? 1) * 1073741824);
         SystemConfig::set('max_file_size', intval($_POST['max_file_size'] ?? 100) * 1048576);
         SystemConfig::set('max_share_time_days', intval($_POST['max_share_time_days'] ?? 30));
-        
+        SystemConfig::set('site_logo', $_POST['site_logo'] ?? '');
+        SystemConfig::set('footer_links', $_POST['footer_links'] ?? '[]', 'json');
         $message = 'Configuration updated successfully';
         $messageType = 'success';
-        
         AuditLog::log(Auth::getUserId(), 'system_config_updated', 'system', null, 'System configuration updated');
     }
 }
@@ -29,6 +29,8 @@ $config = [
     'default_storage_quota' => SystemConfig::get('default_storage_quota', 1073741824) / 1073741824,
     'max_file_size' => SystemConfig::get('max_file_size', MAX_FILE_SIZE_DEFAULT) / 1048576,
     'max_share_time_days' => SystemConfig::get('max_share_time_days', MAX_SHARE_TIME_DAYS_DEFAULT),
+    'site_logo' => SystemConfig::get('site_logo', ''),
+    'footer_links' => SystemConfig::get('footer_links', []),
 ];
 
 $pageTitle = 'System Settings';
@@ -75,7 +77,16 @@ $pageTitle = 'System Settings';
                             <input type="text" id="site_name" name="site_name" class="form-control" value="<?php echo escapeHtml($config['site_name']); ?>">
                             <small class="form-help">Displayed in the header and page titles</small>
                         </div>
-                        
+                        <div class="form-group">
+                            <label for="site_logo">Logo URL</label>
+                            <input type="text" id="site_logo" name="site_logo" class="form-control" value="<?php echo escapeHtml($config['site_logo']); ?>">
+                            <small class="form-help">URL or path to the logo image (shown in header)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="footer_links">Footer Links (JSON array)</label>
+                            <textarea id="footer_links" name="footer_links" class="form-control" rows="2"><?php echo escapeHtml(json_encode($config['footer_links'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></textarea>
+                            <small class="form-help">Example: [ { "label": "Contacto", "url": "mailto:info@dominio.com" }, { "label": "Aviso Legal", "url": "/legal" } ]</small>
+                        </div>
                         <div class="form-group">
                             <div class="checkbox-group">
                                 <input type="checkbox" id="allow_registration" name="allow_registration" value="1" <?php echo $config['allow_registration'] ? 'checked' : ''; ?>>

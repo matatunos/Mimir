@@ -63,12 +63,26 @@ class FolderManager {
      * Get user folders
      */
     public function getUserFolders($userId, $parentId = null) {
-        if ($parentId === null) {
-            $stmt = $this->db->prepare("SELECT * FROM folders WHERE user_id = ? AND parent_id IS NULL ORDER BY name");
-            $stmt->execute([$userId]);
+        // If admin, show all folders
+        $auth = new Auth();
+        $user = $auth->getUserById($userId);
+        $isAdmin = $user && $user['role'] === 'admin';
+        if ($isAdmin) {
+            if ($parentId === null) {
+                $stmt = $this->db->prepare("SELECT * FROM folders WHERE parent_id IS NULL ORDER BY name");
+                $stmt->execute();
+            } else {
+                $stmt = $this->db->prepare("SELECT * FROM folders WHERE parent_id = ? ORDER BY name");
+                $stmt->execute([$parentId]);
+            }
         } else {
-            $stmt = $this->db->prepare("SELECT * FROM folders WHERE user_id = ? AND parent_id = ? ORDER BY name");
-            $stmt->execute([$userId, $parentId]);
+            if ($parentId === null) {
+                $stmt = $this->db->prepare("SELECT * FROM folders WHERE user_id = ? AND parent_id IS NULL ORDER BY name");
+                $stmt->execute([$userId]);
+            } else {
+                $stmt = $this->db->prepare("SELECT * FROM folders WHERE user_id = ? AND parent_id = ? ORDER BY name");
+                $stmt->execute([$userId, $parentId]);
+            }
         }
         return $stmt->fetchAll();
     }

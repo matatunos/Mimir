@@ -135,784 +135,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Unificado a layout tipo admin_dashboard.php
 $siteName = SystemConfig::get('site_name', APP_NAME);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
+</head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo escapeHtml($siteName); ?> - Panel</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #1e293b;
-        }
-        
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 1rem 0;
-        }
-        
-        .navbar-content {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 0 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .navbar-brand {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .navbar-menu {
-            display: flex;
-            gap: 1rem;
-        }
-        
-        .navbar-menu a {
-            color: #64748b;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-        
-        .navbar-menu a:hover,
-        .navbar-menu a.active {
-            background: #f1f5f9;
-            color: #667eea;
-        }
-        
-        .main-layout {
-            display: flex;
-            max-width: 1600px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-            gap: 2rem;
-            align-items: flex-start;
-        }
-        
-        .sidebar {
-            width: 240px;
-            background: white;
-            border-radius: 16px;
-            padding: 1rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            position: sticky;
-            top: 2rem;
-            max-height: calc(100vh - 4rem);
-            overflow-y: auto;
-        }
-        
-        .sidebar h3 {
-            font-size: 1.125rem;
-            color: #1e293b;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .folder-tree {
-            list-style: none;
-        }
-        
-        .folder-tree-item {
-            margin: 0.25rem 0;
-        }
-        
-        .folder-tree-link {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            border-radius: 8px;
-            text-decoration: none;
-            color: #475569;
-            transition: all 0.2s;
-            font-size: 0.9rem;
-        }
-        
-        .folder-tree-link:hover {
-            background: #f1f5f9;
-            color: #667eea;
-        }
-        
-        .folder-tree-link.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 600;
-        }
-        
-        .folder-tree-link.active .folder-tree-icon {
-            color: white;
-        }
-        
-        .folder-tree-icon {
-            font-size: 1rem;
-            color: #94a3b8;
-            transition: color 0.2s;
-        }
-        
-        .folder-tree-toggle {
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #94a3b8;
-            padding: 0;
-            margin-right: 0.25rem;
-            font-size: 0.75rem;
-            transition: transform 0.2s;
-        }
-        
-        .folder-tree-toggle.expanded {
-            transform: rotate(90deg);
-        }
-        
-        .folder-tree-children {
-            list-style: none;
-            margin-left: 1.25rem;
-            border-left: 1px solid #e2e8f0;
-            padding-left: 0.5rem;
-            margin-top: 0.25rem;
-        }
-        
-        .container {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .alert {
-            padding: 1rem 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-weight: 500;
-        }
-        
-        .alert-success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #6ee7b7;
-        }
-        
-        .alert-error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fca5a5;
-        }
-        
-        .dashboard-header {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-        
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-        
-        .header-title {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .header-title h1 {
-            font-size: 2rem;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .btn-back {
-            background: #f1f5f9;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: #64748b;
-            text-decoration: none;
-        }
-        
-        .btn-back:hover {
-            background: #e2e8f0;
-            color: #475569;
-        }
-        
-        .dashboard-actions {
-            display: flex;
-            gap: 1rem;
-        }
-        
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 10px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s;
-            font-size: 0.95rem;
-            text-decoration: none;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-secondary {
-            background: #f1f5f9;
-            color: #475569;
-        }
-        
-        .btn-secondary:hover {
-            background: #e2e8f0;
-        }
-        
-        .btn-danger {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-        
-        .btn-danger:hover {
-            background: #fecaca;
-        }
-        
-        .breadcrumb {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-        
-        .breadcrumb a {
-            color: #64748b;
-            text-decoration: none;
-            padding: 0.5rem 0.75rem;
-            border-radius: 6px;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .breadcrumb a:hover {
-            background: #f1f5f9;
-            color: #667eea;
-        }
-        
-        .breadcrumb-current {
-            color: #667eea !important;
-            font-weight: 600;
-        }
-        
-        .breadcrumb-separator {
-            color: #cbd5e1;
-        }
-        
-        .storage-card {
-            background: white;
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-        
-        .storage-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        
-        .storage-header h3 {
-            font-size: 1.125rem;
-            color: #475569;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .storage-label {
-            font-weight: 600;
-            color: #667eea;
-        }
-        
-        .storage-bar {
-            height: 12px;
-            background: #f1f5f9;
-            border-radius: 999px;
-            overflow: hidden;
-        }
-        
-        .storage-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            transition: width 0.3s;
-        }
-        
-        .content-card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-        
-        .card-header {
-            margin-bottom: 1.5rem;
-        }
-        
-        .card-header h2 {
-            font-size: 1.5rem;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .folder-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 1rem;
-        }
-        
-        .folder-item a {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 1.5rem 1rem;
-            background: #f8fafc;
-            border-radius: 12px;
-            text-decoration: none;
-            transition: all 0.3s;
-            border: 2px solid transparent;
-        }
-        
-        .folder-item a:hover {
-            background: #ede9fe;
-            border-color: #a78bfa;
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(167, 139, 250, 0.2);
-        }
-        
-        .folder-icon {
-            font-size: 3rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .folder-name {
-            color: #475569;
-            font-weight: 500;
-            text-align: center;
-        }
-        
-        .file-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .file-table thead {
-            background: #f8fafc;
-        }
-        
-        .file-table th {
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            color: #475569;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        
-        .file-table td {
-            padding: 1rem;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        
-        .file-table tbody tr {
-            transition: background 0.2s;
-        }
-        
-        .file-table tbody tr:hover {
-            background: #f8fafc;
-        }
-        
-        .empty-message {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: #94a3b8;
-        }
-        
-        .empty-message i {
-            font-size: 4rem;
-            color: #cbd5e1;
-            margin-bottom: 1rem;
-            display: block;
-        }
-        
-        .btn-group {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .btn-sm {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.875rem;
-        }
-        
-        .badge {
-            padding: 0.375rem 0.75rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.375rem;
-        }
-        
-        .badge-success {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        
-        .badge-secondary {
-            background: #f1f5f9;
-            color: #64748b;
-        }
-        
-        .share-status {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-        
-        .share-details {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-top: 0.25rem;
-        }
-        
-        .share-details small {
-            color: #64748b;
-            font-size: 0.75rem;
-        }
-        
-        .text-danger {
-            color: #dc2626;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 2rem;
-            max-width: 500px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        
-        .modal-content h2 {
-            margin-bottom: 1.5rem;
-            color: #1e293b;
-        }
-        
-        .close {
-            float: right;
-            font-size: 2rem;
-            font-weight: 300;
-            color: #94a3b8;
-            cursor: pointer;
-            line-height: 1;
-            transition: color 0.2s;
-        }
-        
-        .close:hover {
-            color: #475569;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #475569;
-            font-weight: 500;
-        }
-        
-        .form-group input[type="text"],
-        .form-group input[type="file"] {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: border-color 0.2s;
-        }
-        
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .form-group small {
-            color: #64748b;
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
-            display: block;
-        }
-    </style>
+    <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
-    <div class="navbar">
-        <div class="navbar-content">
-            <div class="navbar-brand">
-                <i class="fas fa-cloud"></i>
-                <?php echo escapeHtml($siteName); ?>
-            </div>
-            <div class="navbar-menu">
-                <a href="dashboard.php" class="active">
-                    <i class="fas fa-folder"></i> Mis Archivos
-                </a>
-                <a href="shares.php">
-                    <i class="fas fa-share-alt"></i> Compartidos
-                </a>
-                <?php if (Auth::isAdmin()): ?>
-                <a href="admin_dashboard.php">
-                    <i class="fas fa-shield-alt"></i> Administración
-                </a>
-                <?php endif; ?>
-                <a href="logout.php">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                </a>
-            </div>
+    <div id="menu">
+        <div class="logo">Mimir</div>
+        <div class="nav">
+            <a href="dashboard.php" class="active">Mis Archivos</a>
+            <a href="#" id="menu-shares-link"><i class="fas fa-share-alt"></i> Compartidos</a>
+            <a href="logout.php">Salir</a>
         </div>
+        <div class="user"><?php echo escapeHtml($user['username']); ?></div>
     </div>
-    
-    <div class="main-layout">
-        <!-- Folder Tree Sidebar -->
-        <aside class="sidebar">
-            <h3>
-                <i class="fas fa-folder-tree"></i>
-                Carpetas
-            </h3>
-            <ul class="folder-tree">
-                <li class="folder-tree-item">
-                    <a href="dashboard.php" class="folder-tree-link <?php echo !$currentFolder ? 'active' : ''; ?>">
-                        <i class="fas fa-home folder-tree-icon"></i>
-                        <span>Raíz</span>
-                    </a>
-                </li>
+    <div id="content">
+        <div id="ajax-shares-container" style="display:none;"></div>
+        </script>
+        <script>
+        // AJAX para cargar compartidos en el dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            var sharesLink = document.getElementById('menu-shares-link');
+            var contentDiv = document.getElementById('content');
+            var sharesContainer = document.getElementById('ajax-shares-container');
+            if (sharesLink) {
+                sharesLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    fetch('shares.php?ajax=1')
+                        .then(function(resp) { return resp.text(); })
+                        .then(function(html) {
+                            // Oculta el resto del contenido y muestra solo compartidos
+                            Array.from(contentDiv.children).forEach(function(child) {
+                                if (child !== sharesContainer) child.style.display = 'none';
+                            });
+                            sharesContainer.innerHTML = html;
+                            sharesContainer.style.display = 'block';
+                        });
+                });
+            }
+        });
+        </script>
+        <?php if ($message): ?>
+            <div class="alert alert-<?php echo $messageType; ?>">
+                <i class="fas fa-<?php echo $messageType === 'success' ? 'check-circle' : 'exclamation-circle'; ?>"></i>
+                <?php echo escapeHtml($message); ?>
+            </div>
+        <?php endif; ?>
+        <div class="dashboard-main" style="display:flex;gap:2rem;align-items:flex-start;">
+            <aside class="folder-sidebar" style="min-width:260px;max-width:320px;width:25%;background:#fff;border-radius:16px;padding:1.5rem 1rem 1.5rem 1.5rem;box-shadow:0 2px 8px rgba(100,116,139,0.06);">
+                <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+                    <h2 style="margin:0;font-size:1.2rem;"><i class="fas fa-folder-tree"></i> Carpetas</h2>
+                    <button class="btn btn-secondary" onclick="showCreateFolderModal()" title="Nueva Carpeta"><i class="fas fa-folder-plus"></i></button>
+                </div>
                 <?php
-                function renderFolderTree($folders, $currentFolderId, $level = 0) {
-                    foreach ($folders as $folder) {
-                        $hasChildren = !empty($folder['children']);
-                        $isActive = $currentFolderId == $folder['id'];
-                        $isExpanded = false;
-                        
-                        // Check if current folder is in this branch
-                        if ($currentFolderId) {
-                            global $breadcrumbs;
-                            foreach ($breadcrumbs as $crumb) {
-                                if ($crumb['id'] == $folder['id']) {
-                                    $isExpanded = true;
-                                    break;
-                                }
-                            }
-                            if ($isActive) $isExpanded = true;
+                // Renderizar árbol de carpetas recursivo
+                function renderFolderTree($tree, $currentFolder, $level = 0, $isLast = false) {
+                    echo '<ul class="folder-tree" style="list-style:none;margin:0;padding-left:' . ($level > 0 ? 18 : 0) . 'px;position:relative;">';
+                    $count = count($tree);
+                    $i = 0;
+                    foreach ($tree as $folder) {
+                        $i++;
+                        $isActive = $currentFolder == $folder['id'];
+                        $isLastChild = ($i === $count);
+                        echo '<li style="margin-bottom:0.3em;position:relative;">';
+                        // Líneas verticales y horizontales
+                        if ($level > 0) {
+                            echo '<span style="position:absolute;left:-13px;top:0;height:100%;width:13px;border-left:1.5px solid #cbd5e1;' . ($isLastChild ? 'height:1.2em;' : '') . '"></span>';
+                            echo '<span style="position:absolute;left:-13px;top:1.1em;width:13px;border-bottom:1.5px solid #cbd5e1;"></span>';
                         }
-                        
-                        echo '<li class="folder-tree-item">';
-                        echo '<div style="display: flex; align-items: center;">';
-                        
-                        if ($hasChildren) {
-                            echo '<button class="folder-tree-toggle ' . ($isExpanded ? 'expanded' : '') . '" onclick="toggleFolder(this)">';
-                            echo '<i class="fas fa-chevron-right"></i>';
-                            echo '</button>';
-                        } else {
-                            echo '<span style="width: 16px;"></span>';
+                        echo '<a href="?folder=' . $folder['id'] . '" class="' . ($isActive ? 'active-folder' : '') . '" style="display:flex;align-items:center;gap:0.5em;padding:0.3em 0.5em;border-radius:6px;text-decoration:none;' . ($isActive ? 'background:#e0e7ff;font-weight:600;color:#4338ca;' : 'color:#475569;') . '"><i class="fas fa-folder" style="font-size:1.5em;color:#fbbf24;"></i> ' . escapeHtml($folder['name']) . '</a>';
+                        if (!empty($folder['children'])) {
+                            renderFolderTree($folder['children'], $currentFolder, $level + 1, $isLastChild);
                         }
-                        
-                        echo '<a href="dashboard.php?folder=' . $folder['id'] . '" class="folder-tree-link ' . ($isActive ? 'active' : '') . '" style="flex: 1;">';
-                        echo '<i class="fas fa-folder folder-tree-icon"></i>';
-                        echo '<span>' . escapeHtml($folder['name']) . '</span>';
-                        echo '</a>';
-                        echo '</div>';
-                        
-                        if ($hasChildren) {
-                            echo '<ul class="folder-tree-children" style="display: ' . ($isExpanded ? 'block' : 'none') . ';">';
-                            renderFolderTree($folder['children'], $currentFolderId, $level + 1);
-                            echo '</ul>';
-                        }
-                        
                         echo '</li>';
                     }
+                    echo '</ul>';
                 }
-                renderFolderTree($folderTree, $currentFolder);
+                // Carpeta raíz como nodo principal
+                $isRoot = empty($currentFolder);
+                echo '<ul class="folder-tree" style="list-style:none;padding-left:0;">';
+                echo '<li style="margin-bottom:0.3em;position:relative;">';
+                echo '<a href="dashboard.php" class="' . ($isRoot ? 'active-folder' : '') . '" style="display:flex;align-items:center;gap:0.5em;padding:0.3em 0.5em;border-radius:6px;text-decoration:none;' . ($isRoot ? 'background:#e0e7ff;font-weight:600;color:#4338ca;' : 'color:#475569;') . '"><i class="fas fa-hdd" style="font-size:1.5em;color:#fbbf24;"></i> Raíz</a>';
+                if (!empty($folderTree)) {
+                    renderFolderTree($folderTree, $currentFolder, 1);
+                }
+                echo '</li>';
+                echo '</ul>';
                 ?>
-            </ul>
-        </aside>
-        
-        <div class="container">
-            <?php if ($message): ?>
-                <div class="alert alert-<?php echo $messageType; ?>">
-                    <i class="fas fa-<?php echo $messageType === 'success' ? 'check-circle' : 'exclamation-circle'; ?>"></i>
-                    <?php echo escapeHtml($message); ?>
-                </div>
-            <?php endif; ?>
-        
-        <div class="dashboard-header">
-            <div class="header-top">
-                <div class="header-title">
-                    <?php if ($currentFolder): ?>
-                        <?php 
-                            $parentId = null;
-                            if (!empty($breadcrumbs)) {
-                                $currentBreadcrumb = end($breadcrumbs);
-                                $parentId = $currentBreadcrumb['parent_id'];
-                            }
-                            $backUrl = $parentId ? "dashboard.php?folder={$parentId}" : "dashboard.php";
-                        ?>
-                        <a href="<?php echo $backUrl; ?>" class="btn-back" title="Volver">
-                            <i class="fas fa-arrow-left"></i>
-                        </a>
-                    <?php endif; ?>
-                    <h1>
-                        <i class="fas fa-folder-open"></i>
-                        Mis Archivos
-                    </h1>
-                </div>
-                <div class="dashboard-actions">
-                    <button class="btn btn-primary" onclick="showUploadModal()">
-                        <i class="fas fa-upload"></i> Subir Archivo
-                    </button>
-                    <button class="btn btn-secondary" onclick="showCreateFolderModal()">
-                        <i class="fas fa-folder-plus"></i> Nueva Carpeta
-                    </button>
-                </div>
-            </div>
-            
-            <nav class="breadcrumb">
-                <a href="dashboard.php" <?php echo !$currentFolder ? 'class="breadcrumb-current"' : ''; ?>>
-                    <i class="fas fa-home"></i> Inicio
-                </a>
-                <?php foreach ($breadcrumbs as $index => $crumb): ?>
-                    <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
-                    <a href="dashboard.php?folder=<?php echo $crumb['id']; ?>" 
-                       <?php echo ($index === count($breadcrumbs) - 1) ? 'class="breadcrumb-current"' : ''; ?>>
-                        <i class="fas fa-folder"></i> <?php echo escapeHtml($crumb['name']); ?>
-                    </a>
-                <?php endforeach; ?>
-            </nav>
-        </div>
-        
-        <div class="storage-card">
-            <div class="storage-header">
-                <h3>
-                    <i class="fas fa-hdd"></i>
-                    Uso de Almacenamiento
-                </h3>
-                <span class="storage-label">
-                    <?php echo formatBytes($user['storage_used']); ?> / <?php echo formatBytes($user['storage_quota']); ?>
-                </span>
-            </div>
-            <div class="storage-bar">
-                <div class="storage-bar-fill" style="width: <?php echo min(100, ($user['storage_used'] / $user['storage_quota']) * 100); ?>%"></div>
-            </div>
-        </div>
-        
-        <?php if (!empty($folders)): ?>
-        <div class="content-card">
-            <div class="card-header">
-                <h2>
-                    <i class="fas fa-folder"></i>
-                    Carpetas
-                </h2>
-            </div>
-            <div class="folder-grid">
-                <?php foreach ($folders as $folder): ?>
-                    <div class="folder-item">
-                        <a href="?folder=<?php echo $folder['id']; ?>">
-                            <span class="folder-icon">📁</span>
-                            <span class="folder-name"><?php echo escapeHtml($folder['name']); ?></span>
-                        </a>
+            </aside>
+            <main style="flex:1;min-width:0;">
+                <div class="dashboard-header" style="display:flex;flex-wrap:wrap;align-items:center;gap:1rem;justify-content:space-between;margin-bottom:2rem;">
+                    <h1 style="margin:0;"><i class="fas fa-folder-open"></i> Mis Archivos</h1>
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+                        <button class="btn btn-primary" onclick="showUploadModal()"><i class="fas fa-upload"></i> Subir Archivo</button>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-        
-        <div class="content-card">
-            <div class="card-header">
-                <h2>
-                    <i class="fas fa-file"></i>
-                    Archivos
-                </h2>
-            </div>
-            <?php if (empty($files)): ?>
+                    <span style="font-weight:500;">
+                        <i class="fas fa-hdd"></i> <?php echo formatBytes($user['storage_used']); ?> / <?php echo formatBytes($user['storage_quota']); ?> usados
+                    </span>
+                </div>
+                <div class="content-card">
+                    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                        <h2 style="margin:0;"><i class="fas fa-file"></i> Archivos</h2>
+                        <form method="get" style="display:flex;align-items:center;gap:0.5rem;">
+                            <input type="hidden" name="folder" value="<?php echo escapeHtml($currentFolder ?? ''); ?>">
+                            <input type="text" name="file_filter" value="<?php echo isset($_GET['file_filter']) ? escapeHtml($_GET['file_filter']) : ''; ?>" placeholder="Filtrar por nombre..." class="form-control" style="min-width:180px;">
+                            <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+                        </form>
+                    </div>
+                    <?php
+                        $fileFilter = isset($_GET['file_filter']) ? trim($_GET['file_filter']) : '';
+                        if ($fileFilter !== '') {
+                            $files = array_filter($files, function($f) use ($fileFilter) {
+                                return stripos($f['original_filename'], $fileFilter) !== false;
+                            });
+                        }
+                    ?>
+                    <?php if (empty($files)): ?>
                 <div class="empty-message">
                     <i class="fas fa-inbox"></i>
                     <p>Aún no hay archivos. ¡Sube tu primer archivo!</p>
@@ -939,12 +287,9 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                             <td><?php echo formatBytes($file['file_size']); ?></td>
                             <td>
                                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                    <!-- Descargas locales -->
                                     <span class="badge" style="background: #dbeafe; color: #1e40af; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
                                         <i class="fas fa-user" style="font-size: 0.7rem;"></i> <?php echo (int)$file['download_count']; ?>
                                     </span>
-                                    
-                                    <!-- Descargas externas (compartidas) -->
                                     <?php if ($file['share_id']): ?>
                                         <span class="badge" style="background: #d1fae5; color: #065f46; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
                                             <i class="fas fa-globe" style="font-size: 0.7rem;"></i> <?php echo (int)$file['share_download_count']; ?><?php if ($file['share_max_downloads']): ?>/<?php echo $file['share_max_downloads']; ?><?php endif; ?>
@@ -972,7 +317,6 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                             else: ?>
                                                 <small><i class="fas fa-infinity"></i> Sin vencimiento</small>
                                             <?php endif; ?>
-                                            
                                             <?php if ($file['share_has_password']): ?>
                                                 <small><i class="fas fa-lock"></i> Protegido</small>
                                             <?php endif; ?>
@@ -1008,63 +352,12 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                <!-- Botón de compartidos ahora está arriba -->
             <?php endif; ?>
         </div>
     </div>
     
-    <!-- Upload Modal -->
-    <div id="uploadModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeUploadModal()">&times;</span>
-            <h2>Subir Archivo</h2>
-            <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="upload">
-                <input type="hidden" name="folder_id" value="<?php echo escapeHtml($currentFolder ?? ''); ?>">
-                
-                <div class="form-group">
-                    <label for="files">Seleccionar Archivos</label>
-                    <input type="file" id="files" name="files[]" multiple required>
-                    <small>Mantén presionado Ctrl/Cmd para seleccionar múltiples archivos</small>
-                </div>
-                
-                <div style="display: flex; gap: 1rem;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">
-                        <i class="fas fa-upload"></i> Subir
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="closeUploadModal()" style="flex: 1;">
-                        <i class="fas fa-times"></i> Cancelar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
     
-    <!-- Create Folder Modal -->
-    <div id="createFolderModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeCreateFolderModal()">&times;</span>
-            <h2>Crear Carpeta</h2>
-            <form method="POST">
-                <input type="hidden" name="action" value="create_folder">
-                <input type="hidden" name="parent_id" value="<?php echo escapeHtml($currentFolder ?? ''); ?>">
-                
-                <div class="form-group">
-                    <label for="folder_name">Nombre de la Carpeta</label>
-                    <input type="text" id="folder_name" name="folder_name" required>
-                </div>
-                
-                <div style="display: flex; gap: 1rem;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">
-                        <i class="fas fa-folder-plus"></i> Crear
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="closeCreateFolderModal()" style="flex: 1;">
-                        <i class="fas fa-times"></i> Cancelar
-                    </button>
-                </div>
-            </form>
-        </div>
-        </div>
-    </div>
     
     <script>
         function showUploadModal() {

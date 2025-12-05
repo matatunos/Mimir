@@ -109,6 +109,9 @@ class FileManager {
      * Get files for a user
      */
     public function getUserFiles($userId, $folderId = null, $limit = 100, $offset = 0) {
+        // If admin, show all files
+        $user = $this->auth->getUserById($userId);
+        $isAdmin = $user && $user['role'] === 'admin';
         $sql = "SELECT f.*, 
                        s.id as share_id, 
                        s.share_token as share_token, 
@@ -116,23 +119,26 @@ class FileManager {
                        s.max_downloads as share_max_downloads, 
                        s.current_downloads as share_download_count, 
                        s.is_active as share_is_active,
-                       s.requires_password as share_has_password
+                       s.requires_password as share_has_password,
+                       u.username as owner_username
                 FROM files f
                 LEFT JOIN public_shares s ON f.id = s.file_id AND s.is_active = 1
-                WHERE f.user_id = ?";
-        
+                LEFT JOIN users u ON f.user_id = u.id
+                WHERE 1=1";
+        $params = [];
+        if (!$isAdmin) {
+            $sql .= " AND f.user_id = ?";
+            $params[] = $userId;
+        }
         if ($folderId === null) {
             $sql .= " AND f.folder_id IS NULL";
-            $params = [$userId];
         } else {
             $sql .= " AND f.folder_id = ?";
-            $params = [$userId, $folderId];
+            $params[] = $folderId;
         }
-        
         $sql .= " ORDER BY f.created_at DESC LIMIT ? OFFSET ?";
         $params[] = $limit;
         $params[] = $offset;
-        
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();

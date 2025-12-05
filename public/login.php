@@ -19,7 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $auth = new Auth();
             if ($auth->login($username, $password)) {
-                header('Location: dashboard.php');
+                // Redirección según rol
+                if ($_SESSION['role'] === 'admin') {
+                    header('Location: admin_dashboard.php');
+                } else {
+                    header('Location: dashboard.php');
+                }
                 exit;
             } else {
                 $error = 'Invalid username or password';
