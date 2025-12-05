@@ -1,73 +1,7 @@
 <?php
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
-<style>
-.admin-layout {
-    display: flex;
-    gap: 0;
-    margin-top: 20px;
-}
-
-.admin-sidebar {
-    width: 250px;
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    height: fit-content;
-    position: sticky;
-    top: 80px;
-}
-
-.admin-sidebar h3 {
-    margin: 0 0 20px 0;
-    font-size: 18px;
-    color: #333;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #f0f0f0;
-}
-
-.admin-sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 15px;
-    color: #666;
-    text-decoration: none;
-    border-radius: 6px;
-    margin-bottom: 5px;
-    transition: all 0.2s;
-    font-size: 15px;
-}
-
-.admin-sidebar a:hover {
-    background: #f8f9fa;
-    color: #007bff;
-}
-
-.admin-sidebar a.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    font-weight: 600;
-}
-
-.admin-content {
-    flex: 1;
-    min-width: 0;
-}
-
-@media (max-width: 768px) {
-    .admin-layout {
-        flex-direction: column;
-    }
-    
-    .admin-sidebar {
-        width: 100%;
-        position: relative;
-        top: 0;
-    }
-}
-</style>
+<link rel="stylesheet" href="css/admin-ui.css">
 
 <div class="admin-sidebar">
     <h3>⚙️ Admin Panel</h3>
