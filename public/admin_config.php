@@ -157,7 +157,7 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
     <title>Configuración del Sistema - <?php echo escapeHtml($siteName); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="css/extracted/admin_config.css">
+    <!-- Consolidated styles moved into `css/ui.css` and `css/admin-ui.css` -->
 </head>
 <body>
     <div class="navbar">

@@ -154,7 +154,7 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
     <title>Panel de Administración - Mimir</title>
     <link rel="stylesheet" href="/css/admin.css">
         <link rel="stylesheet" href="/css/ui.css">
-        <link rel="stylesheet" href="css/extracted/admin_dashboard.css">
+        <!-- Admin dashboard utilities are in `css/admin-ui.css` and `css/ui.css` -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
