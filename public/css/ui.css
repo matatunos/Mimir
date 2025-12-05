@@ -125,3 +125,7 @@ canvas{width:100%!important;height:100%!important}
 .text-danger{color:#dc2626}
 .small-muted{color:#64748b;font-size:0.9em}
 
+/* Progress bar for uploads */
+.progress{background:#f1f5f9;border-radius:9999px;overflow:hidden;height:10px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#7c3aed);width:0%;transition:width 0.18s}
+

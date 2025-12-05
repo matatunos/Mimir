@@ -66,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         if ($_POST['action'] === 'upload' && isset($_FILES['files'])) {
             try {
+                $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
                 $folderId = !empty($_POST['folder_id']) ? $_POST['folder_id'] : null;
                 $uploadedCount = 0;
                 $errors = [];
@@ -104,9 +105,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Refresh data
                 $files = $fileManager->getUserFiles($userId, $currentFolder);
                 $user = $auth->getUserById($userId);
+                if (!empty($isAjax)) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => $uploadedCount>0, 'uploaded' => $uploadedCount, 'errors' => $errors]);
+                    exit;
+                }
             } catch (Exception $e) {
                 $message = 'Error al subir: ' . $e->getMessage();
                 $messageType = 'error';
+                if (!empty($isAjax)) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+                    exit;
+                }
             }
         } elseif ($_POST['action'] === 'create_folder') {
             try {
@@ -163,6 +174,71 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
     <div id="content">
         <div id="ajax-shares-container" class="hidden"></div>
         </script>
+    <script>
+    // AJAX upload handler with progress
+    document.addEventListener('DOMContentLoaded', function(){
+        var uploadForm = document.getElementById('uploadForm');
+        var uploadModal = document.getElementById('uploadModal');
+        var progress = document.getElementById('uploadProgress');
+        var progressFill = document.getElementById('uploadProgressFill');
+
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', function(e){
+                e.preventDefault();
+                var form = e.target;
+                var fd = new FormData(form);
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', window.location.pathname, true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                xhr.upload.onprogress = function(ev){
+                    if (ev.lengthComputable) {
+                        var pct = Math.round((ev.loaded / ev.total) * 100);
+                        progress.style.display = '';
+                        progressFill.style.width = pct + '%';
+                    }
+                };
+
+                xhr.onload = function(){
+                    try {
+                        var json = JSON.parse(xhr.responseText);
+                        if (json && json.success) {
+                            // simple behaviour: reload to refresh file list
+                            location.reload();
+                        } else {
+                            alert('Error al subir: ' + (json.error || (json.errors && json.errors.join(', ')) || 'Error desconocido'));
+                            progress.style.display = 'none';
+                            progressFill.style.width = '0%';
+                        }
+                    } catch (err) {
+                        alert('Error en la respuesta del servidor');
+                        progress.style.display = 'none';
+                        progressFill.style.width = '0%';
+                    }
+                };
+
+                xhr.onerror = function(){
+                    alert('Error de red durante la subida');
+                    progress.style.display = 'none';
+                    progressFill.style.width = '0%';
+                };
+
+                xhr.send(fd);
+            });
+        }
+
+        // Show/hide modal using classes
+        window.showUploadModal = function(){
+            uploadModal.classList.remove('hidden');
+            uploadModal.classList.add('active');
+        };
+        window.closeUploadModal = function(){
+            uploadModal.classList.remove('active');
+            uploadModal.classList.add('hidden');
+        };
+    });
+    </script>
         <script>
         // AJAX para cargar compartidos en el dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -358,7 +434,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         </div>
     </div>
     <!-- Upload Modal -->
-    <div id="uploadModal" class="modal" style="display:none;">
+    <div id="uploadModal" class="modal hidden">
         <div class="modal-content" style="max-width:640px;">
             <div class="modal-header">
                 <h3><i class="fas fa-upload"></i> Subir Archivos</h3>
@@ -371,6 +447,9 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     <div class="form-group" style="margin-bottom:1rem;">
                         <label for="files">Selecciona archivos (puedes seleccionar varios)</label>
                         <input type="file" name="files[]" id="files" multiple required>
+                    </div>
+                    <div class="progress mb-1" id="uploadProgress" style="display:none;">
+                        <div class="progress-fill" id="uploadProgressFill" style="width:0%"></div>
                     </div>
                     <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.5rem;">
                         <button type="button" class="btn btn-secondary" onclick="closeUploadModal()">Cancelar</button>
