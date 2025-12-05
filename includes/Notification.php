@@ -33,7 +33,7 @@ class Notification {
     /**
      * Send email via SMTP
      */
-    private static function sendEmail($to, $subject, $body) {
+    public static function sendEmail($to, $subject, $body) {
         $smtpHost = SystemConfig::get('smtp_host');
         $smtpPort = SystemConfig::get('smtp_port', 587);
         $smtpUsername = SystemConfig::get('smtp_username');

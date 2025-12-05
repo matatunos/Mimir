@@ -156,5 +156,5 @@ INSERT INTO system_config (config_key, config_value, config_type, description) V
 ('duo_host', '', 'string', 'DUO API host'),
 ('duo_app_key', '', 'string', 'DUO application key');
 
-ALTER TABLE public_shares ADD COLUMN requires_password BOOLEAN DEFAULT FALSE AFTER is_active;
+-- Duplicate ALTER removed: `requires_password` already defined in CREATE TABLE
 

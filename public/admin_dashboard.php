@@ -197,14 +197,8 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 <thead>
                     <tr>
                         <?php
-                        $twofa_method = 'none';
-                        if (!empty($user['duo_enabled'])) {
-                            $twofa_method = 'duo';
-                        } else if (!empty($user['twofa_enabled'])) {
-                            $twofa_method = 'totp';
-                        }
                         ?>
-                        <tr data-user-id="<?php echo $user['id']; ?>" data-twofa-method="<?php echo $twofa_method; ?>">
+                        <tr>
                         <th>Usuario</th>
                         <th>Rol</th>
                         <th>Archivos</th>
@@ -215,7 +209,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 </thead>
                 <tbody>
                     <?php foreach ($topStorageUsers as $user): ?>
-                    <tr>
+                    <tr data-user-id="<?php echo $user['id']; ?>" data-twofa-method="<?php echo !empty($user['duo_enabled']) ? 'duo' : (!empty($user['twofa_enabled']) ? 'totp' : 'none'); ?>">
                         <td><?php echo escapeHtml($user['username']); ?></td>
                         <td><?php echo strtoupper($user['role']); ?></td>
                         <td><?php echo number_format($user['file_count'] ?? 0); ?></td>

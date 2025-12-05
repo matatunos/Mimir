@@ -50,6 +50,10 @@ class ShareManager {
                 $requiresPassword = true;
             }
 
+            // Normalize types for DB insertion to avoid empty-string -> integer errors
+            $requiresPassword = $requiresPassword ? 1 : 0;
+            $maxDownloads = ($maxDownloads !== null && $maxDownloads !== '') ? (int)$maxDownloads : null;
+
             // Insert share
             $stmt = $this->db->prepare("INSERT INTO public_shares (file_id, user_id, share_token, password_hash, requires_password, share_type, expires_at, max_downloads) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$fileId, $userId, $token, $passwordHash, $requiresPassword, $shareType, $expiresAt, $maxDownloads]);

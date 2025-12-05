@@ -119,7 +119,11 @@ $countSql = "
     $whereClause
 ";
 $stmt = $db->prepare($countSql);
-$stmt->execute($params);
+if (!empty($params)) {
+    $stmt->execute($params);
+} else {
+    $stmt->execute();
+}
 $totalFiles = $stmt->fetchColumn();
 $totalPages = ceil($totalFiles / $perPage);
 
@@ -167,7 +171,11 @@ $sql = "
 ";
 
 $stmt = $db->prepare($sql);
-$stmt->execute($params);
+if (!empty($params)) {
+    $stmt->execute($params);
+} else {
+    $stmt->execute();
+}
 $files = $stmt->fetchAll();
 
 // Get all users for filter

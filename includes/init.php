@@ -6,12 +6,22 @@
 // Include configuration first
 require_once __DIR__ . '/../config/config.php';
 
-// Start session
+// Start session - provide sane defaults if config not loaded
+if (!defined('SESSION_NAME')) {
+    define('SESSION_NAME', 'MIMIR_SESSION');
+}
+if (!defined('SESSION_LIFETIME')) {
+    define('SESSION_LIFETIME', 7200);
+}
+if (!defined('CSRF_TOKEN_NAME')) {
+    define('CSRF_TOKEN_NAME', 'csrf_token');
+}
+
 session_name(SESSION_NAME);
 session_set_cookie_params([
     'lifetime' => SESSION_LIFETIME,
     'path' => '/',
-    'domain' => 'mimir.local',
+    'domain' => (defined('BASE_URL') ? parse_url(BASE_URL, PHP_URL_HOST) : 'localhost'),
     'secure' => false, // true si usas https
     'httponly' => true,
     'samesite' => 'Lax'
