@@ -834,10 +834,12 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
             });
         });
         function showConfigTab(tab) {
-            document.querySelectorAll('.config-tab').forEach(function(el){el.style.display='none';});
-            document.querySelectorAll('.tab-btn').forEach(function(btn){btn.classList.remove('active');});
-            document.getElementById('tab-'+tab).style.display = 'block';
-            document.querySelector('.tab-btn[onclick*="'+tab+'"]').classList.add('active');
+            document.querySelectorAll('.config-tab').forEach(function(el){ el.classList.add('hidden'); });
+            document.querySelectorAll('.tab-btn').forEach(function(btn){ btn.classList.remove('active'); });
+            var target = document.getElementById('tab-' + tab);
+            if (target) target.classList.remove('hidden');
+            var btn = document.querySelector('.tab-btn[onclick*="'+tab+'"]');
+            if (btn) btn.classList.add('active');
         }
             function showSection(section) {
                 // Toggle active nav link
