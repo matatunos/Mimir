@@ -110,6 +110,8 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
     <meta charset="UTF-8">
     <title>Panel de Administración - Mimir</title>
     <link rel="stylesheet" href="/css/admin.css">
+        <link rel="stylesheet" href="/css/ui.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
@@ -193,6 +195,10 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             </div>
             <!-- Visualización de ocupación por usuario -->
             <h2 style="margin-top:2em;">Ocupación por Usuario</h2>
+                <div class="card" style="margin-bottom:1rem">
+                    <canvas id="activityChart" height="120"></canvas>
+                </div>
+                <div class="card">
             <table class="data-table">
                 <thead>
                     <tr>
