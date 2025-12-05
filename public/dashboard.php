@@ -287,7 +287,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                             <td><?php echo formatBytes($file['file_size']); ?></td>
                             <td>
                                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                    <span class="badge" style="background: #dbeafe; color: #1e40af; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                    <span class="badge download-count" data-file-id="<?php echo $file['id']; ?>" style="background: #dbeafe; color: #1e40af; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
                                         <i class="fas fa-user" style="font-size: 0.7rem;"></i> <?php echo (int)$file['download_count']; ?>
                                     </span>
                                     <?php if ($file['share_id']): ?>
@@ -396,5 +396,43 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             }
         }
     </script>
+        <script>
+            // Intercept download clicks, start download in hidden iframe and update counter via AJAX
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('a[href^="download.php?id="]').forEach(function(a) {
+                    a.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var href = a.getAttribute('href');
+                        var fileIdMatch = href.match(/id=(\d+)/);
+                        var fileId = fileIdMatch ? fileIdMatch[1] : null;
+
+                        // Start download via invisible iframe so browser download dialog appears
+                        var iframe = document.createElement('iframe');
+                        iframe.style.display = 'none';
+                        iframe.src = href;
+                        document.body.appendChild(iframe);
+
+                        if (!fileId) return;
+
+                        // Fetch updated stats and update counter
+                        fetch('api/file_stats.php?id=' + encodeURIComponent(fileId), {credentials: 'same-origin'})
+                            .then(function(resp) { return resp.json(); })
+                            .then(function(json) {
+                                if (json && typeof json.download_count !== 'undefined') {
+                                    var el = document.querySelector('.download-count[data-file-id="' + fileId + '"]');
+                                    if (el) {
+                                        // Update number while preserving icon
+                                        var icon = el.querySelector('i');
+                                        el.textContent = '';
+                                        if (icon) el.appendChild(icon);
+                                        el.insertAdjacentText('beforeend', ' ' + json.download_count);
+                                    }
+                                }
+                            })
+                            .catch(function() { /* silent */ });
+                    });
+                });
+            });
+        </script>
 </body>
 </html>

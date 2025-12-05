@@ -611,7 +611,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 <button class="tab-btn" onclick="showConfigTab('seguridad')">Seguridad</button>
             </div>
             <?php $configs = SystemConfig::getAll(); ?>
-            <form method="post" action="admin_config.php" class="config-form" id="configForm">
+            <form method="post" action="save_config.php" class="config-form" id="configForm">               
                 <div id="tab-general" class="config-tab">
                     <h3>General</h3>
                     <?php foreach ($configs as $conf): if (!in_array($conf['config_key'], ['smtp_host','smtp_port','smtp_username','smtp_password','smtp_from_email','smtp_from_name','ldap_enabled','ldap_host','ldap_port','ldap_base_dn','ldap_admin_dn','ldap_admin_password','ldap_user_filter','duo_enabled','duo_ikey','duo_skey','duo_host','duo_app_key','twofa_enabled'])): ?>
