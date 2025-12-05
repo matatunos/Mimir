@@ -398,6 +398,29 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                     }
                 });
             });
+
+            // Storage pie chart
+            const storageLabels = <?php echo json_encode($storageLabels); ?>;
+            const storageValues = <?php echo json_encode($storageValues); ?>;
+            const storageCtx = document.getElementById('storageChart').getContext('2d');
+            new Chart(storageCtx, {
+                type: 'pie',
+                data: {
+                    labels: storageLabels,
+                    datasets: [{ data: storageValues, backgroundColor: ['#60a5fa','#34d399','#f472b6','#f59e0b','#a78bfa','#f97316'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{position:'bottom'}} }
+            });
+
+            // Top users bar chart
+            const topUserLabels = <?php echo json_encode($topUserLabels); ?>;
+            const topUserValues = <?php echo json_encode($topUserValues); ?>;
+            const topUsersCtx = document.getElementById('topUsersChart').getContext('2d');
+            new Chart(topUsersCtx, {
+                type: 'bar',
+                data: { labels: topUserLabels, datasets: [{ label: 'Archivos', data: topUserValues, backgroundColor: '#7c3aed' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}} }
+            });
             let auditLogPage = 0;
             function loadAuditLogs(page=0, filter='') {
                 fetch('admin_auditlog_ajax.php?page='+page+'&filter='+encodeURIComponent(filter))
