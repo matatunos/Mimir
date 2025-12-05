@@ -75,7 +75,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <span>📊</span>
         <span>Dashboard</span>
     </a>
-    <a href="users.php" class="<?php echo $current_page === 'users.php' ? 'active' : ''; ?>">
+    <a href="admin_dashboard.php" class="<?php echo $current_page === 'admin_dashboard.php' ? 'active' : ''; ?>">
         <span>👥</span>
         <span>User Management</span>
     </a>

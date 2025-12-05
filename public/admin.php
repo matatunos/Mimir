@@ -87,8 +87,8 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         <div class="navbar-brand"><?php echo escapeHtml($siteName); ?> Admin</div>
         <div class="navbar-menu">
             <a href="dashboard.php">My Files</a>
-            <a href="shares.php">Shares</a>
-            <a href="admin.php" class="active">Admin</a>
+            <a href="admin_dashboard.php">Shares</a>
+            <a href="admin_dashboard.php" class="active">Admin</a>
             <a href="logout.php">Logout</a>
         </div>
     </div>
@@ -97,7 +97,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         <div class="admin-panel">
             <div class="admin-sidebar">
                 <a href="admin_dashboard.php">📊 Dashboard</a>
-                <a href="users.php">👥 Users</a>
+                <a href="admin_dashboard.php">👥 Users</a>
                 <a href="?tab=settings" class="<?php echo $tab === 'settings' ? 'active' : ''; ?>">⚙️ Settings</a>
                 <a href="ldap_config.php">🔐 LDAP / AD Config</a>
                 <a href="?tab=audit" class="<?php echo $tab === 'audit' ? 'active' : ''; ?>">📋 Audit Log</a>
