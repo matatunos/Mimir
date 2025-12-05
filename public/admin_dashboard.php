@@ -837,10 +837,14 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
             document.querySelector('.tab-btn[onclick*="'+tab+'"]').classList.add('active');
         }
             function showSection(section) {
+                // Toggle active nav link
                 document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
-                document.querySelector('.nav a[href="#'+section+'"]').classList.add('active');
-                document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-                document.getElementById('section-' + section).style.display = 'block';
+                var link = document.querySelector('.nav a[href="#'+section+'"]');
+                if (link) link.classList.add('active');
+                // Hide all sections using the utility class and show the target by removing the class
+                document.querySelectorAll('.section').forEach(function(s){ s.classList.add('hidden'); });
+                var target = document.getElementById('section-' + section);
+                if (target) target.classList.remove('hidden');
             }
         </script>
         <script>
