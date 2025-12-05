@@ -62,3 +62,66 @@ canvas{width:100%!important;height:100%!important}
 .tab-btn{background:transparent;color:var(--accent);border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600}
 .tab-btn.active, .tab-btn:hover{background:var(--accent);color:#fff}
 .config-tab{display:block}
+
+/* Utilities and layout unified styles */
+.hidden{display:none!important}
+.flex-row{display:flex}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.gap-1{gap:1rem}
+
+/* Modal visibility control: ui overrides admin.css to use .active */
+.modal{display:none}
+.modal.active{display:flex}
+.modal .modal-content{max-width:640px}
+
+/* Dashboard layout */
+.dashboard-main{display:flex;gap:2rem;align-items:flex-start}
+.folder-sidebar{min-width:260px;max-width:320px;width:25%;background:#fff;border-radius:16px;padding:1.5rem 1rem 1.5rem 1.5rem;box-shadow:0 2px 8px rgba(100,116,139,0.06)}
+.dashboard-header{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;justify-content:space-between;margin-bottom:2rem}
+.card-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+
+/* Form utilities */
+.form-inline{display:flex;align-items:center;gap:0.5rem}
+.form-control-min{min-width:180px}
+
+/* Width helpers for table columns */
+.w-90{width:90px}
+.w-130{width:130px}
+.w-160{width:160px}
+.w-120{width:120px}
+.w-140{width:140px}
+
+/* Icon and badge helpers */
+.icon-muted{color:#94a3b8;margin-right:0.5rem}
+.badge-download{background:#dbeafe;color:#1e40af;display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;font-size:0.75rem}
+.badge-share{background:#d1fae5;color:#065f46;display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;font-size:0.75rem}
+.time-muted{color:#64748b}
+
+/* Folder tree styles */
+.folder-tree{list-style:none;margin:0;padding-left:0}
+.folder-tree .folder-item{margin-bottom:0.3em;position:relative}
+.folder-link{display:flex;align-items:center;gap:0.5em;padding:0.3em 0.5em;border-radius:6px;text-decoration:none;color:#475569}
+.folder-link.active{background:#e0e7ff;font-weight:600;color:#4338ca}
+.folder-icon{font-size:1.5em;color:#fbbf24}
+
+/* Buttons group */
+.btn-group{display:flex;gap:0.25rem}
+
+/* Spacing utilities */
+.mb-1{margin-bottom:1rem}
+.mb-2{margin-bottom:2rem}
+.mt-1{margin-top:1rem}
+.my-1{margin:1rem 0}
+
+.h4-title{margin:0 0 8px}
+.section-title{margin-top:2rem}
+
+/* Modal small and body variants */
+.modal .modal-content.modal-sm{max-width:420px}
+.modal-body{padding:1.5rem 0.5rem 0.5rem 0.5rem;text-align:left}
+.modal-center{padding:1.5rem 0.5rem 0.5rem 0.5rem;text-align:center}
+.qr-img{margin-bottom:1rem;max-width:220px}
+.monospace-secret{font-family:monospace;word-break:break-all;max-width:160px;display:inline-block;overflow-x:auto;white-space:nowrap}
+.text-danger{color:#dc2626}
+.small-muted{color:#64748b;font-size:0.9em}
+

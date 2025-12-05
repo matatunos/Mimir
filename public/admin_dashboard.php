@@ -123,6 +123,28 @@ $stmt = $db->query("SELECT share_type, COUNT(*) as cnt FROM public_shares GROUP 
 $shareTypes = $stmt->fetchAll();
 $shareLabels = array_map(function($r){ return $r['share_type']; }, $shareTypes);
 $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
+
+// Simple file cache to reduce DB load on frequent admin page views
+$cacheDir = __DIR__ . '/../cache';
+$cacheFile = $cacheDir . '/admin_metrics.json';
+$cacheTtl = 300; // 5 minutes
+if (!is_dir($cacheDir)) {
+    @mkdir($cacheDir, 0755, true);
+}
+$metricsPayload = [
+    'activity' => $activityData,
+    'storage_labels' => $storageLabels,
+    'storage_values' => $storageValues,
+    'topuser_labels' => $topUserLabels,
+    'topuser_values' => $topUserValues,
+    'share_labels' => $shareLabels,
+    'share_values' => $shareValues,
+    'stats' => $stats
+];
+// write cache asynchronously-like (best effort)
+if ($cacheFile && is_writable(dirname($cacheFile))) {
+    @file_put_contents($cacheFile, json_encode($metricsPayload));
+}
 ?><!DOCTYPE html>
 <html lang="es">
 <head>
@@ -135,33 +157,33 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
 </head>
 <body>
         <!-- Modal de edición de usuario -->
-        <div id="editUserModal" class="modal" style="display:none;">
-            <div class="modal-content" style="max-width: 420px;">
+        <div id="editUserModal" class="modal hidden">
+            <div class="modal-content modal-sm">
                 <div class="modal-header">
                     <h3><i class="fas fa-user-edit"></i> Editar Usuario</h3>
                     <button class="modal-close" onclick="closeEditUserModal()">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div id="editUserModalBody" style="padding: 1.5rem 0.5rem 0.5rem 0.5rem; text-align: left;">
+                <div id="editUserModalBody" class="modal-body">
                     <form id="editUserForm">
                         <input type="hidden" name="user_id" id="editUserId">
-                        <div style="margin-bottom:1em;">
+                        <div class="mb-1">
                             <label>Usuario:</label>
                             <input type="text" name="username" id="editUsername" required>
                         </div>
-                        <div style="margin-bottom:1em;">
+                        <div class="mb-1">
                             <label>Email:</label>
                             <input type="email" name="email" id="editEmail" required>
                         </div>
-                        <div style="margin-bottom:1em;">
+                        <div class="mb-1">
                             <label>Rol:</label>
                             <select name="role" id="editRole">
                                 <option value="user">Usuario</option>
                                 <option value="admin">Administrador</option>
                             </select>
                         </div>
-                        <div style="margin-bottom:1em;">
+                        <div class="mb-1">
                             <label>Método de Doble Factor</label>
                             <select name="twofa_method" id="edit2FAMethod">
                                 <option value="none">Ninguno</option>
@@ -171,7 +193,7 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                         </div>
                         <button type="submit" class="btn btn-primary">Guardar</button>
                     </form>
-                    <div id="editUserMsg" style="margin-top:1em;"></div>
+                    <div id="editUserMsg" class="mt-1"></div>
                 </div>
             </div>
         </div>
@@ -213,21 +235,25 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                 </div>
             </div>
             <!-- Visualización de ocupación por usuario -->
-            <h2 style="margin-top:2em;">Ocupación por Usuario</h2>
-                <div class="card" style="margin-bottom:1rem">
+            <h2 class="section-title">Ocupación por Usuario</h2>
+                <div class="card mb-1">
                     <div class="charts-grid">
                         <div class="chart-card">
-                            <h4 style="margin:0 0 8px;">Actividad (7 días)</h4>
+                            <h4 class="h4-title">Actividad (7 días)</h4>
                             <div class="chart-wrap"><canvas id="activityChart"></canvas></div>
                         </div>
                         <div class="chart-side">
-                            <div class="chart-card" style="margin-bottom:12px;">
-                                <h4 style="margin:0 0 8px;">Uso por Usuario (top)</h4>
+                            <div class="chart-card mb-1">
+                                <h4 class="h4-title">Uso por Usuario (top)</h4>
                                 <div class="chart-wrap"><canvas id="storageChart"></canvas></div>
                             </div>
-                            <div class="chart-card">
-                                <h4 style="margin:0 0 8px;">Top Usuarios (archivos)</h4>
+                            <div class="chart-card mb-1">
+                                <h4 class="h4-title">Top Usuarios (archivos)</h4>
                                 <div class="chart-wrap"><canvas id="topUsersChart"></canvas></div>
+                            </div>
+                            <div class="chart-card">
+                                <h4 class="h4-title">Tipos de Enlace</h4>
+                                <div class="chart-wrap"><canvas id="shareTypesChart"></canvas></div>
                             </div>
                         </div>
                     </div>
@@ -261,7 +287,7 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                 </tbody>
             </table>
             <!-- Ranking de usuarios por archivos subidos -->
-            <h2 style="margin-top:2em;">Top Usuarios por Archivos Subidos</h2>
+            <h2 class="section-title">Top Usuarios por Archivos Subidos</h2>
             <ul class="top-users-list">
                 <?php foreach ($topFileUsers as $index => $user): ?>
                 <li class="top-user-item">
@@ -281,7 +307,7 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                 <?php endforeach; ?>
             </ul>
             <!-- Listado de enlaces compartidos -->
-            <h2 style="margin-top:2em;">Enlaces Compartidos</h2>
+            <h2 class="section-title">Enlaces Compartidos</h2>
             <table class="data-table">
                 <thead>
                     <tr>
@@ -312,8 +338,8 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                 </tbody>
             </table>
             <!-- Logs de auditoría -->
-            <h2 style="margin-top:2em;">Logs de Auditoría Recientes</h2>
-            <input type="text" id="auditLogFilter" placeholder="Filtrar logs..." style="margin-bottom:1em;">
+            <h2 class="section-title">Logs de Auditoría Recientes</h2>
+            <input type="text" id="auditLogFilter" placeholder="Filtrar logs..." class="mb-1">
             <table class="data-table" id="auditLogTable">
                 <thead>
                     <tr>
@@ -330,7 +356,7 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                     <!-- Logs AJAX -->
                 </tbody>
             </table>
-            <div id="auditLogPagination" style="margin:1em 0;"></div>
+            <div id="auditLogPagination" class="my-1"></div>
             <script>
             function block2FA(userId) {
                 if (!confirm('¿Seguro que quieres desactivar el doble factor para este usuario?')) return;
@@ -421,6 +447,16 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                 data: { labels: topUserLabels, datasets: [{ label: 'Archivos', data: topUserValues, backgroundColor: '#7c3aed' }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}} }
             });
+
+            // Share types doughnut
+            const shareLabels = <?php echo json_encode($shareLabels); ?>;
+            const shareValues = <?php echo json_encode($shareValues); ?>;
+            const shareCtx = document.getElementById('shareTypesChart').getContext('2d');
+            new Chart(shareCtx, {
+                type: 'doughnut',
+                data: { labels: shareLabels, datasets: [{ data: shareValues, backgroundColor: ['#60a5fa','#f472b6','#f59e0b','#34d399'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{position:'bottom'}} }
+            });
             let auditLogPage = 0;
             function loadAuditLogs(page=0, filter='') {
                 fetch('admin_auditlog_ajax.php?page='+page+'&filter='+encodeURIComponent(filter))
@@ -447,7 +483,7 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
             });
             </script>
             <!-- Sugerencias adicionales -->
-            <h2 style="margin-top:2em;">Sugerencias y Métricas Extra</h2>
+            <h2 class="section-title">Sugerencias y Métricas Extra</h2>
             <ul>
                 <li>Usuarios nunca conectados: <?php echo $stats['total_users'] - count($mostActiveUsers); ?></li>
                 <li>Usuarios inactivos (30+ días): <?php echo count($inactiveUsers30d); ?></li>
@@ -456,10 +492,10 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                 <li>Archivos subidos hoy: <?php echo $stats['files_today']; ?></li>
             </ul>
         </div>
-        <div id="section-users" class="section" style="display:none">
+        <div id="section-users" class="section hidden">
             <h2>Usuarios</h2>
             <button class="btn-save" onclick="showUserForm()">Añadir Usuario</button>
-            <div id="userForm" style="display:none; margin:2em 0;">
+            <div id="userForm" class="hidden mb-2">
                 <form id="addUserForm">
                     <div class="config-item"><label>Usuario</label><input type="text" name="username" required></div>
                     <div class="config-item"><label>Email</label><input type="email" name="email" required></div>
@@ -475,11 +511,11 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                         </select>
                     </div>
                     <button type="submit" class="btn-save">Guardar</button>
-                    <button type="button" class="btn-save" style="background:#64748b;" onclick="hideUserForm()">Cancelar</button>
+                    <button type="button" class="btn-save btn-ghost" onclick="hideUserForm()">Cancelar</button>
                 </form>
-                <div id="userFormMsg" style="margin-top:1em;"></div>
+                <div id="userFormMsg" class="mt-1"></div>
             </div>
-            <input type="text" id="userFilter" placeholder="Filtrar usuarios..." onkeyup="filterTable('userFilter','userTable')" style="margin-bottom:1em;">
+            <input type="text" id="userFilter" placeholder="Filtrar usuarios..." onkeyup="filterTable('userFilter','userTable')" class="mb-1">
             <table class="data-table" id="userTable">
                 <thead>
                     <tr data-user-id="<?php echo $user['id']; ?>">
@@ -538,25 +574,25 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                     <?php endforeach; ?>
                 </tbody>
                 <!-- 2FA Modal -->
-                <div id="twofaModal" class="modal" style="display:none;">
-                    <div class="modal-content" style="max-width: 420px;">
+                <div id="twofaModal" class="modal hidden">
+                    <div class="modal-content modal-sm">
                         <div class="modal-header">
                             <h3><i class="fas fa-qrcode"></i> Doble Factor (TOTP)</h3>
                             <button class="modal-close" onclick="close2FAModal()">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <div id="twofaModalBody" style="padding: 1.5rem 0.5rem 0.5rem 0.5rem; text-align: center;">
+                        <div id="twofaModalBody" class="modal-center">
                             <div id="twofaLoading">Cargando...</div>
-                            <div id="twofaContent" style="display:none;">
-                                <img id="twofaQr" src="" alt="QR TOTP" style="margin-bottom: 1rem; max-width: 220px;">
-                                <div style="margin-bottom: 0.5rem; font-size: 1.1em; max-width: 220px; margin:auto; overflow-x:auto; white-space:nowrap;">
-                                    <strong>Secreto:</strong> <span id="twofaSecret" style="font-family:monospace; word-break:break-all; max-width:160px; display:inline-block; overflow-x:auto; white-space:nowrap;"></span>
+                            <div id="twofaContent" class="hidden">
+                                <img id="twofaQr" src="" alt="QR TOTP" class="qr-img">
+                                <div class="mb-1" style="font-size:1.1em;max-width:220px;margin:auto;overflow-x:auto;white-space:nowrap;">
+                                    <strong>Secreto:</strong> <span id="twofaSecret" class="monospace-secret"></span>
                                 </div>
-                                <div style="color:#64748b; font-size:0.95em; margin-bottom:1rem;">Escanea el QR con Google Authenticator, Authy, etc.</div>
+                                <div class="mb-1" style="color:#64748b; font-size:0.95em;">Escanea el QR con Google Authenticator, Authy, etc.</div>
                                 <button class="btn btn-secondary" onclick="close2FAModal()">Cerrar</button>
                             </div>
-                            <div id="twofaError" style="display:none; color:#dc2626;">Error al cargar el QR</div>
+                            <div id="twofaError" class="hidden text-danger">Error al cargar el QR</div>
                         </div>
                     </div>
                 </div>
@@ -595,15 +631,15 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                 }
                 </script>
             </table>
-            <div id="userTable-controls" style="margin-bottom:1em;">
+            <div id="userTable-controls" class="mb-1">
                 <button id="userTable-prev">Anterior</button>
                 <span id="userTable-pagination"></span>
                 <button id="userTable-next">Siguiente</button>
             </div>
         </div>
-        <div id="section-files" class="section" style="display:none">
+        <div id="section-files" class="section hidden">
             <h2>Archivos</h2>
-            <input type="text" id="fileFilter" placeholder="Filtrar archivos..." onkeyup="filterTable('fileFilter','fileTable')" style="margin-bottom:1em;">
+            <input type="text" id="fileFilter" placeholder="Filtrar archivos..." onkeyup="filterTable('fileFilter','fileTable')" class="mb-1">
             <table class="data-table" id="fileTable">
                 <thead>
                     <tr>
@@ -630,9 +666,9 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                 </tbody>
             </table>
         </div>
-        <div id="section-shares" class="section" style="display:none">
+        <div id="section-shares" class="section hidden">
             <h2>Enlaces Compartidos</h2>
-            <input type="text" id="shareFilter" placeholder="Filtrar compartidos..." onkeyup="filterTable('shareFilter','shareTable')" style="margin-bottom:1em;">
+            <input type="text" id="shareFilter" placeholder="Filtrar compartidos..." onkeyup="filterTable('shareFilter','shareTable')" class="mb-1">
             <table class="data-table" id="shareTable">
                 <thead>
                     <tr>
@@ -664,7 +700,7 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
             </table>
         </div>
         <!-- Configuración -->
-        <div id="section-config" class="section" style="display:none">
+        <div id="section-config" class="section hidden">
             <h2>Configuración del Sistema</h2>
             <div class="config-tabs">
                 <button class="tab-btn active" onclick="showConfigTab('general')">General</button>
@@ -681,7 +717,7 @@ $shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
                     <div class="config-item">
                         <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
                             <?php echo escapeHtml($conf['description']); ?>
-                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                            <span class="small-muted">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
                         </label>
                         <?php if ($conf['config_type'] === 'boolean'): ?>
                             <select name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>">

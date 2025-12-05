@@ -161,7 +161,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         <div class="user"><?php echo escapeHtml($user['username']); ?></div>
     </div>
     <div id="content">
-        <div id="ajax-shares-container" style="display:none;"></div>
+        <div id="ajax-shares-container" class="hidden"></div>
         </script>
         <script>
         // AJAX para cargar compartidos en el dashboard
@@ -192,29 +192,29 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 <?php echo escapeHtml($message); ?>
             </div>
         <?php endif; ?>
-        <div class="dashboard-main" style="display:flex;gap:2rem;align-items:flex-start;">
-            <aside class="folder-sidebar" style="min-width:260px;max-width:320px;width:25%;background:#fff;border-radius:16px;padding:1.5rem 1rem 1.5rem 1.5rem;box-shadow:0 2px 8px rgba(100,116,139,0.06);">
-                <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+        <div class="dashboard-main">
+            <aside class="folder-sidebar">
+                <div class="flex-row gap-1" style="margin-bottom:1.5rem;">
                     <h2 style="margin:0;font-size:1.2rem;"><i class="fas fa-folder-tree"></i> Carpetas</h2>
                     <button class="btn btn-secondary" onclick="showCreateFolderModal()" title="Nueva Carpeta"><i class="fas fa-folder-plus"></i></button>
                 </div>
                 <?php
                 // Renderizar árbol de carpetas recursivo
                 function renderFolderTree($tree, $currentFolder, $level = 0, $isLast = false) {
-                    echo '<ul class="folder-tree" style="list-style:none;margin:0;padding-left:' . ($level > 0 ? 18 : 0) . 'px;position:relative;">';
+                    echo '<ul class="folder-tree" style="padding-left:' . ($level > 0 ? 18 : 0) . 'px;">';
                     $count = count($tree);
                     $i = 0;
                     foreach ($tree as $folder) {
                         $i++;
                         $isActive = $currentFolder == $folder['id'];
                         $isLastChild = ($i === $count);
-                        echo '<li style="margin-bottom:0.3em;position:relative;">';
-                        // Líneas verticales y horizontales
+                        echo '<li class="folder-item">';
+                        // Líneas verticales y horizontales (keep inline for precise position)
                         if ($level > 0) {
                             echo '<span style="position:absolute;left:-13px;top:0;height:100%;width:13px;border-left:1.5px solid #cbd5e1;' . ($isLastChild ? 'height:1.2em;' : '') . '"></span>';
                             echo '<span style="position:absolute;left:-13px;top:1.1em;width:13px;border-bottom:1.5px solid #cbd5e1;"></span>';
                         }
-                        echo '<a href="?folder=' . $folder['id'] . '" class="' . ($isActive ? 'active-folder' : '') . '" style="display:flex;align-items:center;gap:0.5em;padding:0.3em 0.5em;border-radius:6px;text-decoration:none;' . ($isActive ? 'background:#e0e7ff;font-weight:600;color:#4338ca;' : 'color:#475569;') . '"><i class="fas fa-folder" style="font-size:1.5em;color:#fbbf24;"></i> ' . escapeHtml($folder['name']) . '</a>';
+                        echo '<a href="?folder=' . $folder['id'] . '" class="folder-link ' . ($isActive ? 'active' : '') . '"><i class="fas fa-folder folder-icon"></i> ' . escapeHtml($folder['name']) . '</a>';
                         if (!empty($folder['children'])) {
                             renderFolderTree($folder['children'], $currentFolder, $level + 1, $isLastChild);
                         }
@@ -224,9 +224,9 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 }
                 // Carpeta raíz como nodo principal
                 $isRoot = empty($currentFolder);
-                echo '<ul class="folder-tree" style="list-style:none;padding-left:0;">';
-                echo '<li style="margin-bottom:0.3em;position:relative;">';
-                echo '<a href="dashboard.php" class="' . ($isRoot ? 'active-folder' : '') . '" style="display:flex;align-items:center;gap:0.5em;padding:0.3em 0.5em;border-radius:6px;text-decoration:none;' . ($isRoot ? 'background:#e0e7ff;font-weight:600;color:#4338ca;' : 'color:#475569;') . '"><i class="fas fa-hdd" style="font-size:1.5em;color:#fbbf24;"></i> Raíz</a>';
+                echo '<ul class="folder-tree">';
+                echo '<li class="folder-item">';
+                echo '<a href="dashboard.php" class="folder-link ' . ($isRoot ? 'active' : '') . '"><i class="fas fa-hdd folder-icon"></i> Raíz</a>';
                 if (!empty($folderTree)) {
                     renderFolderTree($folderTree, $currentFolder, 1);
                 }
@@ -234,22 +234,22 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 echo '</ul>';
                 ?>
             </aside>
-            <main style="flex:1;min-width:0;">
-                <div class="dashboard-header" style="display:flex;flex-wrap:wrap;align-items:center;gap:1rem;justify-content:space-between;margin-bottom:2rem;">
+            <main>
+                <div class="dashboard-header">
                     <h1 style="margin:0;"><i class="fas fa-folder-open"></i> Mis Archivos</h1>
-                    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+                    <div>
                         <button class="btn btn-primary" onclick="showUploadModal()"><i class="fas fa-upload"></i> Subir Archivo</button>
                     </div>
-                    <span style="font-weight:500;">
+                    <span class="time-muted" style="font-weight:500;">
                         <i class="fas fa-hdd"></i> <?php echo formatBytes($user['storage_used']); ?> / <?php echo formatBytes($user['storage_quota']); ?> usados
                     </span>
                 </div>
                 <div class="content-card">
                     <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
                         <h2 style="margin:0;"><i class="fas fa-file"></i> Archivos</h2>
-                        <form method="get" style="display:flex;align-items:center;gap:0.5rem;">
+                        <form method="get" class="form-inline">
                             <input type="hidden" name="folder" value="<?php echo escapeHtml($currentFolder ?? ''); ?>">
-                            <input type="text" name="file_filter" value="<?php echo isset($_GET['file_filter']) ? escapeHtml($_GET['file_filter']) : ''; ?>" placeholder="Filtrar por nombre..." class="form-control" style="min-width:180px;">
+                            <input type="text" name="file_filter" value="<?php echo isset($_GET['file_filter']) ? escapeHtml($_GET['file_filter']) : ''; ?>" placeholder="Filtrar por nombre..." class="form-control form-control-min">
                             <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
                         </form>
                     </div>
@@ -271,29 +271,29 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                     <thead>
                         <tr>
                             <th>Nombre</th>
-                            <th style="width: 90px;">Tamaño</th>
-                            <th style="width: 130px;">Descargas</th>
-                            <th style="width: 160px;">Estado</th>
-                            <th style="width: 120px;">Subido</th>
-                            <th style="width: 140px;">Acciones</th>
+                            <th class="w-90">Tamaño</th>
+                            <th class="w-130">Descargas</th>
+                            <th class="w-160">Estado</th>
+                            <th class="w-120">Subido</th>
+                            <th class="w-140">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($files as $file): ?>
                         <tr>
                             <td>
-                                <i class="fas fa-file-alt" style="color: #94a3b8; margin-right: 0.5rem;"></i>
+                                <i class="fas fa-file-alt icon-muted"></i>
                                 <?php echo escapeHtml($file['original_filename']); ?>
                             </td>
                             <td><?php echo formatBytes($file['file_size']); ?></td>
                             <td>
-                                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                    <span class="badge download-count" data-file-id="<?php echo $file['id']; ?>" style="background: #dbeafe; color: #1e40af; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
-                                        <i class="fas fa-user" style="font-size: 0.7rem;"></i> <?php echo (int)$file['download_count']; ?>
+                                <div style="display:flex;flex-direction:column;gap:0.25rem;">
+                                    <span class="badge-download badge download-count" data-file-id="<?php echo $file['id']; ?>">
+                                        <i class="fas fa-user" style="font-size:0.7rem"></i> <?php echo (int)$file['download_count']; ?>
                                     </span>
                                     <?php if ($file['share_id']): ?>
-                                        <span class="badge" style="background: #d1fae5; color: #065f46; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
-                                            <i class="fas fa-globe" style="font-size: 0.7rem;"></i> <?php echo (int)$file['share_download_count']; ?><?php if ($file['share_max_downloads']): ?>/<?php echo $file['share_max_downloads']; ?><?php endif; ?>
+                                        <span class="badge-share badge">
+                                            <i class="fas fa-globe" style="font-size:0.7rem"></i> <?php echo (int)$file['share_download_count']; ?><?php if ($file['share_max_downloads']): ?>/<?php echo $file['share_max_downloads']; ?><?php endif; ?>
                                         </span>
                                     <?php endif; ?>
                                 </div>
@@ -329,7 +329,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                     </span>
                                 <?php endif; ?>
                             </td>
-                            <td style="color: #64748b;"><?php echo timeAgo($file['created_at']); ?></td>
+                            <td class="time-muted"><?php echo timeAgo($file['created_at']); ?></td>
                             <td>
                                 <div class="btn-group">
                                     <a href="download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-secondary" title="Descargar">
@@ -355,6 +355,29 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 </table>
                 <!-- Botón de compartidos ahora está arriba -->
             <?php endif; ?>
+        </div>
+    </div>
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:640px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-upload"></i> Subir Archivos</h3>
+                <button class="modal-close" onclick="closeUploadModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div style="padding:1rem 0 0 0;">
+                <form id="uploadForm" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="upload">
+                    <input type="hidden" name="folder_id" value="<?php echo escapeHtml($currentFolder ?? ''); ?>">
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label for="files">Selecciona archivos (puedes seleccionar varios)</label>
+                        <input type="file" name="files[]" id="files" multiple required>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeUploadModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Subir</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
     
