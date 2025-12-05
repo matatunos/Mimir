@@ -104,6 +104,25 @@ $stmt = $db->query("
 $mostActiveUsers = $stmt->fetchAll();
 
 $siteName = SystemConfig::get('site_name', APP_NAME);
+// Prepare additional datasets for charts (storage, top-users, share types)
+$storageLabels = [];
+$storageValues = [];
+foreach ($topStorageUsers as $u) {
+    $storageLabels[] = $u['username'];
+    $storageValues[] = (int)$u['storage_used'];
+}
+
+$topUserLabels = [];
+$topUserValues = [];
+foreach ($topFileUsers as $u) {
+    $topUserLabels[] = $u['username'];
+    $topUserValues[] = (int)($u['file_count'] ?? 0);
+}
+
+$stmt = $db->query("SELECT share_type, COUNT(*) as cnt FROM public_shares GROUP BY share_type");
+$shareTypes = $stmt->fetchAll();
+$shareLabels = array_map(function($r){ return $r['share_type']; }, $shareTypes);
+$shareValues = array_map(function($r){ return (int)$r['cnt']; }, $shareTypes);
 ?><!DOCTYPE html>
 <html lang="es">
 <head>
@@ -196,7 +215,22 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             <!-- Visualización de ocupación por usuario -->
             <h2 style="margin-top:2em;">Ocupación por Usuario</h2>
                 <div class="card" style="margin-bottom:1rem">
-                    <canvas id="activityChart" height="120"></canvas>
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <h4 style="margin:0 0 8px;">Actividad (7 días)</h4>
+                            <div class="chart-wrap"><canvas id="activityChart"></canvas></div>
+                        </div>
+                        <div class="chart-side">
+                            <div class="chart-card" style="margin-bottom:12px;">
+                                <h4 style="margin:0 0 8px;">Uso por Usuario (top)</h4>
+                                <div class="chart-wrap"><canvas id="storageChart"></canvas></div>
+                            </div>
+                            <div class="chart-card">
+                                <h4 style="margin:0 0 8px;">Top Usuarios (archivos)</h4>
+                                <div class="chart-wrap"><canvas id="topUsersChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card">
             <table class="data-table">

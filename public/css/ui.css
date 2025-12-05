@@ -33,6 +33,22 @@ body{
 .avatar{width:36px;height:36px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent)}
 .download-count{font-weight:700;color:var(--muted)}
 .chart-wrap{height:220px}
+/* Charts grid for admin dashboard */
+.charts-grid{display:flex;gap:16px;align-items:stretch}
+.chart-card{background:var(--card);border-radius:8px;padding:12px;box-shadow:var(--shadow);flex:1}
+.chart-side{display:flex;flex-direction:column;gap:12px;min-width:320px;max-width:360px}
+.chart-card h4{font-size:0.95rem;margin:0 0 6px}
+canvas{width:100%!important;height:100%!important}
+
+/* Tidy tables */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th,.data-table td{padding:10px;border-bottom:1px solid #eef2f6;text-align:left}
+.data-table thead th{background:transparent;font-weight:600;color:#0f172a}
+
+@media (max-width:900px){
+  .charts-grid{flex-direction:column}
+  .chart-side{min-width:unset;max-width:unset}
+}
 @media (max-width:900px){
   .stat-grid{grid-template-columns:repeat(2,1fr)}
 }
