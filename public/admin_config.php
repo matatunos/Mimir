@@ -304,7 +304,7 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
                         <?php endif; ?>
                     </div>
                     
-                    <button type="button" class="btn btn-secondary" onclick="addFooterLink()" style="margin-bottom: 1rem;">
+                    <button type="button" class="btn btn-secondary mb-1" onclick="addFooterLink()">
                         <i class="fas fa-plus"></i> Añadir Enlace
                     </button>
                     
@@ -502,7 +502,7 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
                         </div>
                     </div>
                     
-                    <div style="display: flex; gap: 1rem;">
+                    <div class="d-flex gap-1">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Guardar Configuración LDAP
                         </button>
@@ -520,9 +520,9 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
             <div class="section">
                 <div class="section-header">
                     <h2><i class="fas fa-shield-alt"></i> Seguridad de Compartir Archivos</h2>
-                    <p>Configura las opciones de seguridad para los enlaces compartidos. <i class="fas fa-info-circle" style="color:#667eea;"></i></p>
+                    <p>Configura las opciones de seguridad para los enlaces compartidos. <i class="fas fa-info-circle text-accent"></i></p>
                 </div>
-                <div class="info-box" style="margin-bottom:2rem;">
+                <div class="info-box mb-2">
                     <strong><i class="fas fa-question-circle"></i> ¿Qué puedes configurar aquí?</strong>
                     <ul>
                         <li><b>Protección con contraseña:</b> Permite a los usuarios añadir una contraseña opcional al compartir archivos, aumentando la seguridad de los enlaces.</li>
@@ -535,7 +535,7 @@ $smtpFromName = SystemConfig::get('smtp_from_name', 'Mimir Storage');
                         <input type="checkbox" name="enable_password_shares" id="enablePasswordShares" <?php echo $enablePasswordShares ? 'checked' : ''; ?>>
                         <label for="enablePasswordShares"><i class="fas fa-key"></i> Permitir protección con contraseña en enlaces compartidos</label>
                     </div>
-                    <div class="form-hint" style="margin-bottom: 1.5rem;">
+                    <div class="form-hint mb-1-5">
                         <i class="fas fa-lightbulb"></i> Los usuarios podrán añadir una contraseña opcional al compartir archivos para mayor seguridad.
                     </div>
                     <div class="form-group">
