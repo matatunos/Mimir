@@ -124,6 +124,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
             $shareManager = new ShareManager();
             $fileIdToShare = $_POST['file_id'] ?? null;
+            // get file info for logging and notifications
+            $fileRow = $fileManager->getFile($fileIdToShare, $userId);
+            $originalFilename = $fileRow['original_filename'] ?? '';
             $shareType = $_POST['share_type'] ?? '';
             $value = $_POST['value'] ?? '';
             $password = $_POST['password'] ?? '';
@@ -140,6 +143,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $share = $shareManager->createShare($fileIdToShare, $userId, $shareType, $value, $password);
                     $shareUrl = $share['url'] ?? (BASE_URL . '/share.php?token=' . ($share['token'] ?? ''));
+                    // Audit log
+                    try { AuditLog::log($userId, 'share_created', 'file', $fileIdToShare, "Created share for file: $originalFilename"); } catch (Exception $e) {}
                     // Notify recipient if provided
                     if (!empty($recipientEmail) && filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
                         $db = Database::getInstance()->getConnection();
@@ -182,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $files = $fileManager->getUserFiles($userId, $currentFolder);
                     if (!empty($isAjax)) {
                         header('Content-Type: application/json');
-                        echo json_encode(['success' => true, 'share_url' => $shareUrl, 'message' => $message]);
+                        echo json_encode(['success' => true, 'share_url' => $shareUrl, 'message' => $message, 'original_filename' => $originalFilename]);
                         exit;
                     }
                 } catch (Exception $e) {
@@ -347,13 +352,41 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
             var xhr = new XMLHttpRequest();
             xhr.open('POST', window.location.pathname, true);
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            // disable submit while processing
+            var submitBtn = shareForm.querySelector('button[type="submit"]');
+            var origSubmitText = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creando...'; }
             xhr.onload = function(){
                 try {
                     var json = JSON.parse(xhr.responseText);
                     if (json && json.success) {
-                        // show link and reload
-                        alert('Enlace creado: ' + (json.share_url || '')); 
-                        location.reload();
+                        // Show the created share URL inside the modal and offer copy/open actions
+                        var result = document.getElementById('shareResult');
+                        if (!result) {
+                            result = document.createElement('div');
+                            result.id = 'shareResult';
+                            shareForm.parentNode.appendChild(result);
+                        }
+                        var url = json.share_url || '';
+                        result.innerHTML = '<div class="card" style="padding:12px;margin-top:8px;">'
+                            + '<h4 class="h4-title">Enlace creado</h4>'
+                            + '<input type="text" id="shareUrlInput" class="monospace-secret" readonly value="' + url + '" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px;margin-top:6px;">'
+                            + '<div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end;">'
+                            + '<button id="copyShareBtn" class="btn btn-secondary">Copiar enlace</button>'
+                            + '<a href="' + url + '" target="_blank" class="btn btn-primary">Abrir enlace</a>'
+                            + '</div></div>';
+
+                        // attach copy handler
+                        var copyBtn = document.getElementById('copyShareBtn');
+                        copyBtn.addEventListener('click', function(e){
+                            navigator.clipboard.writeText(url).then(function(){
+                                document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-success">Enlace copiado al portapapeles</div>';
+                            }).catch(function(){
+                                document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-error">No se pudo copiar automáticamente. Selecciona el enlace y cópialo manualmente.</div>';
+                            });
+                        });
+
+                        // Keep modal open so user can copy; do not reload
                     } else {
                         var err = json && json.error ? json.error : (json && json.message ? json.message : 'Error desconocido');
                         document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-error">' + err + '</div>';
@@ -361,6 +394,9 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
                 } catch (err) {
                     document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-error">Error en la respuesta del servidor</div>';
                 }
+                // re-enable submit
+                submitBtn.disabled = false;
+                submitBtn.textContent = origSubmitText;
             };
             xhr.onerror = function(){
                 document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-error">Error de red durante la petición</div>';
