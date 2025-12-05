@@ -103,7 +103,9 @@ $stmt = $db->query("
 ");
 $mostActiveUsers = $stmt->fetchAll();
 
+// Determine active tab from query string (defaults to 'stats')
 $siteName = SystemConfig::get('site_name', APP_NAME);
+$activeTab = isset($_GET['tab']) && in_array($_GET['tab'], ['stats','users','files','shares','config']) ? $_GET['tab'] : 'stats';
 // Prepare additional datasets for charts (storage, top-users, share types)
 $storageLabels = [];
 $storageValues = [];
@@ -200,17 +202,17 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
     <div id="menu">
         <div class="logo">Mimir Admin</div>
         <div class="nav">
-            <a href="#stats" class="active" onclick="showSection('stats')">Estadísticas</a>
-            <a href="#users" onclick="showSection('users')">Usuarios</a>
-            <a href="#files" onclick="showSection('files')">Archivos</a>
-            <a href="#shares" onclick="showSection('shares')">Compartidos</a>
-            <a href="#config" onclick="showSection('config')">Configuración</a>
+            <a href="?tab=stats" class="<?php echo $activeTab === 'stats' ? 'active' : ''; ?>" onclick="showSection('stats'); return false;">Estadísticas</a>
+            <a href="?tab=users" class="<?php echo $activeTab === 'users' ? 'active' : ''; ?>" onclick="showSection('users'); return false;">Usuarios</a>
+            <a href="?tab=files" class="<?php echo $activeTab === 'files' ? 'active' : ''; ?>" onclick="showSection('files'); return false;">Archivos</a>
+            <a href="?tab=shares" class="<?php echo $activeTab === 'shares' ? 'active' : ''; ?>" onclick="showSection('shares'); return false;">Compartidos</a>
+            <a href="?tab=config" class="<?php echo $activeTab === 'config' ? 'active' : ''; ?>" onclick="showSection('config'); return false;">Configuración</a>
             <a href="logout.php">Salir</a>
         </div>
         <div class="user">Administrador</div>
     </div>
     <div id="content">
-        <div id="section-stats" class="section">
+        <div id="section-stats" class="section <?php echo $activeTab !== 'stats' ? 'hidden' : ''; ?>">
             <!-- Estadísticas generales -->
             <div class="stats-grid">
                 <div class="stat-card info">
@@ -492,7 +494,7 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                 <li>Archivos subidos hoy: <?php echo $stats['files_today']; ?></li>
             </ul>
         </div>
-        <div id="section-users" class="section hidden">
+        <div id="section-users" class="section <?php echo $activeTab !== 'users' ? 'hidden' : ''; ?>">
             <h2>Usuarios</h2>
             <button class="btn-save" onclick="showUserForm()">Añadir Usuario</button>
             <div id="userForm" class="hidden mb-2">
@@ -637,7 +639,7 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                 <button id="userTable-next">Siguiente</button>
             </div>
         </div>
-        <div id="section-files" class="section hidden">
+        <div id="section-files" class="section <?php echo $activeTab !== 'files' ? 'hidden' : ''; ?>">
             <h2>Archivos</h2>
             <input type="text" id="fileFilter" placeholder="Filtrar archivos..." onkeyup="filterTable('fileFilter','fileTable')" class="mb-1">
             <table class="data-table" id="fileTable">
@@ -666,7 +668,7 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                 </tbody>
             </table>
         </div>
-        <div id="section-shares" class="section hidden">
+        <div id="section-shares" class="section <?php echo $activeTab !== 'shares' ? 'hidden' : ''; ?>">
             <h2>Enlaces Compartidos</h2>
             <input type="text" id="shareFilter" placeholder="Filtrar compartidos..." onkeyup="filterTable('shareFilter','shareTable')" class="mb-1">
             <table class="data-table" id="shareTable">
@@ -700,7 +702,7 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
             </table>
         </div>
         <!-- Configuración -->
-        <div id="section-config" class="section hidden">
+        <div id="section-config" class="section <?php echo $activeTab !== 'config' ? 'hidden' : ''; ?>">
             <h2>Configuración del Sistema</h2>
             <div class="config-tabs">
                 <button class="tab-btn active" onclick="showConfigTab('general')">General</button>
