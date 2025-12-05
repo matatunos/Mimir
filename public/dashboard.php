@@ -119,6 +119,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
             }
+        } elseif ($_POST['action'] === 'create_share') {
+            // Create a public share for a file (replaces share_file.php)
+            $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+            $shareManager = new ShareManager();
+            $fileIdToShare = $_POST['file_id'] ?? null;
+            $shareType = $_POST['share_type'] ?? '';
+            $value = $_POST['value'] ?? '';
+            $password = $_POST['password'] ?? '';
+            $recipientEmail = $_POST['recipient_email'] ?? '';
+            if (empty($fileIdToShare) || empty($shareType) || empty($value)) {
+                $message = 'Por favor completa todos los campos para compartir';
+                $messageType = 'error';
+                if (!empty($isAjax)) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => $message]);
+                    exit;
+                }
+            } else {
+                try {
+                    $share = $shareManager->createShare($fileIdToShare, $userId, $shareType, $value, $password);
+                    $shareUrl = $share['url'] ?? (BASE_URL . '/share.php?token=' . ($share['token'] ?? ''));
+                    // Notify recipient if provided
+                    if (!empty($recipientEmail) && filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+                        $db = Database::getInstance()->getConnection();
+                        $stmt = $db->prepare("SELECT username, email FROM users WHERE id = ?");
+                        $stmt->execute([$userId]);
+                        $owner = $stmt->fetch();
+
+                        $expirationInfo = '';
+                        if ($shareType === 'time') {
+                            $expirationInfo = "Expira el: " . date('d/m/Y H:i', strtotime("+" . intval($value) . " days"));
+                        } else {
+                            $expirationInfo = "Descargas máximas: " . intval($value);
+                        }
+
+                        $passwordInfo = !empty($password) ? "\n\nContraseña de acceso: $password" : '';
+
+                        Notification::sendShareLink(
+                            $recipientEmail,
+                            $share['original_filename'] ?? '',
+                            $shareUrl,
+                            $expirationInfo,
+                            $owner['username'] ?? '',
+                            $passwordInfo
+                        );
+                        if (!empty($owner['email'])) {
+                            Notification::sendShareLinkCopy(
+                                $owner['email'],
+                                $recipientEmail,
+                                $share['original_filename'] ?? '',
+                                $shareUrl,
+                                $expirationInfo
+                            );
+                        }
+                        $message = 'Enlace creado y enviado por email correctamente!';
+                    } else {
+                        $message = 'Enlace de compartir creado correctamente!';
+                    }
+                    $messageType = 'success';
+                    // Refresh file list
+                    $files = $fileManager->getUserFiles($userId, $currentFolder);
+                    if (!empty($isAjax)) {
+                        header('Content-Type: application/json');
+                        echo json_encode(['success' => true, 'share_url' => $shareUrl, 'message' => $message]);
+                        exit;
+                    }
+                } catch (Exception $e) {
+                    $message = 'Error al crear el enlace: ' . $e->getMessage();
+                    $messageType = 'error';
+                    if (!empty($isAjax)) {
+                        header('Content-Type: application/json');
+                        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+                        exit;
+                    }
+                }
+            }
         } elseif ($_POST['action'] === 'create_folder') {
             try {
                 $folderName = $_POST['folder_name'] ?? '';
@@ -148,6 +224,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Unificado a layout tipo admin_dashboard.php
 $siteName = SystemConfig::get('site_name', APP_NAME);
+// Serve a small placeholder for AJAX shares requests (removed page)
+if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
+    echo '<div class="card">';
+    echo '<h3 class="h4-title">Compartidos</h3>';
+    echo '<p class="small-muted">La sección de "Compartidos" ha sido eliminada. Consulta tus archivos en el listado principal.</p>';
+    echo '</div>';
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -239,6 +323,67 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
         };
     });
     </script>
+    <script>
+    // Share modal JS
+    function showShareModal(fileId) {
+        var modal = document.getElementById('shareModal');
+        document.getElementById('shareFileId').value = fileId;
+        modal.classList.remove('hidden');
+        modal.classList.add('active');
+    }
+    function closeShareModal() {
+        var modal = document.getElementById('shareModal');
+        modal.classList.remove('active');
+        modal.classList.add('hidden');
+        var msg = document.getElementById('shareFormMsg'); if (msg) msg.innerHTML = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+        var shareForm = document.getElementById('shareForm');
+        if (!shareForm) return;
+        shareForm.addEventListener('submit', function(e){
+            e.preventDefault();
+            var fd = new FormData(shareForm);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', window.location.pathname, true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.onload = function(){
+                try {
+                    var json = JSON.parse(xhr.responseText);
+                    if (json && json.success) {
+                        // show link and reload
+                        alert('Enlace creado: ' + (json.share_url || '')); 
+                        location.reload();
+                    } else {
+                        var err = json && json.error ? json.error : (json && json.message ? json.message : 'Error desconocido');
+                        document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-error">' + err + '</div>';
+                    }
+                } catch (err) {
+                    document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-error">Error en la respuesta del servidor</div>';
+                }
+            };
+            xhr.onerror = function(){
+                document.getElementById('shareFormMsg').innerHTML = '<div class="alert alert-error">Error de red durante la petición</div>';
+            };
+            xhr.send(fd);
+        });
+
+        // Update label when share type changes
+        var shareType = document.getElementById('shareType');
+        var shareValueLabel = document.getElementById('shareValueLabel');
+        if (shareType) {
+            shareType.addEventListener('change', function(){
+                if (this.value === 'time') {
+                    shareValueLabel.textContent = 'Días de validez';
+                    document.getElementById('shareValue').setAttribute('min','1');
+                } else {
+                    shareValueLabel.textContent = 'Descargas máximas';
+                    document.getElementById('shareValue').setAttribute('min','1');
+                }
+            });
+        }
+    });
+    </script>
         <script>
         // AJAX para cargar compartidos en el dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -248,7 +393,7 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
             if (sharesLink) {
                 sharesLink.addEventListener('click', function(e) {
                     e.preventDefault();
-                    fetch('shares.php?ajax=1')
+                    fetch('dashboard.php?ajax_shares=1')
                         .then(function(resp) { return resp.text(); })
                         .then(function(html) {
                             // Oculta el resto del contenido y muestra solo compartidos
@@ -412,13 +557,13 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                                         <i class="fas fa-download"></i>
                                     </a>
                                     <?php if ($file['share_id']): ?>
-                                        <a href="shares.php" class="btn btn-sm btn-primary" title="Ver compartido">
+                                        <a href="dashboard.php" class="btn btn-sm btn-primary" title="Ver compartido">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     <?php else: ?>
-                                        <a href="share_file.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-secondary" title="Compartir archivo">
+                                        <button type="button" class="btn btn-sm btn-secondary" title="Compartir archivo" onclick="showShareModal(<?php echo $file['id']; ?>)">
                                             <i class="fas fa-share"></i>
-                                        </a>
+                                        </button>
                                     <?php endif; ?>
                                     <a href="delete_file.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar este archivo?')" title="Eliminar">
                                         <i class="fas fa-trash"></i>
@@ -458,6 +603,45 @@ $siteName = SystemConfig::get('site_name', APP_NAME);
                 </form>
             </div>
         </div>
+            <!-- Share Modal (replaces share_file.php) -->
+            <div id="shareModal" class="modal hidden">
+                <div class="modal-content modal-sm">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-share"></i> Compartir Archivo</h3>
+                        <button class="modal-close" onclick="closeShareModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="shareForm">
+                            <input type="hidden" name="action" value="create_share">
+                            <input type="hidden" name="file_id" id="shareFileId" value="">
+                            <div class="mb-1">
+                                <label>Tipo de compartición</label>
+                                <select name="share_type" id="shareType" required class="form-control">
+                                    <option value="time">Temporal (días)</option>
+                                    <option value="downloads">Por Descargas</option>
+                                </select>
+                            </div>
+                            <div class="mb-1">
+                                <label id="shareValueLabel">Valor</label>
+                                <input type="number" name="value" id="shareValue" class="form-control" min="1" value="7" required>
+                            </div>
+                            <div class="mb-1">
+                                <label>Contraseña (opcional)</label>
+                                <input type="text" name="password" class="form-control">
+                            </div>
+                            <div class="mb-1">
+                                <label>Enviar por email a (opcional)</label>
+                                <input type="email" name="recipient_email" class="form-control" placeholder="email@ejemplo.com">
+                            </div>
+                            <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.5rem;">
+                                <button type="button" class="btn btn-secondary" onclick="closeShareModal()">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">Crear Enlace</button>
+                            </div>
+                        </form>
+                        <div id="shareFormMsg" class="mt-1"></div>
+                    </div>
+                </div>
+            </div>
     </div>
     
     
