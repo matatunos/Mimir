@@ -129,3 +129,13 @@ canvas{width:100%!important;height:100%!important}
 .progress{background:#f1f5f9;border-radius:9999px;overflow:hidden;height:10px}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#7c3aed);width:0%;transition:width 0.18s}
 
+/* Extra width helpers used across tables */
+.w-50{width:50px}
+.w-60{width:60px}
+.w-100{width:100px}
+.w-140{width:140px}
+.w-180{width:180px}
+
+/* Inline form helper */
+.inline-form{display:inline}
+

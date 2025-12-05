@@ -46,6 +46,7 @@ $pageTitle = 'System Settings';
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/extracted/system_settings.css">
 </head>
 <body>
     <div class="admin-container">
@@ -58,7 +59,7 @@ $pageTitle = 'System Settings';
             </div>
 
             <?php if ($message): ?>
-                <div class="admin-card" style="background: <?php echo $messageType === 'success' ? '#d1fae5' : '#fee2e2'; ?>; border-left: 4px solid <?php echo $messageType === 'success' ? '#059669' : '#dc2626'; ?>; color: <?php echo $messageType === 'success' ? '#065f46' : '#991b1b'; ?>; margin-bottom: 1.5rem;">
+                <div class="admin-card" data-msg-type="<?php echo $messageType; ?>">
                     <?php echo escapeHtml($message); ?>
                 </div>
             <?php endif; ?>
@@ -88,11 +89,11 @@ $pageTitle = 'System Settings';
                             <small class="form-help">Example: [ { "label": "Contacto", "url": "mailto:info@dominio.com" }, { "label": "Aviso Legal", "url": "/legal" } ]</small>
                         </div>
                         <div class="form-group">
-                            <div class="checkbox-group">
+                                <div class="checkbox-group">
                                 <input type="checkbox" id="allow_registration" name="allow_registration" value="1" <?php echo $config['allow_registration'] ? 'checked' : ''; ?>>
                                 <div>
                                     <label for="allow_registration">Allow Public Registration</label>
-                                    <small class="form-help" style="margin-top: 0.25rem;">Allow new users to register without invitation</small>
+                                    <small class="form-help form-help-mt">Allow new users to register without invitation</small>
                                 </div>
                             </div>
                         </div>

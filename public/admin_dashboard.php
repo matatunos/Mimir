@@ -154,6 +154,7 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
     <title>Panel de Administración - Mimir</title>
     <link rel="stylesheet" href="/css/admin.css">
         <link rel="stylesheet" href="/css/ui.css">
+        <link rel="stylesheet" href="css/extracted/admin_dashboard.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
@@ -416,13 +417,13 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                 .then(res => res.json())
                 .then(json => {
                     if(json.success) {
-                        document.getElementById('editUserMsg').innerHTML = '<span style="color:green;">Usuario actualizado correctamente</span>';
+                            document.getElementById('editUserMsg').innerHTML = '<span class="text-success">Usuario actualizado correctamente</span>';
                         setTimeout(function(){
                             closeEditUserModal();
                             location.reload();
                         }, 1000);
                     } else {
-                        document.getElementById('editUserMsg').innerHTML = '<span style="color:red;">'+(json.error||'Error al actualizar usuario')+'</span>';
+                        document.getElementById('editUserMsg').innerHTML = '<span class="text-danger">'+(json.error||'Error al actualizar usuario')+'</span>';
                     }
                 });
             });
@@ -471,7 +472,7 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                     document.getElementById('auditLogTableBody').innerHTML = rows;
                     let pag = '';
                     for(let i=0;i<json.pages;i++) {
-                        pag += `<button onclick="loadAuditLogs(${i}, document.getElementById('auditLogFilter').value)" ${i===json.page?'style=\'font-weight:bold\'' : ''}>${i+1}</button> `;
+                        pag += `<button class="pagination-btn" onclick="loadAuditLogs(${i}, document.getElementById('auditLogFilter').value)" ${i===json.page?'class=\'font-weight-bold\'' : ''}>${i+1}</button> `;
                     }
                     document.getElementById('auditLogPagination').innerHTML = pag;
                 });
@@ -588,10 +589,10 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                             <div id="twofaLoading">Cargando...</div>
                             <div id="twofaContent" class="hidden">
                                 <img id="twofaQr" src="" alt="QR TOTP" class="qr-img">
-                                <div class="mb-1" style="font-size:1.1em;max-width:220px;margin:auto;overflow-x:auto;white-space:nowrap;">
+                                <div class="mb-1 lead-strong">
                                     <strong>Secreto:</strong> <span id="twofaSecret" class="monospace-secret"></span>
                                 </div>
-                                <div class="mb-1" style="color:#64748b; font-size:0.95em;">Escanea el QR con Google Authenticator, Authy, etc.</div>
+                                <div class="mb-1 muted-note">Escanea el QR con Google Authenticator, Authy, etc.</div>
                                 <button class="btn btn-secondary" onclick="close2FAModal()">Cerrar</button>
                             </div>
                             <div id="twofaError" class="hidden text-danger">Error al cargar el QR</div>
@@ -736,55 +737,55 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                     </div>
                     <?php endif; endforeach; ?>
                 </div>
-                <div id="tab-correo" class="config-tab" style="display:none">
+                <div id="tab-correo" class="config-tab hidden">
                     <h3>Correo</h3>
                     <?php foreach ($configs as $conf): if (in_array($conf['config_key'], ['smtp_host','smtp_port','smtp_username','smtp_password','smtp_from_email','smtp_from_name'])): ?>
                     <div class="config-item">
                         <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
                             <?php echo escapeHtml($conf['description']); ?>
-                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                            <span class="muted-small">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
                         </label>
                         <input type="text" name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" value="<?php echo escapeHtml($conf['config_value']); ?>">
                     </div>
                     <?php endif; endforeach; ?>
                     <button type="button" class="btn-save" onclick="testMailConfig()">Probar Correo</button>
-                    <div id="mailTestMsg" style="margin-top:1em;"></div>
+                    <div id="mailTestMsg" class="mt-1"></div>
                 </div>
-                <div id="tab-ldap" class="config-tab" style="display:none">
+                <div id="tab-ldap" class="config-tab hidden">
                     <h3>LDAP</h3>
                     <?php foreach ($configs as $conf): if (in_array($conf['config_key'], ['ldap_enabled','ldap_host','ldap_port','ldap_base_dn','ldap_admin_dn','ldap_admin_password','ldap_user_filter'])): ?>
                     <div class="config-item">
                         <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
                             <?php echo escapeHtml($conf['description']); ?>
-                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                            <span class="muted-small">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
                         </label>
                         <input type="text" name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" value="<?php echo escapeHtml($conf['config_value']); ?>">
                     </div>
                     <?php endif; endforeach; ?>
                     <button type="button" class="btn-save" onclick="testLdapConfig()">Probar LDAP</button>
-                    <div id="ldapTestMsg" style="margin-top:1em;"></div>
+                    <div id="ldapTestMsg" class="mt-1"></div>
                 </div>
-                <div id="tab-duo" class="config-tab" style="display:none">
+                <div id="tab-duo" class="config-tab hidden">
                     <h3>DUO</h3>
                     <?php foreach ($configs as $conf): if (in_array($conf['config_key'], ['duo_enabled','duo_ikey','duo_skey','duo_host','duo_app_key'])): ?>
                     <div class="config-item">
                         <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
                             <?php echo escapeHtml($conf['description']); ?>
-                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                            <span class="muted-small">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
                         </label>
                         <input type="text" name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>" value="<?php echo escapeHtml($conf['config_value']); ?>">
                     </div>
                     <?php endif; endforeach; ?>
                     <button type="button" class="btn-save" onclick="testDuoConfig()">Probar DUO</button>
-                    <div id="duoTestMsg" style="margin-top:1em;"></div>
+                    <div id="duoTestMsg" class="mt-1"></div>
                 </div>
-                <div id="tab-seguridad" class="config-tab" style="display:none">
+                <div id="tab-seguridad" class="config-tab hidden">
                     <h3>Seguridad</h3>
                     <?php foreach ($configs as $conf): if (in_array($conf['config_key'], ['twofa_enabled'])): ?>
                     <div class="config-item">
                         <label for="conf_<?php echo escapeHtml($conf['config_key']); ?>">
                             <?php echo escapeHtml($conf['description']); ?>
-                            <span style="color:#64748b;font-size:0.9em;">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
+                            <span class="muted-small">(<?php echo escapeHtml($conf['config_key']); ?>)</span>
                         </label>
                         <select name="<?php echo escapeHtml($conf['config_key']); ?>" id="conf_<?php echo escapeHtml($conf['config_key']); ?>">
                             <option value="true" <?php if($conf['config_value']=='true')echo 'selected';?>>Sí</option>
@@ -795,7 +796,7 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                 </div>
                 <button type="submit" class="btn-save">Guardar Cambios</button>
             </form>
-            <div id="configMsg" style="margin-top:1em;"></div>
+            <div id="configMsg" class="mt-1"></div>
         </div>
 
         <script>
@@ -821,13 +822,13 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
                 .then(res => res.json())
                 .then(json => {
                     if(json.success) {
-                        document.getElementById('userFormMsg').innerHTML = '<span style="color:green;">Usuario creado correctamente</span>';
+                        document.getElementById('userFormMsg').innerHTML = '<span class="text-success">Usuario creado correctamente</span>';
                         setTimeout(function(){
                             hideUserForm();
                             location.reload();
                         }, 1000);
                     } else {
-                        document.getElementById('userFormMsg').innerHTML = '<span style="color:red;">'+(json.error||'Error al crear usuario')+'</span>';
+                        document.getElementById('userFormMsg').innerHTML = '<span class="text-danger">'+(json.error||'Error al crear usuario')+'</span>';
                     }
                 });
             });
@@ -841,12 +842,23 @@ if ($cacheFile && is_writable(dirname($cacheFile))) {
             function showSection(section) {
                 // Toggle active nav link
                 document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
-                var link = document.querySelector('.nav a[href="#'+section+'"]');
+                // Try to find link by ?tab= query or fallback to hash-style
+                var link = document.querySelector('.nav a[href*="?tab='+section+'"]') || document.querySelector('.nav a[href="#'+section+'"]');
                 if (link) link.classList.add('active');
                 // Hide all sections using the utility class and show the target by removing the class
                 document.querySelectorAll('.section').forEach(function(s){ s.classList.add('hidden'); });
                 var target = document.getElementById('section-' + section);
                 if (target) target.classList.remove('hidden');
+                // Update URL param without reloading
+                try {
+                    var newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('tab', section);
+                    history.replaceState(null, '', newUrl.toString());
+                } catch (e) {
+                    // fallback: replace search
+                    var base = window.location.pathname;
+                    history.replaceState(null, '', base + '?tab=' + encodeURIComponent(section));
+                }
             }
         </script>
         <script>

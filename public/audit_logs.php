@@ -44,6 +44,7 @@ $pageTitle = 'Audit Logs';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/extracted/audit_logs.css">
 </head>
 <body>
     <div class="admin-container">
@@ -51,13 +52,13 @@ $pageTitle = 'Audit Logs';
         
         <div class="admin-content">
                 <h1>📋 Audit Logs</h1>
-                <p style="color: #666; margin-bottom: 30px;">View all system activity and user actions</p>
+                <p class="small-muted mb-1">View all system activity and user actions</p>
 
                 <!-- Filters -->
-                <div class="chart-container" style="margin-bottom: 20px;">
-                    <form method="GET" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
-                        <div class="form-group" style="margin: 0;">
-                            <label style="font-size: 13px; font-weight: 600;">User</label>
+                <div class="chart-container mb-1">
+                    <form method="GET" class="form-inline form-grid">
+                        <div class="form-group">
+                            <label class="label-strong">User</label>
                             <select name="user" class="form-control">
                                 <option value="">All Users</option>
                                 <?php foreach ($users as $user): ?>
@@ -68,8 +69,8 @@ $pageTitle = 'Audit Logs';
                             </select>
                         </div>
                         
-                        <div class="form-group" style="margin: 0;">
-                            <label style="font-size: 13px; font-weight: 600;">Action</label>
+                        <div class="form-group">
+                            <label class="label-strong">Action</label>
                             <select name="action" class="form-control">
                                 <option value="">All Actions</option>
                                 <?php foreach ($actions as $action): ?>
@@ -80,17 +81,17 @@ $pageTitle = 'Audit Logs';
                             </select>
                         </div>
                         
-                        <div class="form-group" style="margin: 0;">
-                            <label style="font-size: 13px; font-weight: 600;">Date From</label>
+                        <div class="form-group">
+                            <label class="label-strong">Date From</label>
                             <input type="date" name="date_from" class="form-control" value="<?php echo escapeHtml($date_from); ?>">
                         </div>
                         
-                        <div class="form-group" style="margin: 0;">
-                            <label style="font-size: 13px; font-weight: 600;">Date To</label>
+                        <div class="form-group">
+                            <label class="label-strong">Date To</label>
                             <input type="date" name="date_to" class="form-control" value="<?php echo escapeHtml($date_to); ?>">
                         </div>
                         
-                        <div style="display: flex; gap: 5px;">
+                        <div class="pagination-actions">
                             <button type="submit" class="btn btn-primary">🔍 Filter</button>
                             <a href="audit_logs.php" class="btn btn-secondary">Clear</a>
                         </div>
@@ -98,7 +99,7 @@ $pageTitle = 'Audit Logs';
                 </div>
 
                 <!-- Results Info -->
-                <div style="padding: 10px 0; color: #666; font-size: 14px; margin-bottom: 10px;">
+                <div class="small-muted mb-1 results-info">
                     Showing <?php echo number_format(min($offset + 1, $total_logs)); ?> - <?php echo number_format(min($offset + $per_page, $total_logs)); ?> of <?php echo number_format($total_logs); ?> logs
                 </div>
 
@@ -107,7 +108,7 @@ $pageTitle = 'Audit Logs';
                     <table class="modern-table">
                         <thead>
                             <tr>
-                                <th style="width: 50px;">ID</th>
+                                <th class="w-50">ID</th>
                                 <th>Timestamp</th>
                                 <th>User</th>
                                 <th>Action</th>
@@ -120,7 +121,7 @@ $pageTitle = 'Audit Logs';
                                 <?php foreach ($logs as $log): ?>
                                 <tr>
                                     <td><?php echo $log['id']; ?></td>
-                                    <td style="white-space: nowrap; font-size: 13px;">
+                                    <td class="time-muted time-nowrap">
                                         <?php echo date('Y-m-d H:i:s', strtotime($log['created_at'])); ?>
                                     </td>
                                     <td>
@@ -137,15 +138,15 @@ $pageTitle = 'Audit Logs';
                                             <?php echo escapeHtml($log['action']); ?>
                                         </span>
                                     </td>
-                                    <td style="font-size: 13px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    <td class="td-ellipsis">
                                         <?php echo escapeHtml($log['details'] ?? '-'); ?>
                                     </td>
-                                    <td style="font-size: 13px;"><?php echo escapeHtml($log['ip_address'] ?? '-'); ?></td>
+                                    <td class="td-small"><?php echo escapeHtml($log['ip_address'] ?? '-'); ?></td>
                                 </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                                    <td colspan="6" class="no-logs">
                                         No logs found
                                     </td>
                                 </tr>

@@ -77,7 +77,7 @@ $ldapConfig = [
         
         <div class="admin-content">
                 <h2>🔐 LDAP / Active Directory Configuration</h2>
-                <p style="color: #666; margin-bottom: 20px;">Configure LDAP authentication for hybrid login (local + LDAP)</p>
+                <p class="muted-lead">Configure LDAP authentication for hybrid login (local + LDAP)</p>
 
                 <?php if ($message): ?>
                     <div class="alert alert-<?php echo $messageType; ?> alert-dismissible fade show" role="alert">

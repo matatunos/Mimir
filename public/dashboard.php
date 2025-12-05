@@ -252,6 +252,7 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="css/admin.css">
         <link rel="stylesheet" href="/css/ui.css">
+        <link rel="stylesheet" href="css/extracted/dashboard.css">
 </head>
 <body>
     <div id="menu">
@@ -373,13 +374,13 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
                             shareForm.parentNode.appendChild(result);
                         }
                         var url = json.share_url || '';
-                        result.innerHTML = '<div class="card" style="padding:12px;margin-top:8px;">'
+                        result.innerHTML = '<div class="card card-padding">'
                             + '<h4 class="h4-title">Enlace creado</h4>'
-                            + '<div style="display:flex;gap:12px;align-items:center;">'
-                            + '<div id="shareQrContainer" style="width:120px;height:120px;background:#fff;border-radius:8px;padding:8px;display:flex;align-items:center;justify-content:center;border:1px solid #eef2f6"></div>'
+                            + '<div class="share-flex">'
+                            + '<div id="shareQrContainer" class="share-qr"></div>'
                             + '<div style="flex:1">'
-                            + '<input type="text" id="shareUrlInput" class="monospace-secret" readonly value="' + url + '" style="width:100%;padding:8px;border:1px solid #e6eef8;border-radius:6px;margin-top:6px;">'
-                            + '<div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end;">'
+                            + '<input type="text" id="shareUrlInput" class="monospace-secret share-url-input" readonly value="' + url + '">' 
+                            + '<div class="share-actions">'
                             + '<button id="copyShareBtn" class="btn btn-secondary">Copiar enlace</button>'
                             + '<a href="' + url + '" target="_blank" class="btn btn-primary">Abrir enlace</a>'
                             + '</div></div></div></div>';
@@ -422,7 +423,7 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
                                 if (!shareBadge) {
                                     var span = document.createElement('span');
                                     span.className = 'badge-share badge';
-                                    span.innerHTML = '<i class="fas fa-globe" style="font-size:0.7rem"></i> 0';
+                                    span.innerHTML = '<i class="fas fa-globe icon-xs"></i> 0';
                                     badges.parentNode.appendChild(span);
                                 }
                             }
@@ -503,8 +504,8 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
         <?php endif; ?>
         <div class="dashboard-main">
             <aside class="folder-sidebar">
-                <div class="flex-row gap-1" style="margin-bottom:1.5rem;">
-                    <h2 style="margin:0;font-size:1.2rem;"><i class="fas fa-folder-tree"></i> Carpetas</h2>
+                <div class="flex-row gap-1 mb-1-5">
+                    <h2 class="h2-reset"><i class="fas fa-folder-tree"></i> Carpetas</h2>
                     <button class="btn btn-secondary" onclick="showCreateFolderModal()" title="Nueva Carpeta"><i class="fas fa-folder-plus"></i></button>
                 </div>
                 <?php
@@ -545,16 +546,16 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
             </aside>
             <main>
                 <div class="dashboard-header">
-                    <h1 style="margin:0;"><i class="fas fa-folder-open"></i> Mis Archivos</h1>
+                    <h1 class="h1-reset"><i class="fas fa-folder-open"></i> Mis Archivos</h1>
                     <div>
                         <button class="btn btn-primary" onclick="showUploadModal()"><i class="fas fa-upload"></i> Subir Archivo</button>
                     </div>
-                    <span class="time-muted" style="font-weight:500;">
+                    <span class="time-muted">
                         <i class="fas fa-hdd"></i> <?php echo formatBytes($user['storage_used']); ?> / <?php echo formatBytes($user['storage_quota']); ?> usados
                     </span>
                 </div>
                 <div class="content-card">
-                    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                    <div class="card-header card-header-flex">
                         <h2 style="margin:0;"><i class="fas fa-file"></i> Archivos</h2>
                         <form method="get" class="form-inline">
                             <input type="hidden" name="folder" value="<?php echo escapeHtml($currentFolder ?? ''); ?>">
@@ -596,13 +597,13 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
                             </td>
                             <td><?php echo formatBytes($file['file_size']); ?></td>
                             <td>
-                                <div style="display:flex;flex-direction:column;gap:0.25rem;">
+                                <div class="flex-col-gap-025">
                                     <span class="badge-download badge download-count" data-file-id="<?php echo $file['id']; ?>">
-                                        <i class="fas fa-user" style="font-size:0.7rem"></i> <?php echo (int)$file['download_count']; ?>
+                                        <i class="fas fa-user icon-xs"></i> <?php echo (int)$file['download_count']; ?>
                                     </span>
                                     <?php if ($file['share_id']): ?>
                                         <span class="badge-share badge">
-                                            <i class="fas fa-globe" style="font-size:0.7rem"></i> <?php echo (int)$file['share_download_count']; ?><?php if ($file['share_max_downloads']): ?>/<?php echo $file['share_max_downloads']; ?><?php endif; ?>
+                                            <i class="fas fa-globe icon-xs"></i> <?php echo (int)$file['share_download_count']; ?><?php if ($file['share_max_downloads']): ?>/<?php echo $file['share_max_downloads']; ?><?php endif; ?>
                                         </span>
                                     <?php endif; ?>
                                 </div>
@@ -668,23 +669,23 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
     </div>
     <!-- Upload Modal -->
     <div id="uploadModal" class="modal hidden">
-        <div class="modal-content" style="max-width:640px;">
+        <div class="modal-content modal-lg">
             <div class="modal-header">
                 <h3><i class="fas fa-upload"></i> Subir Archivos</h3>
                 <button class="modal-close" onclick="closeUploadModal()"><i class="fas fa-times"></i></button>
             </div>
-            <div style="padding:1rem 0 0 0;">
+            <div>
                 <form id="uploadForm" method="post" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="upload">
                     <input type="hidden" name="folder_id" value="<?php echo escapeHtml($currentFolder ?? ''); ?>">
-                    <div class="form-group" style="margin-bottom:1rem;">
+                    <div class="form-group">
                         <label for="files">Selecciona archivos (puedes seleccionar varios)</label>
                         <input type="file" name="files[]" id="files" multiple required>
                     </div>
-                    <div class="progress mb-1" id="uploadProgress" style="display:none;">
+                    <div class="progress mb-1 hidden" id="uploadProgress">
                         <div class="progress-fill" id="uploadProgressFill" style="width:0%"></div>
                     </div>
-                    <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.5rem;">
+                    <div class="align-end">
                         <button type="button" class="btn btn-secondary" onclick="closeUploadModal()">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Subir</button>
                     </div>
@@ -721,7 +722,7 @@ if (isset($_GET['ajax_shares']) && $_GET['ajax_shares'] == '1') {
                                 <label>Enviar por email a (opcional)</label>
                                 <input type="email" name="recipient_email" class="form-control" placeholder="email@ejemplo.com">
                             </div>
-                            <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.5rem;">
+                            <div class="align-end">
                                 <button type="button" class="btn btn-secondary" onclick="closeShareModal()">Cancelar</button>
                                 <button type="submit" class="btn btn-primary">Crear Enlace</button>
                             </div>
