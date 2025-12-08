@@ -1,0 +1,234 @@
+<?php
+require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/database.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/layout.php';
+require_once __DIR__ . '/../../classes/User.php';
+require_once __DIR__ . '/../../classes/File.php';
+require_once __DIR__ . '/../../classes/Logger.php';
+
+$auth = new Auth();
+$auth->requireLogin();
+$user = $auth->getUser();
+$fileClass = new File();
+$userClass = new User();
+$logger = new Logger();
+
+$error = '';
+$success = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Token de seguridad inválido';
+    } elseif (empty($_FILES['file']['tmp_name'])) {
+        $error = 'Selecciona un archivo';
+    } else {
+        try {
+            $description = $_POST['description'] ?? '';
+            $fileId = $fileClass->upload($_FILES['file'], $user['id'], $description);
+            $logger->log($user['id'], 'file_upload', 'file', $fileId, 'Usuario subió archivo');
+            $success = 'Archivo subido correctamente';
+            header('Location: ' . BASE_URL . '/user/files.php?success=' . urlencode($success));
+            exit;
+        } catch (Exception $e) {
+            $error = $e->getMessage();
+        }
+    }
+}
+
+$stats = $userClass->getStatistics($user['id']);
+$storageUsedGB = ($stats['total_size'] ?? 0) / 1024 / 1024 / 1024;
+$storageQuotaGB = $user['storage_quota'] / 1024 / 1024 / 1024;
+$storagePercent = $storageQuotaGB > 0 ? min(100, ($storageUsedGB / $storageQuotaGB) * 100) : 0;
+$maxSize = MAX_FILE_SIZE / 1024 / 1024;
+
+$isAdmin = ($user['role'] === 'admin');
+renderPageStart('Subir Archivo', 'upload', $isAdmin);
+renderHeader('Subir Archivo', $user);
+?>
+
+<div class="content">
+    <?php if ($error): ?>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Subir Nuevo Archivo</h2>
+        </div>
+        <div class="card-body">
+            <div class="mb-3" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--primary);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Almacenamiento usado:</span>
+                    <strong><?php echo number_format($storageUsedGB, 2); ?> GB / <?php echo number_format($storageQuotaGB, 2); ?> GB</strong>
+                </div>
+                <div style="background: var(--bg-main); height: 1.5rem; border-radius: 0.75rem; overflow: hidden;">
+                    <div style="width: <?php echo $storagePercent; ?>%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+                </div>
+                <div style="font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.5rem;">
+                    Tamaño máximo por archivo: <?php echo $maxSize; ?> MB
+                </div>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
+                
+                <div class="form-group">
+                    <label>Archivos *</label>
+                    <div id="dropArea" style="border: 2px dashed var(--border-color); border-radius: 0.5rem; padding: 3rem; text-align: center; cursor: pointer; transition: all 0.3s;">
+                        <input type="file" name="files[]" id="fileInput" required multiple style="display: none;">
+                        <div id="dropText">
+                            <div style="font-size: 4rem; margin-bottom: 1rem;"><i class="fas fa-file-upload"></i></div>
+                            <p style="font-size: 1.125rem; margin-bottom: 0.5rem;">Arrastra archivos aquí</p>
+                            <p style="color: var(--text-muted); margin-bottom: 1rem;">o</p>
+                            <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click();">📁 Elegir archivos</button>
+                            <p style="color: var(--text-muted); margin-top: 0.5rem; font-size: 0.875rem;">✨ Usa Ctrl + clic para seleccionar varios archivos</p>
+                        </div>
+                        <div id="fileInfo" style="display: none;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;"><i class="fas fa-file"></i></div>
+                            <p id="fileName" style="font-weight: 500; margin-bottom: 0.5rem;"></p>
+                            <p id="fileSize" style="color: var(--text-muted);"></p>
+                            <button type="button" class="btn btn-outline mt-2" onclick="resetFile()">Cambiar archivo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción (opcional)</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Añade una descripción para este archivo..."></textarea>
+                </div>
+
+                <div id="progressContainer" style="display: none; margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Subiendo...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div style="background: var(--bg-secondary); height: 1.5rem; border-radius: 0.75rem; overflow: hidden;">
+                        <div id="progressBar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem;">
+                    <button type="submit" class="btn btn-primary" id="submitBtn"><i class="fas fa-upload"></i> Subir Archivo</button>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const dropArea = document.getElementById('dropArea');
+const fileInput = document.getElementById('fileInput');
+const dropText = document.getElementById('dropText');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, () => {
+        dropArea.style.borderColor = 'var(--primary)';
+        dropArea.style.background = 'rgba(74, 144, 226, 0.05)';
+    });
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, () => {
+        dropArea.style.borderColor = 'var(--border-color)';
+        dropArea.style.background = 'transparent';
+    });
+});
+
+dropArea.addEventListener('drop', e => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length) {
+        fileInput.files = files;
+        showFileInfo(files[0]);
+    }
+});
+
+dropArea.addEventListener('click', e => {
+    if (e.target === dropArea || e.target.closest('#dropText')) {
+        fileInput.click();
+    }
+});
+
+fileInput.addEventListener('change', e => {
+    if (e.target.files.length) {
+        showFileInfo(e.target.files[0]);
+    }
+});
+
+function showFileInfo(file) {
+    fileName.textContent = file.name;
+    fileSize.textContent = Mimir.formatFileSize(file.size);
+    dropText.style.display = 'none';
+    fileInfo.style.display = 'block';
+}
+
+function resetFile() {
+    fileInput.value = '';
+    dropText.style.display = 'block';
+    fileInfo.style.display = 'none';
+}
+
+// Upload con progreso
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    if (fileInput.files.length === 0) return;
+    
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    progressContainer.style.display = 'block';
+    submitBtn.disabled = true;
+    dropArea.style.pointerEvents = 'none';
+    
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', e => {
+        if (e.lengthComputable) {
+            const percent = (e.loaded / e.total) * 100;
+            progressBar.style.width = percent + '%';
+            progressPercent.textContent = Math.round(percent) + '%';
+        }
+    });
+    
+    xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+            window.location.href = '<?php echo BASE_URL; ?>/user/files.php?success=' + encodeURIComponent('Archivo subido correctamente');
+        } else {
+            alert('Error al subir el archivo');
+            progressContainer.style.display = 'none';
+            submitBtn.disabled = false;
+            dropArea.style.pointerEvents = 'auto';
+        }
+    });
+    
+    xhr.addEventListener('error', () => {
+        alert('Error de conexión');
+        progressContainer.style.display = 'none';
+        submitBtn.disabled = false;
+        dropArea.style.pointerEvents = 'auto';
+    });
+    
+    xhr.open('POST', '', true);
+    xhr.send(formData);
+});
+</script>
+
+<?php renderPageEnd(); ?>
