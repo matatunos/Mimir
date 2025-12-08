@@ -1,0 +1,6 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Rewrite share URLs /s/{token} to /s/index.php?token={token}
+    RewriteRule ^s/([a-zA-Z0-9]{32})$ s/index.php?token=$1 [L,QSA]
+</IfModule>

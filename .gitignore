@@ -1,0 +1,35 @@
+# Configuration
+includes/config.php
+config.php
+
+# Composer
+/vendor/
+composer.lock
+
+# Storage
+/storage/uploads/*
+/storage/temp/*
+/storage/logs/*
+!/storage/uploads/.gitkeep
+!/storage/temp/.gitkeep
+!/storage/logs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary documentation files
+CAMBIOS_IMPLEMENTADOS.md
+ESTADO_FINAL.md
+
+# Backups
+*.sql
+*.bak
+backup_*

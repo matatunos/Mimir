@@ -1,0 +1,21 @@
+{
+    "name": "mimir/file-management",
+    "description": "Mimir File Management System with 2FA support",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "spomky-labs/otphp": "^11.0",
+        "endroid/qr-code": "^4.8",
+        "duosecurity/duo_universal_php": "^1.0",
+        "paragonie/constant_time_encoding": "^2.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mimir\\": "classes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}
