@@ -166,6 +166,29 @@ class Auth {
     }
     
     /**
+     * Check if system is in maintenance mode
+     */
+    public function checkMaintenanceMode() {
+        // Skip check for admins
+        if ($this->isAdmin()) {
+            return;
+        }
+        
+        require_once __DIR__ . '/../classes/Config.php';
+        $config = new Config();
+        $maintenanceMode = $config->get('maintenance_mode', '0');
+        
+        if ($maintenanceMode === '1') {
+            // Get current script to avoid redirect loop
+            $currentScript = basename($_SERVER['PHP_SELF']);
+            if ($currentScript !== 'maintenance.php' && $currentScript !== 'logout.php') {
+                header('Location: ' . BASE_URL . '/maintenance.php');
+                exit;
+            }
+        }
+    }
+    
+    /**
      * Require login
      */
     public function requireLogin() {
@@ -173,6 +196,9 @@ class Auth {
             header('Location: ' . BASE_URL . '/login.php');
             exit;
         }
+        
+        // Check maintenance mode after login
+        $this->checkMaintenanceMode();
     }
     
     /**

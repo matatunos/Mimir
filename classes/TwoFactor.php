@@ -4,6 +4,8 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use OTPHP\TOTP;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Logo\Logo;
+use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
 use ParagonIE\ConstantTime\Base32;
 
 class TwoFactor {
@@ -45,9 +47,39 @@ class TwoFactor {
         $totp = $this->getTOTP($username, $secret);
         $qrCode = QrCode::create($totp->getProvisioningUri());
         $qrCode->setSize(300);
+        $qrCode->setMargin(10);
+        
+        // Set higher error correction for logo overlay
+        $qrCode->setErrorCorrectionLevel(new \Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh());
         
         $writer = new PngWriter();
-        $result = $writer->write($qrCode);
+        
+        // Check if site logo exists
+        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'site_logo'");
+        $stmt->execute();
+        $logoPath = $stmt->fetchColumn();
+        
+        if ($logoPath) {
+            $fullLogoPath = BASE_PATH . '/public/' . $logoPath;
+            
+            // Check if logo file exists and is an image
+            if (file_exists($fullLogoPath) && @getimagesize($fullLogoPath)) {
+                try {
+                    $logo = \Endroid\QrCode\Logo\Logo::create($fullLogoPath)
+                        ->setResizeToWidth(60)
+                        ->setPunchoutBackground(true);
+                    
+                    $result = $writer->write($qrCode, $logo);
+                } catch (Exception $e) {
+                    // If logo fails, generate without it
+                    $result = $writer->write($qrCode);
+                }
+            } else {
+                $result = $writer->write($qrCode);
+            }
+        } else {
+            $result = $writer->write($qrCode);
+        }
         
         return 'data:image/png;base64,' . base64_encode($result->getString());
     }
@@ -277,8 +309,21 @@ class TwoFactor {
      * @return string
      */
     private function getIssuerName() {
-        $config = $this->getConfig();
-        return $config['totp_issuer'] ?? 'Mimir';
+        // Try to get from config
+        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'totp_issuer_name'");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && !empty($result['config_value'])) {
+            return $result['config_value'];
+        }
+        
+        // Fallback to site name
+        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'site_name'");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result['config_value'] ?? 'Mimir';
     }
     
     /**

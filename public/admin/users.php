@@ -51,7 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['bulk_action']) && !e
                     
                 case 'unrequire_2fa':
                     $db = Database::getInstance()->getConnection();
+                    // Update users table
                     $stmt = $db->prepare("UPDATE users SET require_2fa = 0 WHERE id = ?");
+                    $stmt->execute([$userId]);
+                    // Also disable 2FA
+                    $stmt = $db->prepare("UPDATE user_2fa SET is_enabled = 0 WHERE user_id = ?");
                     if ($stmt->execute([$userId])) $success++;
                     else $errors++;
                     break;
@@ -109,9 +113,9 @@ if ($filterActive === 'yes') {
 }
 
 if ($filter2FA === 'yes') {
-    $where[] = "u.twofa_enabled = 1";
+    $where[] = "EXISTS (SELECT 1 FROM user_2fa WHERE user_id = u.id AND is_enabled = 1)";
 } elseif ($filter2FA === 'no') {
-    $where[] = "u.twofa_enabled = 0";
+    $where[] = "NOT EXISTS (SELECT 1 FROM user_2fa WHERE user_id = u.id AND is_enabled = 1)";
 } elseif ($filter2FA === 'required') {
     $where[] = "u.require_2fa = 1";
 }
@@ -140,7 +144,7 @@ $stmt = $db->prepare("
         COALESCE((SELECT SUM(file_size) FROM files WHERE user_id = u.id), 0) as used_storage,
         (SELECT COUNT(*) FROM files WHERE user_id = u.id) as file_count
     FROM users u
-    LEFT JOIN user_2fa uf ON u.id = uf.user_id
+    LEFT JOIN user_2fa uf ON u.id = uf.user_id AND uf.is_enabled = 1
     WHERE $whereClause
     ORDER BY $orderByColumn $sortOrder
     LIMIT ? OFFSET ?
@@ -1118,9 +1122,15 @@ function send2FAEmail(userId, username) {
 }
 
 // Dropdown functionality
-document.addEventListener('DOMContentLoaded', function() {
+function initDropdowns() {
+    document.querySelectorAll('.dropdown-toggle').forEach(button => {
+        // Remove existing listeners to avoid duplicates
+        button.replaceWith(button.cloneNode(true));
+    });
+    
     document.querySelectorAll('.dropdown-toggle').forEach(button => {
         button.addEventListener('click', function(e) {
+            e.preventDefault();
             e.stopPropagation();
             const dropdown = this.parentElement;
             const isOpen = dropdown.classList.contains('open');
@@ -1131,14 +1141,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // Toggle current
             if (!isOpen) {
                 dropdown.classList.add('open');
+                
+                // Position the dropdown menu
+                const menu = dropdown.querySelector('.dropdown-menu');
+                if (menu) {
+                    const rect = this.getBoundingClientRect();
+                    menu.style.top = (rect.bottom + window.scrollY) + 'px';
+                    menu.style.left = (rect.right - menu.offsetWidth + window.scrollX) + 'px';
+                }
             }
         });
     });
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function() {
-        document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
-    });
+}
+
+// Initialize on load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDropdowns);
+} else {
+    initDropdowns();
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function() {
+    document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
 });
 </script>
 
@@ -1149,15 +1174,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .dropdown-menu {
     display: none;
-    position: absolute;
-    right: 0;
-    top: 100%;
-    background: var(--bg-secondary);
+    position: fixed;
+    background: white;
     border: 1px solid var(--border-color);
     border-radius: 0.375rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 150px;
-    z-index: 1000;
+    min-width: 180px;
+    z-index: 9999;
     margin-top: 0.25rem;
 }
 

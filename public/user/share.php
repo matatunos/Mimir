@@ -64,8 +64,8 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
     <?php endif; ?>
 
     <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">Crear Enlace de Compartición</h2>
+        <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+            <h2 class="card-title" style="color: white; margin: 0;">Crear Enlace de Compartición</h2>
         </div>
         <div class="card-body">
             <div class="mb-3" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
