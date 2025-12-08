@@ -57,9 +57,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($action === 'reset_2fa') {
             if ($twoFactor->disable($userId)) {
+                // Also remove the require_2fa flag
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare("UPDATE users SET require_2fa = 0 WHERE id = ?");
+                $stmt->execute([$userId]);
+                
                 $user = $userClass->getById($userId);
                 $logger->log($adminUser['id'], '2fa_reset', 'user', $userId, "2FA reseteado para {$user['username']}");
-                $success = '2FA reseteado correctamente';
+                $success = '2FA desactivado correctamente';
                 
                 if ($isAjax) {
                     header('Content-Type: application/json');
@@ -288,7 +293,7 @@ $stmt = $db->query("
         (SELECT COUNT(*) FROM 2fa_attempts WHERE user_id = u.id AND success = 1) as successful_attempts,
         (SELECT COUNT(*) FROM 2fa_attempts WHERE user_id = u.id AND success = 0 AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)) as recent_failures
     FROM users u
-    LEFT JOIN user_2fa uf ON u.id = uf.user_id
+    LEFT JOIN user_2fa uf ON u.id = uf.user_id AND uf.is_enabled = 1
     ORDER BY u.username
 ");
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);

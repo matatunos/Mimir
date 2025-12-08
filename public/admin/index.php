@@ -44,6 +44,7 @@ $topUsersByUploads = $userClass->getTopUsersByUploads(10);
 $shareStats = $userClass->getSystemShareStats();
 $mostSharedFiles = $userClass->getMostSharedFiles(10);
 $storageUsageByUser = $userClass->getStorageUsageByUser();
+$inactiveUsers = $userClass->getMostInactiveUsers(10);
 
 // Recent activity
 $recentActivity = $logger->getActivityLogs([], 10, 0);
@@ -136,7 +137,7 @@ foreach ($fileTypeDistribution as $type) {
 }
 
 renderPageStart('Dashboard Admin', 'dashboard', true);
-renderHeader('Panel de Administración', $user);
+renderHeader('Panel de Administración', $user, $auth);
 ?>
 
 <style>
@@ -512,6 +513,72 @@ renderHeader('Panel de Administración', $user);
             </div>
         </div>
         
+        <!-- Ranking de Usuarios Inactivos -->
+        <?php if (!empty($inactiveUsers)): ?>
+        <div class="card" style="margin-bottom: 2rem;">
+            <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+                <h2 class="card-title" style="color: white; margin: 0;"><i class="fas fa-user-clock"></i> Usuarios Más Inactivos</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Usuario</th>
+                                <th>Último Acceso</th>
+                                <th>Días Inactivo</th>
+                                <th>Archivos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php 
+                            $rank = 1;
+                            foreach ($inactiveUsers as $inactiveUser): 
+                            ?>
+                            <tr>
+                                <td>
+                                    <?php if ($rank <= 3): ?>
+                                        <span style="font-size: 1.25rem; font-weight: bold;">
+                                            <?php if ($rank === 1): ?>🥇
+                                            <?php elseif ($rank === 2): ?>🥈
+                                            <?php elseif ($rank === 3): ?>🥉
+                                            <?php endif; ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-muted);"><?php echo $rank; ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <strong><?php echo htmlspecialchars($inactiveUser['full_name'] ?? $inactiveUser['username']); ?></strong>
+                                    <br>
+                                    <small style="color: var(--text-muted);">@<?php echo htmlspecialchars($inactiveUser['username']); ?></small>
+                                </td>
+                                <td><?php echo date('d/m/Y H:i', strtotime($inactiveUser['last_login'])); ?></td>
+                                <td>
+                                    <span class="badge" style="background: <?php 
+                                        $days = $inactiveUser['days_inactive'];
+                                        if ($days > 180) echo 'var(--danger-color)';
+                                        elseif ($days > 90) echo '#ff8c00';
+                                        elseif ($days > 30) echo '#ffa500';
+                                        else echo 'var(--warning)';
+                                    ?>; color: white; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                        <?php echo $inactiveUser['days_inactive']; ?> días
+                                    </span>
+                                </td>
+                                <td><?php echo $inactiveUser['file_count']; ?></td>
+                            </tr>
+                            <?php 
+                            $rank++;
+                            endforeach; 
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <div class="card">
             <div class="card-header">
                 <h2 class="card-title"><i class="fas fa-history"></i> Actividad Reciente</h2>
@@ -603,7 +670,7 @@ renderHeader('Panel de Administración', $user);
     </style>
     
     <div class="card mt-3" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <div class="card-header" style="background: linear-gradient(135deg, #4a90e2, #50c878); color: white; padding: 1.5rem;">
+        <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
             <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-bolt"></i> Accesos Rápidos</h2>
         </div>
         <div class="card-body" style="padding: 2rem;">

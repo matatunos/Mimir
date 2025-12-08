@@ -68,9 +68,9 @@ renderHeader('Mis Enlaces Compartidos', $user);
     <?php endif; ?>
 
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <div class="card-header" style="background: linear-gradient(135deg, #9b59b6, #e74c3c); color: white; padding: 1.5rem;">
-            <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-link"></i> Enlaces Activos (<?php echo count($shares); ?>)</h2>
-            <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-success" style="background: white; color: #9b59b6; border: none; font-weight: 600;">Ver Archivos</a>
+        <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+            <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem; margin: 0;"><i class="fas fa-link"></i> Enlaces Activos (<?php echo count($shares); ?>)</h2>
+            <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-success" style="background: white; color: #e9b149; border: none; font-weight: 600;">Ver Archivos</a>
         </div>
         <div class="card-body">
             <?php if (empty($shares)): ?>

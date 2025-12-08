@@ -4,7 +4,20 @@
  * Shared Layout Functions
  */
 
-function renderHeader($title, $user) {
+function renderHeader($title, $user, $auth = null) {
+    // Generate CSRF token - try to get auth from parameter or create new instance
+    $csrfToken = '';
+    if ($auth !== null) {
+        $csrfToken = $auth->generateCsrfToken();
+    } else {
+        // Try to create auth instance to get token
+        if (class_exists('Auth')) {
+            $tempAuth = new Auth();
+            if ($tempAuth->isLoggedIn()) {
+                $csrfToken = $tempAuth->generateCsrfToken();
+            }
+        }
+    }
     ?>
     <div class="header">
         <div class="header-left">
@@ -14,7 +27,7 @@ function renderHeader($title, $user) {
             <h1 class="header-title"><?php echo htmlspecialchars($title); ?></h1>
         </div>
         <div class="header-actions">
-            <div class="user-menu" onclick="toggleUserMenu()">
+            <div class="user-menu" onclick="toggleUserMenu(event)">
                 <div class="user-avatar">
                     <?php echo strtoupper(substr($user['username'], 0, 1)); ?>
                 </div>
@@ -29,9 +42,21 @@ function renderHeader($title, $user) {
     </div>
     
     <div id="userMenuDropdown" style="display: none; position: absolute; right: 1.5rem; top: 70px; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 1000;">
-        <a href="<?php echo BASE_URL; ?>/user/profile.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);"><i class="fas fa-user"></i> Mi Perfil</a>
-        <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);"><i class="fas fa-lock"></i> Autenticación 2FA</a>
-        <a href="<?php echo BASE_URL; ?>/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color);"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+        <a href="<?php echo BASE_URL; ?>/user/profile.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-user"></i> Mi Perfil</a>
+        <?php if ($user['role'] === 'admin'): ?>
+            <?php
+            require_once __DIR__ . '/../classes/Config.php';
+            $config = new Config();
+            $maintenanceMode = $config->get('maintenance_mode', '0');
+            $isInMaintenance = $maintenanceMode === '1';
+            ?>
+            <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
+            <a href="#" onclick="toggleMaintenance(event, <?php echo $isInMaintenance ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
+                <i class="fas fa-tools"></i> 
+                <?php echo $isInMaintenance ? 'Desactivar Mantenimiento' : 'Activar Mantenimiento'; ?>
+            </a>
+        <?php endif; ?>
+        <a href="<?php echo BASE_URL; ?>/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color); text-decoration: none;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
     </div>
     <?php
 }
@@ -122,13 +147,6 @@ function renderSidebar($currentPage, $isAdmin = false) {
                         <i class="fas fa-link"></i> Mis Comparticiones
                     </a>
                 </div>
-                
-                <div class="menu-section">
-                    <div class="menu-section-title">Seguridad</div>
-                    <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" class="menu-item <?php echo $currentPage === '2fa_setup' ? 'active' : ''; ?>">
-                        <i class="fas fa-shield-alt"></i> Autenticación 2FA
-                    </a>
-                </div>
             <?php endif; ?>
         </div>
         
@@ -178,6 +196,7 @@ function renderPageStart($title, $currentPage, $isAdmin = false) {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="csrf-token" content="<?php echo isset($GLOBALS['auth']) ? $GLOBALS['auth']->generateCsrfToken() : ''; ?>">
         <title><?php echo htmlspecialchars($title); ?> - <?php echo htmlspecialchars($siteName); ?></title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">

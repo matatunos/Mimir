@@ -59,8 +59,8 @@ renderHeader('Mi Perfil', $user);
 
     <div style="max-width: 700px; margin: 0 auto;">
         <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 1.5rem;">
-            <div class="card-header" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 1.5rem;">
-                <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;">👤 Información de la Cuenta</h2>
+            <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+                <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem; margin: 0;">👤 Información de la Cuenta</h2>
             </div>
             <div class="card-body">
                 <div class="form-group">
@@ -93,8 +93,8 @@ renderHeader('Mi Perfil', $user);
 
         <?php if (!$user['is_ldap']): ?>
         <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-            <div class="card-header" style="background: linear-gradient(135deg, #f093fb, #f5576c); color: white; padding: 1.5rem;">
-                <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-lock"></i> Cambiar Contraseña</h2>
+            <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+                <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem; margin: 0;"><i class="fas fa-lock"></i> Cambiar Contraseña</h2>
             </div>
             <div class="card-body">
                 <form method="POST">

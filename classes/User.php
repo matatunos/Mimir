@@ -374,13 +374,41 @@ class User {
                 SELECT 
                     (SELECT COUNT(*) FROM files WHERE user_id = ?) as total_files,
                     (SELECT SUM(file_size) FROM files WHERE user_id = ?) as total_size,
-                    (SELECT COUNT(*) FROM shares WHERE created_by = ? AND is_active = 1) as active_shares
+                    (SELECT COUNT(DISTINCT file_id) FROM shares WHERE created_by = ? AND is_active = 1) as active_shares
             ");
             $stmt->execute([$userId, $userId, $userId]);
             return $stmt->fetch();
         } catch (Exception $e) {
             error_log("User statistics error: " . $e->getMessage());
             return null;
+        }
+    }
+    
+    /**
+     * Get users with most inactivity
+     */
+    public function getMostInactiveUsers($limit = 10) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT 
+                    u.id,
+                    u.username,
+                    u.full_name,
+                    u.last_login,
+                    DATEDIFF(NOW(), u.last_login) as days_inactive,
+                    (SELECT COUNT(*) FROM files WHERE user_id = u.id) as file_count
+                FROM users u
+                WHERE u.role = 'user' 
+                    AND u.is_active = 1
+                    AND u.last_login IS NOT NULL
+                ORDER BY u.last_login ASC
+                LIMIT ?
+            ");
+            $stmt->execute([$limit]);
+            return $stmt->fetchAll();
+        } catch (Exception $e) {
+            error_log("Get inactive users error: " . $e->getMessage());
+            return [];
         }
     }
     

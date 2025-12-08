@@ -134,6 +134,7 @@ require_once __DIR__ . '/../includes/layout.php';
 
 $configClass = new Config();
 $siteName = $configClass->get('site_name', 'Mimir');
+$logo = $configClass->get('site_logo', '');
 $primaryColor = $configClass->get('brand_primary_color', '#1e40af');
 $primaryTextColor = getTextColorForBackground($primaryColor);
 ?>
@@ -153,13 +154,22 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
         background: <?php echo htmlspecialchars($primaryColor); ?> !important;
         color: <?php echo htmlspecialchars($primaryTextColor); ?> !important;
     }
+    .login-header img {
+        max-width: 200px;
+        max-height: 60px;
+        margin-bottom: 1rem;
+    }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <h1>🔐 Mimir</h1>
+                <?php if ($logo): ?>
+                    <img src="<?php echo BASE_URL . '/' . htmlspecialchars($logo); ?>" alt="<?php echo htmlspecialchars($siteName); ?>">
+                <?php else: ?>
+                    <h1>🔐 <?php echo htmlspecialchars($siteName); ?></h1>
+                <?php endif; ?>
                 <p>Verificación de Dos Factores</p>
             </div>
             

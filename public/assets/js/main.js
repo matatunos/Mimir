@@ -124,7 +124,10 @@ const Mimir = {
 };
 
 // Toggle user menu dropdown
-function toggleUserMenu() {
+function toggleUserMenu(event) {
+    if (event) {
+        event.stopPropagation();
+    }
     const menu = document.getElementById('userMenuDropdown');
     if (menu) {
         menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
@@ -153,3 +156,40 @@ document.addEventListener('click', function(e) {
         if (modal) modal.classList.remove('active');
     }
 });
+
+// Toggle maintenance mode
+function toggleMaintenance(event, enable, csrfToken) {
+    event.preventDefault();
+    
+    const action = enable ? 'activar' : 'desactivar';
+    const message = enable 
+        ? '¿Activar el modo mantenimiento? Los usuarios no administradores no podrán acceder al sistema.'
+        : '¿Desactivar el modo mantenimiento? Los usuarios podrán volver a acceder al sistema.';
+    
+    if (!confirm(message)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('csrf_token', csrfToken);
+    formData.append('enabled', enable ? 'true' : 'false');
+    
+    fetch(Mimir.apiUrl + '/admin/toggle_maintenance.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cambiar el modo mantenimiento');
+    });
+}
+
