@@ -44,7 +44,7 @@ if (!in_array($type, ['ldap', 'ad'])) {
 }
 
 $action = $_REQUEST['action'] ?? 'test';
-if (!in_array($action, ['test', 'auth'])) {
+if (!in_array($action, ['test', 'auth', 'member'])) {
     echo json_encode([
         'success' => false,
         'message' => 'Acción inválida. Use "test" o "auth".'
@@ -71,6 +71,27 @@ try {
                 'success' => false,
                 'message' => is_string($result) ? $result : 'Fallo de conexión.'
             ]);
+        }
+    } else if ($action === 'member') {
+        // membership check: GET or POST, requires username and group_dn
+        $username = $_REQUEST['username'] ?? '';
+        $groupDn = $_REQUEST['group_dn'] ?? '';
+        if (empty($username) || empty($groupDn)) {
+            echo json_encode(['success' => false, 'message' => 'username y group_dn son requeridos.']);
+            exit;
+        }
+        try {
+            $isMember = $ldap->isMemberOf($username, $groupDn);
+            echo json_encode([
+                'success' => true,
+                'action' => 'member',
+                'type' => $type,
+                'username' => $username,
+                'group_dn' => $groupDn,
+                'is_member' => (bool)$isMember
+            ]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Excepción: ' . $e->getMessage()]);
         }
     } else {
         // auth action - require POST and username/password
