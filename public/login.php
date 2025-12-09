@@ -55,6 +55,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($auth->login($username, $password)) {
                             header('Location: ' . BASE_URL . '/index.php');
                             exit;
+                        } else {
+                            $error = 'Error al iniciar sesión en dispositivo confiable.';
                         }
                     } else {
                         // 2FA is enabled, set pending state
@@ -88,6 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($auth->login($username, $password)) {
                         header('Location: ' . BASE_URL . '/index.php');
                         exit;
+                    } else {
+                        $error = 'Error al iniciar sesión. Por favor, inténtalo de nuevo.';
                     }
                 }
             } else {
