@@ -6,16 +6,19 @@
 
 require_once __DIR__ . '/User.php';
 require_once __DIR__ . '/Logger.php';
+require_once __DIR__ . '/Config.php';
 
 class File {
     private $db;
     private $logger;
     private $userClass;
+    private $config;
     
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
         $this->logger = new Logger();
         $this->userClass = new User();
+        $this->config = new Config();
     }
     
     /**
@@ -33,7 +36,8 @@ class File {
             $mimeType = mime_content_type($fileData['tmp_name']);
             
             // Check file size
-            if ($fileSize > MAX_FILE_SIZE) {
+            $maxFileSize = $this->config->get('max_file_size', MAX_FILE_SIZE);
+            if ($fileSize > $maxFileSize) {
                 throw new Exception("File size exceeds maximum allowed");
             }
             
@@ -44,9 +48,19 @@ class File {
             
             // Check file extension
             $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-            $allowedExts = explode(',', ALLOWED_EXTENSIONS);
-            if (!in_array($ext, $allowedExts)) {
-                throw new Exception("File type not allowed");
+            
+            // Get allowed extensions from config (database with fallback to constant)
+            $allowedExtensionsStr = $this->config->get('allowed_extensions', ALLOWED_EXTENSIONS);
+            $allowedExts = array_map('trim', explode(',', $allowedExtensionsStr));
+            
+            // If not wildcard, validate extension
+            if (!in_array('*', $allowedExts)) {
+                if (!in_array($ext, $allowedExts)) {
+                    throw new Exception("File type not allowed");
+                }
+                
+                // Validate MIME type matches extension (basic security check)
+                $this->validateMimeType($mimeType, $ext);
             }
             
             // Generate unique file name and hash
@@ -530,6 +544,87 @@ class File {
             $this->db->rollBack();
             error_log("Reassign owner error: " . $e->getMessage());
             throw $e;
+        }
+    }
+    
+    /**
+     * Validate MIME type matches file extension
+     */
+    private function validateMimeType($mimeType, $extension) {
+        // Map of allowed MIME types for common extensions
+        $mimeMap = [
+            // Documents
+            'pdf' => ['application/pdf'],
+            'doc' => ['application/msword'],
+            'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+            'xls' => ['application/vnd.ms-excel'],
+            'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            'ppt' => ['application/vnd.ms-powerpoint'],
+            'pptx' => ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+            'odt' => ['application/vnd.oasis.opendocument.text'],
+            'ods' => ['application/vnd.oasis.opendocument.spreadsheet'],
+            'odp' => ['application/vnd.oasis.opendocument.presentation'],
+            'rtf' => ['application/rtf', 'text/rtf'],
+            'txt' => ['text/plain'],
+            'csv' => ['text/csv', 'text/plain'],
+            'json' => ['application/json', 'text/plain'],
+            'xml' => ['application/xml', 'text/xml'],
+            // Images
+            'jpg' => ['image/jpeg'],
+            'jpeg' => ['image/jpeg'],
+            'png' => ['image/png'],
+            'gif' => ['image/gif'],
+            'bmp' => ['image/bmp', 'image/x-ms-bmp'],
+            'svg' => ['image/svg+xml'],
+            'webp' => ['image/webp'],
+            'ico' => ['image/x-icon', 'image/vnd.microsoft.icon'],
+            // Video
+            'mp4' => ['video/mp4'],
+            'avi' => ['video/x-msvideo'],
+            'mkv' => ['video/x-matroska'],
+            'mov' => ['video/quicktime'],
+            'wmv' => ['video/x-ms-wmv'],
+            'flv' => ['video/x-flv'],
+            'webm' => ['video/webm'],
+            // Audio
+            'mp3' => ['audio/mpeg'],
+            'wav' => ['audio/wav', 'audio/x-wav'],
+            'ogg' => ['audio/ogg'],
+            'flac' => ['audio/flac'],
+            'm4a' => ['audio/mp4'],
+            // Archives
+            'zip' => ['application/zip', 'application/x-zip-compressed'],
+            'rar' => ['application/x-rar-compressed', 'application/vnd.rar'],
+            '7z' => ['application/x-7z-compressed'],
+            'tar' => ['application/x-tar'],
+            'gz' => ['application/gzip', 'application/x-gzip'],
+            // Code/Web
+            'html' => ['text/html'],
+            'css' => ['text/css'],
+            'js' => ['application/javascript', 'text/javascript'],
+        ];
+        
+        // If extension has defined MIME types, validate
+        if (isset($mimeMap[$extension])) {
+            if (!in_array($mimeType, $mimeMap[$extension])) {
+                error_log("MIME type mismatch: extension=$extension, mime=$mimeType, expected=" . implode('|', $mimeMap[$extension]));
+                throw new Exception("File content does not match extension");
+            }
+        }
+        
+        // Additional security: block dangerous MIME types regardless of extension
+        $dangerousMimes = [
+            'application/x-php',
+            'application/x-httpd-php',
+            'application/x-sh',
+            'application/x-perl',
+            'application/x-python',
+            'application/x-executable',
+            'application/x-msdownload',
+        ];
+        
+        if (in_array($mimeType, $dangerousMimes)) {
+            throw new Exception("Dangerous file type detected");
         }
     }
 }

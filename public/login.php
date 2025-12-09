@@ -153,9 +153,6 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;">Iniciar Sesión</button>
             </form>
-            <div style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.875rem;">
-                <p>Credenciales por defecto: admin / admin123</p>
-            </div>
         </div>
     </div>
 </body>

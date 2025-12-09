@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../classes/Share.php';
 $auth = new Auth();
 $auth->requireLogin();
 $user = $auth->getUser();
+$config = new Config();
 $fileClass = new File();
 $shareClass = new Share();
 $logger = new Logger();
@@ -30,7 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Token de seguridad inválido';
     } else {
         try {
-            $maxDays = min(intval($_POST['max_days'] ?? DEFAULT_MAX_SHARE_DAYS), DEFAULT_MAX_SHARE_DAYS);
+            $defaultMaxDays = $config->get('default_max_share_days', DEFAULT_MAX_SHARE_DAYS);
+            $maxDays = min(intval($_POST['max_days'] ?? $defaultMaxDays), $defaultMaxDays);
             $maxDownloads = intval($_POST['max_downloads'] ?? 0) ?: null;
             $password = !empty($_POST['password']) ? $_POST['password'] : null;
             
@@ -64,7 +66,8 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
     <?php endif; ?>
 
     <div class="card">
-        <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+
+    <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
             <h2 class="card-title" style="color: white; margin: 0;">Crear Enlace de Compartición</h2>
         </div>
         <div class="card-body">
@@ -85,8 +88,9 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
                 
                 <div class="form-group">
                     <label>Días válido *</label>
-                    <input type="number" name="max_days" class="form-control" value="<?php echo DEFAULT_MAX_SHARE_DAYS; ?>" min="1" max="<?php echo DEFAULT_MAX_SHARE_DAYS; ?>" required>
-                    <small style="color: var(--text-muted);">Máximo: <?php echo DEFAULT_MAX_SHARE_DAYS; ?> días</small>
+                    <?php $defaultMaxDays = $config->get('default_max_share_days', DEFAULT_MAX_SHARE_DAYS); ?>
+                    <input type="number" name="max_days" class="form-control" value="<?php echo $defaultMaxDays; ?>" min="1" max="<?php echo $defaultMaxDays; ?>" required>
+                    <small style="color: var(--text-muted);">Máximo: <?php echo $defaultMaxDays; ?> días</small>
                 </div>
 
                 <div class="form-group">

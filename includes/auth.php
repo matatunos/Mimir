@@ -28,6 +28,8 @@ class Auth {
             ini_set('session.cookie_httponly', 1);
             ini_set('session.use_only_cookies', 1);
             ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
+            // Allow session cookies to work with external redirects (Duo)
+            ini_set('session.cookie_samesite', 'None');
             
             session_name(SESSION_NAME);
             session_start();
