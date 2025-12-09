@@ -198,7 +198,7 @@ define('DB_NAME', 'mimir');
 define('DB_USER', 'mimir_user');
 define('DB_PASS', 'tu_password');
 
-define('BASE_URL', 'https://files.favala.es');
+define('BASE_URL', 'https://www.tudominio.es');
 define('SITE_NAME', 'Mimir Files');
 
 // LDAP Configuration (opcional)
@@ -218,7 +218,7 @@ Si usas Nginx como proxy inverso con SSL:
 
 ```apache
 <VirtualHost *:80>
-    ServerName files.favala.es
+    ServerName www.tudominio.es
     DocumentRoot /opt/Mimir/public
 
     <Directory /opt/Mimir/public>
@@ -231,8 +231,8 @@ Si usas Nginx como proxy inverso con SSL:
     SetEnvIf X-Forwarded-Proto https HTTPS=on
     SetEnvIf X-Forwarded-For ^.+ REMOTE_ADDR=%{X-Forwarded-For}e
 
-    ErrorLog ${APACHE_LOG_DIR}/files.favala.es_error.log
-    CustomLog ${APACHE_LOG_DIR}/files.favala.es_access.log combined
+    ErrorLog ${APACHE_LOG_DIR}/www.tudominio.es_error.log
+    CustomLog ${APACHE_LOG_DIR}/www.tudominio.es_access.log combined
 </VirtualHost>
 ```
 
