@@ -50,10 +50,11 @@ renderHeader('Archivos Huérfanos', $user);
     top: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background-color: rgba(0, 0, 0, 0.5);
 }
 .modal-content {
-    background: var(--bg-primary);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     margin: 5% auto;
     padding: 2rem;
     border-radius: 0.5rem;
@@ -147,8 +148,11 @@ renderHeader('Archivos Huérfanos', $user);
                         <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
                         <span>Seleccionar todos</span>
                     </label>
+                    <button class="btn btn-primary btn-sm" onclick="bulkAssign()" id="bulkAssignBtn" disabled>
+                        👤 Asignar seleccionados
+                    </button>
                     <button class="btn btn-danger btn-sm" onclick="bulkDelete()" id="bulkDeleteBtn" disabled>
-                        <i class="fas fa-trash"></i> Eliminar seleccionados
+                        🗑️ Eliminar seleccionados
                     </button>
                 </div>
                 <table class="table">
@@ -170,31 +174,35 @@ renderHeader('Archivos Huérfanos', $user);
                                 </td>
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                        <span style="font-size: 1.5rem;"><?php echo getFileIcon($file['filename']); ?></span>
+                                        <span style="font-size: 1.5rem;"><?php echo getFileIcon($file['original_name'] ?? ''); ?></span>
                                         <div>
-                                            <strong><?php echo htmlspecialchars($file['filename']); ?></strong>
-                                            <?php if ($file['original_filename'] !== $file['filename']): ?>
-                                                <br><small style="color: var(--text-muted);">Original: <?php echo htmlspecialchars($file['original_filename']); ?></small>
+                                            <strong><?php echo htmlspecialchars($file['original_name'] ?? 'Sin nombre'); ?></strong>
+                                            <?php if (!empty($file['stored_name']) && $file['stored_name'] !== $file['original_name']): ?>
+                                                <br><small style="color: var(--text-muted);">Almacenado: <?php echo htmlspecialchars($file['stored_name']); ?></small>
                                             <?php endif; ?>
                                         </div>
                                     </div>
                                 </td>
-                                <td><?php echo formatFileSize($file['file_size']); ?></td>
+                                <td><?php echo formatFileSize($file['file_size'] ?? 0); ?></td>
                                 <td>
                                     <?php 
-                                    $uploadDate = new DateTime($file['uploaded_at']);
-                                    echo $uploadDate->format('d/m/Y H:i');
+                                    if (!empty($file['created_at'])) {
+                                        $uploadDate = new DateTime($file['created_at']);
+                                        echo $uploadDate->format('d/m/Y H:i');
+                                    } else {
+                                        echo '-';
+                                    }
                                     ?>
                                 </td>
                                 <td style="text-align: right;">
                                     <div class="orphan-actions">
                                         <button class="btn btn-primary btn-sm" 
-                                                onclick="showAssignModal(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['filename'], ENT_QUOTES); ?>')">
+                                                onclick="showAssignModal(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
                                             👤 Asignar
                                         </button>
                                         <button class="btn btn-danger btn-sm" 
-                                                onclick="deleteOrphan(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['filename'], ENT_QUOTES); ?>')">
-                                            <i class="fas fa-trash"></i> Eliminar
+                                                onclick="deleteOrphan(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
+                                            🗑️ Eliminar
                                         </button>
                                     </div>
                                 </td>
@@ -227,11 +235,11 @@ renderHeader('Archivos Huérfanos', $user);
 <div id="assignModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 style="margin: 0;">Asignar archivo a usuario</h2>
+            <h2 style="margin: 0;">Asignar archivo(s) a usuario</h2>
             <span class="modal-close" onclick="closeAssignModal()">&times;</span>
         </div>
         <div>
-            <p><strong>Archivo:</strong> <span id="modalFileName"></span></p>
+            <p id="modalFileInfo"><strong>Archivo:</strong> <span id="modalFileName"></span></p>
             <div class="form-group">
                 <label>Buscar usuario</label>
                 <input type="text" id="userSearch" class="form-control" 
@@ -245,6 +253,7 @@ renderHeader('Archivos Huérfanos', $user);
 
 <script>
 let currentFileId = null;
+let currentFileIds = [];
 let searchTimeout = null;
 
 function toggleSelectAll() {
@@ -256,14 +265,35 @@ function toggleSelectAll() {
 
 function updateBulkActions() {
     const selected = document.querySelectorAll('.file-select:checked').length;
-    const bulkBtn = document.getElementById('bulkDeleteBtn');
-    bulkBtn.disabled = selected === 0;
-    bulkBtn.textContent = selected > 0 ? `<i class="fas fa-trash"></i> Eliminar ${selected} archivo(s)` : '<i class="fas fa-trash"></i> Eliminar seleccionados';
+    const deleteBtn = document.getElementById('bulkDeleteBtn');
+    const assignBtn = document.getElementById('bulkAssignBtn');
+    
+    deleteBtn.disabled = selected === 0;
+    assignBtn.disabled = selected === 0;
+    
+    deleteBtn.innerHTML = selected > 0 ? `🗑️ Eliminar ${selected} archivo(s)` : '🗑️ Eliminar seleccionados';
+    assignBtn.innerHTML = selected > 0 ? `👤 Asignar ${selected} archivo(s)` : '👤 Asignar seleccionados';
 }
 
 function showAssignModal(fileId, fileName) {
     currentFileId = fileId;
+    currentFileIds = [fileId];
+    document.getElementById('modalFileInfo').style.display = 'block';
     document.getElementById('modalFileName').textContent = fileName;
+    document.getElementById('assignModal').style.display = 'block';
+    document.getElementById('userSearch').value = '';
+    document.getElementById('userSearchResults').style.display = 'none';
+}
+
+function bulkAssign() {
+    const selected = document.querySelectorAll('.file-select:checked');
+    if (selected.length === 0) return;
+    
+    currentFileId = null;
+    currentFileIds = Array.from(selected).map(cb => parseInt(cb.value));
+    
+    document.getElementById('modalFileInfo').style.display = 'block';
+    document.getElementById('modalFileName').textContent = `${selected.length} archivo(s) seleccionado(s)`;
     document.getElementById('assignModal').style.display = 'block';
     document.getElementById('userSearch').value = '';
     document.getElementById('userSearchResults').style.display = 'none';
@@ -272,6 +302,7 @@ function showAssignModal(fileId, fileName) {
 function closeAssignModal() {
     document.getElementById('assignModal').style.display = 'none';
     currentFileId = null;
+    currentFileIds = [];
 }
 
 function searchUsers() {
@@ -312,11 +343,12 @@ function searchUsers() {
 }
 
 function assignToUser(userId) {
-    if (!currentFileId) return;
+    if (!currentFileId && currentFileIds.length === 0) return;
     
+    const fileIds = currentFileIds.length > 0 ? currentFileIds : [currentFileId];
     const formData = new FormData();
     formData.append('action', 'assign');
-    formData.append('file_id', currentFileId);
+    formData.append('file_ids', JSON.stringify(fileIds));
     formData.append('user_id', userId);
     
     fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', {
@@ -326,7 +358,9 @@ function assignToUser(userId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            window.location.href = '?success=' + encodeURIComponent('Archivo asignado correctamente');
+            const count = fileIds.length;
+            const message = count > 1 ? `${count} archivos asignados correctamente` : 'Archivo asignado correctamente';
+            window.location.href = '?success=' + encodeURIComponent(message);
         } else {
             alert('Error: ' + (data.message || 'No se pudo asignar el archivo'));
         }

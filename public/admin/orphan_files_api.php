@@ -58,23 +58,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
     if ($action === 'assign') {
-        $fileId = intval($_POST['file_id'] ?? 0);
         $userId = intval($_POST['user_id'] ?? 0);
         
-        if (!$fileId || !$userId) {
-            echo json_encode(['success' => false, 'message' => 'Parámetros inválidos']);
-            exit;
+        // Support both single file and multiple files
+        $fileIds = [];
+        if (isset($_POST['file_ids'])) {
+            $fileIds = json_decode($_POST['file_ids'], true);
+            if (!is_array($fileIds)) {
+                echo json_encode(['success' => false, 'message' => 'Formato de IDs inválido']);
+                exit;
+            }
+            $fileIds = array_map('intval', $fileIds);
+        } elseif (isset($_POST['file_id'])) {
+            $fileIds = [intval($_POST['file_id'])];
         }
         
-        // Verify file exists and is orphaned
-        $db = getDatabase();
-        $stmt = $db->prepare("SELECT id, filename FROM files WHERE id = ? AND user_id IS NULL");
-        $stmt->bind_param('i', $fileId);
-        $stmt->execute();
-        $file = $stmt->get_result()->fetch_assoc();
-        
-        if (!$file) {
-            echo json_encode(['success' => false, 'message' => 'Archivo no encontrado o no es huérfano']);
+        if (empty($fileIds) || !$userId) {
+            echo json_encode(['success' => false, 'message' => 'Parámetros inválidos']);
             exit;
         }
         
@@ -85,21 +85,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
-        try {
-            if ($fileClass->reassignOwner($fileId, $userId)) {
-                $logger->log(
-                    $adminUser['id'],
-                    'orphan_assigned',
-                    'file',
-                    $fileId,
-                    "Archivo huérfano '{$file['filename']}' asignado a {$user['username']}"
-                );
-                echo json_encode(['success' => true]);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Error al asignar el archivo']);
+        $db = getDatabase();
+        $successCount = 0;
+        $failedFiles = [];
+        
+        foreach ($fileIds as $fileId) {
+            // Verify file exists and is orphaned
+            $stmt = $db->prepare("SELECT id, original_name FROM files WHERE id = ? AND user_id IS NULL");
+            $stmt->bind_param('i', $fileId);
+            $stmt->execute();
+            $file = $stmt->get_result()->fetch_assoc();
+            
+            if (!$file) {
+                $failedFiles[] = "ID $fileId (no encontrado o no es huérfano)";
+                continue;
             }
-        } catch (Exception $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            
+            try {
+                if ($fileClass->reassignOwner($fileId, $userId)) {
+                    $logger->log(
+                        $adminUser['id'],
+                        'orphan_assigned',
+                        'file',
+                        $fileId,
+                        "Archivo huérfano '{$file['original_name']}' asignado a {$user['username']}"
+                    );
+                    $successCount++;
+                } else {
+                    $failedFiles[] = $file['original_name'];
+                }
+            } catch (Exception $e) {
+                $failedFiles[] = $file['original_name'] . " (error: {$e->getMessage()})";
+            }
+        }
+        
+        if ($successCount > 0 && empty($failedFiles)) {
+            echo json_encode(['success' => true, 'count' => $successCount]);
+        } elseif ($successCount > 0) {
+            echo json_encode([
+                'success' => true, 
+                'count' => $successCount,
+                'message' => "Se asignaron $successCount archivo(s), pero algunos fallaron: " . implode(', ', $failedFiles)
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false, 
+                'message' => 'No se pudo asignar ningún archivo. Errores: ' . implode(', ', $failedFiles)
+            ]);
         }
         exit;
     }
