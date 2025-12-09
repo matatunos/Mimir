@@ -137,7 +137,7 @@ function renderSidebar($currentPage, $isAdmin = false) {
                 
                 <div class="menu-section">
                     <div class="menu-section-title">Mis Archivos</div>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
+                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo $currentPage === 'user-files' ? 'active' : ''; ?>">
                         <i class="fas fa-folder-open"></i> Ver mis archivos
                     </a>
                 </div>
@@ -148,10 +148,10 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     <a href="<?php echo BASE_URL; ?>/user/index.php" class="menu-item <?php echo $currentPage === 'dashboard' ? 'active' : ''; ?>">
                         <i class="fas fa-home"></i> Inicio
                     </a>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
+                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo $currentPage === 'user-files' ? 'active' : ''; ?>">
                         <i class="fas fa-folder"></i> Mis Archivos
                     </a>
-                    <a href="<?php echo BASE_URL; ?>/user/shares.php" class="menu-item <?php echo $currentPage === 'shares' ? 'active' : ''; ?>">
+                    <a href="<?php echo BASE_URL; ?>/user/shares.php" class="menu-item <?php echo $currentPage === 'user-shares' ? 'active' : ''; ?>">
                         <i class="fas fa-link"></i> Mis Comparticiones
                     </a>
                 </div>

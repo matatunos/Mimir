@@ -10,7 +10,21 @@ $auth->requireAdmin();
 $user = $auth->getUser();
 $logger = new Logger();
 
-$logs = $logger->getActivityLogs([], 50, 0);
+// Get filters
+$dateFrom = $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days'));
+$dateTo = $_GET['date_to'] ?? date('Y-m-d');
+$action = $_GET['action'] ?? '';
+
+$filters = [
+    'date_from' => $dateFrom . ' 00:00:00',
+    'date_to' => $dateTo . ' 23:59:59'
+];
+
+if ($action) {
+    $filters['action'] = $action;
+}
+
+$logs = $logger->getActivityLogs($filters, 100, 0);
 
 renderPageStart('Registros', 'logs', true);
 renderHeader('Registros de Actividad', $user);
@@ -21,6 +35,40 @@ renderHeader('Registros de Actividad', $user);
             <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-clipboard"></i> Actividad del Sistema</h2>
         </div>
         <div class="card-body">
+            <!-- Filters -->
+            <form method="GET" class="mb-3" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label>Desde:</label>
+                        <input type="date" name="date_from" class="form-control" value="<?php echo htmlspecialchars($dateFrom); ?>">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Hasta:</label>
+                        <input type="date" name="date_to" class="form-control" value="<?php echo htmlspecialchars($dateTo); ?>">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Acción:</label>
+                        <select name="action" class="form-control">
+                            <option value="">Todas</option>
+                            <option value="login" <?php echo $action === 'login' ? 'selected' : ''; ?>>Login</option>
+                            <option value="logout" <?php echo $action === 'logout' ? 'selected' : ''; ?>>Logout</option>
+                            <option value="file_uploaded" <?php echo $action === 'file_uploaded' ? 'selected' : ''; ?>>Archivo Subido</option>
+                            <option value="file_downloaded" <?php echo $action === 'file_downloaded' ? 'selected' : ''; ?>>Archivo Descargado</option>
+                            <option value="share_created" <?php echo $action === 'share_created' ? 'selected' : ''; ?>>Share Creado</option>
+                            <option value="share_downloaded" <?php echo $action === 'share_downloaded' ? 'selected' : ''; ?>>Share Descargado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3" style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">
+                            <i class="fas fa-filter"></i> Filtrar
+                        </button>
+                        <a href="<?php echo BASE_URL; ?>/admin/export_activity_log.php?date_from=<?php echo urlencode($dateFrom); ?>&date_to=<?php echo urlencode($dateTo); ?>&action=<?php echo urlencode($action); ?>" 
+                           class="btn btn-success" title="Exportar a Excel">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
             <?php if (empty($logs)): ?>
                 <div style="text-align: center; padding: 4rem; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 100%); border-radius: 1rem; border: 2px dashed var(--border-color);">
                     <div style="font-size: 5rem; margin-bottom: 1.5rem; opacity: 0.3;"><i class="fas fa-clipboard"></i></div>

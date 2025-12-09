@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             exit;
         }
         
-        $db = getDatabase();
+        $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare("
             SELECT id, username, email, full_name, role
             FROM users
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
-        $db = getDatabase();
+        $db = Database::getInstance()->getConnection();
         $successCount = 0;
         $failedFiles = [];
         
@@ -145,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Verify file exists and is orphaned
-        $db = getDatabase();
+        $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare("SELECT id, filename, file_path FROM files WHERE id = ? AND user_id IS NULL");
         $stmt->bind_param('i', $fileId);
         $stmt->execute();
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
-        $db = getDatabase();
+        $db = Database::getInstance()->getConnection();
         $placeholders = implode(',', array_fill(0, count($fileIds), '?'));
         $types = str_repeat('i', count($fileIds));
         

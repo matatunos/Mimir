@@ -84,6 +84,7 @@ $filterActive = $_GET['active'] ?? '';
 $filter2FA = $_GET['twofa'] ?? '';
 $filterInactive = $_GET['inactive'] ?? '';
 $sortBy = $_GET['sort'] ?? 'created_at';
+$sortDir = $_GET['dir'] ?? 'desc';
 $sortOrder = $_GET['order'] ?? 'DESC';
 $page = max(1, intval($_GET['page'] ?? 1));
 $perPage = isset($_GET['per_page']) ? max(10, min(100, intval($_GET['per_page']))) : 25;

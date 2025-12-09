@@ -91,6 +91,7 @@ class Share {
             $stmt = $this->db->prepare("
                 SELECT 
                     s.*,
+                    s.id as share_id,
                     f.id as file_id,
                     f.original_name,
                     f.file_size,
@@ -536,8 +537,21 @@ class Share {
             $stmt = $this->db->prepare("UPDATE shares SET download_count = download_count + 1, last_accessed = NOW() WHERE id = ?");
             $stmt->execute([$share['id']]);
             
-            // Log access
+            // Log access in share_access_log
             $this->logger->logShareAccess($share['id'], 'download');
+            
+            // Log in activity_log for system activity
+            $this->logger->log(
+                null,
+                'share_downloaded',
+                'file',
+                $share['file_id'],
+                'Archivo compartido descargado: ' . $share['original_name'],
+                [
+                    'share_id' => $share['id'],
+                    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+                ]
+            );
             
             // Check if limit reached after increment
             if ($share['max_downloads'] && ($share['download_count'] + 1) >= $share['max_downloads']) {
@@ -572,7 +586,7 @@ class Share {
      */
     private function generateToken() {
         do {
-            $token = bin2hex(random_bytes(16));
+            $token = bin2hex(random_bytes(32));
             $stmt = $this->db->prepare("SELECT id FROM shares WHERE share_token = ?");
             $stmt->execute([$token]);
         } while ($stmt->fetch());

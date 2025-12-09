@@ -52,23 +52,32 @@ class Auth {
      */
     public function login($username, $password, $remember = false) {
         try {
-            // Check if LDAP is enabled
+            // Check if LDAP/AD is enabled
             $ldapEnabled = $this->getLdapStatus();
-            
+
             $user = null;
             $isLdapUser = false;
-            
-            // Try LDAP authentication first if enabled
-            if ($ldapEnabled) {
-                $ldapAuth = new LdapAuth();
+
+            // Try Active Directory first if enabled, then fallback to LDAP
+            $adEnabled = $this->getLdapStatus('ad');
+            if ($adEnabled) {
+                $ldapAuth = new LdapAuth('ad');
                 if ($ldapAuth->authenticate($username, $password)) {
-                    // LDAP authentication successful
                     $isLdapUser = true;
-                    
-                    // Check if user exists in database
                     $user = $this->getUserByUsername($username);
-                    
-                    // If not, create user from LDAP
+                    if (!$user) {
+                        $ldapUser = $ldapAuth->getUserInfo($username);
+                        $userId = $this->createLdapUser($username, $ldapUser);
+                        $user = $this->getUserById($userId);
+                    }
+                }
+            }
+
+            if (!$isLdapUser && $ldapEnabled) {
+                $ldapAuth = new LdapAuth('ldap');
+                if ($ldapAuth->authenticate($username, $password)) {
+                    $isLdapUser = true;
+                    $user = $this->getUserByUsername($username);
                     if (!$user) {
                         $ldapUser = $ldapAuth->getUserInfo($username);
                         $userId = $this->createLdapUser($username, $ldapUser);
@@ -88,7 +97,15 @@ class Auth {
                 
                 // Verify password
                 if (!password_verify($password, $user['password'])) {
-                    $this->logger->log($user['id'], 'login_failed', 'user', $user['id'], "Incorrect password");
+                    // Log failure with non-sensitive hash metadata (length + prefix) to aid debugging
+                    $hashInfo = null;
+                    if (!empty($user['password'])) {
+                        $hashInfo = [
+                            'hash_len' => strlen($user['password']),
+                            'hash_prefix' => substr($user['password'], 0, 4)
+                        ];
+                    }
+                    $this->logger->log($user['id'], 'login_failed', 'user', $user['id'], "Incorrect password", $hashInfo);
                     return false;
                 }
             }
@@ -164,7 +181,14 @@ class Auth {
         if (!$this->isLoggedIn()) {
             return null;
         }
-        return $this->getUserById($_SESSION['user_id']);
+        $user = $this->getUserById($_SESSION['user_id']);
+        if (!$user) {
+            // User record missing (deleted). Clear session and redirect to login.
+            $this->logout();
+            header('Location: ' . BASE_URL . '/login.php?error=' . urlencode('Cuenta no encontrada o eliminada.'));
+            exit;
+        }
+        return $user;
     }
     
     /**
@@ -293,11 +317,12 @@ class Auth {
     }
     
     /**
-     * Get LDAP enabled status from config
+     * Get LDAP/AD enabled status from config
      */
-    private function getLdapStatus() {
-        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'enable_ldap'");
-        $stmt->execute();
+    private function getLdapStatus($type = 'ldap') {
+        $key = $type === 'ad' ? 'enable_ad' : 'enable_ldap';
+        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = ? LIMIT 1");
+        $stmt->execute([$key]);
         $result = $stmt->fetch();
         return $result ? (bool)$result['config_value'] : false;
     }
