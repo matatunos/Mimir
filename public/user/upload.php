@@ -57,9 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
             
             try {
-                $parentFolderId = isset($_POST['parent_folder_id']) && $_POST['parent_folder_id'] !== '' 
-                    ? (int)$_POST['parent_folder_id'] 
-                    : null;
                 $result = $fileClass->upload($fileData, $user['id'], $description, $parentFolderId);
                 if ($result) {
                     $uploadedCount++;

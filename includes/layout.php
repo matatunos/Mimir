@@ -140,9 +140,6 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
                         <i class="fas fa-folder-open"></i> Ver mis archivos
                     </a>
-                    <a href="<?php echo BASE_URL; ?>/user/upload.php" class="menu-item <?php echo $currentPage === 'upload' ? 'active' : ''; ?>">
-                        <i class="fas fa-upload"></i> Subir archivo
-                    </a>
                 </div>
             <?php else: ?>
                 <!-- User Menu -->
@@ -153,9 +150,6 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     </a>
                     <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
                         <i class="fas fa-folder"></i> Mis Archivos
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>/user/upload.php" class="menu-item <?php echo $currentPage === 'upload' ? 'active' : ''; ?>">
-                        <i class="fas fa-cloud-upload-alt"></i> Subir Archivo
                     </a>
                     <a href="<?php echo BASE_URL; ?>/user/shares.php" class="menu-item <?php echo $currentPage === 'shares' ? 'active' : ''; ?>">
                         <i class="fas fa-link"></i> Mis Comparticiones
