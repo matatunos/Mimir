@@ -36,7 +36,8 @@ class DuoAuth {
         $stmt = $this->db->query("
             SELECT config_key, config_value 
             FROM config 
-            WHERE config_key IN ('duo_client_id', 'duo_client_secret', 'duo_api_hostname', 'duo_redirect_uri')
+            WHERE config_key IN ('duo_client_id', 'duo_client_secret', 'duo_api_hostname', 'duo_redirect_uri', 
+                                  'duo_integration_key', 'duo_secret_key')
         ");
         
         $config = [];
@@ -45,9 +46,17 @@ class DuoAuth {
             $config[$key] = $row['config_value'];
         }
         
+        // Support legacy key names
+        if (!isset($config['client_id']) && isset($config['integration_key'])) {
+            $config['client_id'] = $config['integration_key'];
+        }
+        if (!isset($config['client_secret']) && isset($config['secret_key'])) {
+            $config['client_secret'] = $config['secret_key'];
+        }
+        
         // Set default redirect URI if not configured
-        if (!isset($config['redirect_uri'])) {
-            $config['redirect_uri'] = BASE_URL . '/public/login_2fa_duo_callback.php';
+        if (!isset($config['redirect_uri']) || empty($config['redirect_uri'])) {
+            $config['redirect_uri'] = BASE_URL . '/login_2fa_duo_callback.php';
         }
         
         return $config;
@@ -110,18 +119,25 @@ class DuoAuth {
         
         // Verify state matches
         if (!isset($_SESSION['duo_state']) || $_SESSION['duo_state'] !== $state) {
-            error_log("Duo state mismatch");
+            return false;
+        }
+        
+        if (!isset($_SESSION['duo_username'])) {
             return false;
         }
         
         try {
             // Exchange the authorization code for verification
-            $username = $this->client->exchangeAuthorizationCodeFor2FAResult($duoCode, $_SESSION['duo_username']);
+            $result = $this->client->exchangeAuthorizationCodeFor2FAResult($duoCode, $_SESSION['duo_username']);
+            
+            // The result can be either a string (username) or an array with user info
+            $verifiedUsername = is_array($result) ? ($result['username'] ?? $result['preferred_username'] ?? null) : $result;
             
             // Clean up session
             unset($_SESSION['duo_state']);
             
-            return $username === $_SESSION['duo_username'];
+            // Verify the username matches
+            return $verifiedUsername && $verifiedUsername === $_SESSION['duo_username'];
         } catch (DuoException $e) {
             error_log("Duo verification error: " . $e->getMessage());
             return false;

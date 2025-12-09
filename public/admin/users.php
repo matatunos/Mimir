@@ -578,7 +578,7 @@ renderHeader('Gestión de Usuarios', $user);
                                            title="Editar"><i class="fas fa-edit"></i></a>
                                         
                                         <?php if ($u['id'] != $user['id']): ?>
-                                            <button onclick="toggleUserStatus(<?php echo $u['id']; ?>, <?php echo $u['is_active'] ? 'false' : 'true'; ?>)" 
+                                            <button type="button" onclick="toggleUserStatus(<?php echo $u['id']; ?>, <?php echo $u['is_active'] ? 'false' : 'true'; ?>)" 
                                                     class="btn btn-sm btn-outline" 
                                                     id="toggle-btn-<?php echo $u['id']; ?>"
                                                     title="<?php echo $u['is_active'] ? 'Desactivar' : 'Activar'; ?>">
@@ -587,34 +587,34 @@ renderHeader('Gestión de Usuarios', $user);
                                         <?php endif; ?>
                                         
                                         <?php if (!$u['is_ldap']): ?>
-                                            <button onclick="resetUserPassword(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" 
+                                            <button type="button" onclick="resetUserPassword(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" 
                                                     class="btn btn-sm btn-outline" 
                                                     title="Resetear contraseña">🔑</button>
                                         <?php endif; ?>
                                         
                                         <?php if (!empty($u['email']) || $u['twofa_enabled']): ?>
                                             <div class="dropdown" style="display: inline-block;">
-                                                <button class="btn btn-sm btn-info dropdown-toggle" title="Gestionar 2FA"><i class="fas fa-lock"></i></button>
+                                                <button type="button" class="btn btn-sm btn-info dropdown-toggle" title="Gestionar 2FA"><i class="fas fa-lock"></i></button>
                                                 <div class="dropdown-menu">
                                                     <?php if (!empty($u['email'])): ?>
-                                                        <button onclick="setup2FA(<?php echo $u['id']; ?>, 'totp', '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" class="dropdown-item">📱 Setup TOTP</button>
-                                                        <button onclick="setup2FA(<?php echo $u['id']; ?>, 'duo', '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" class="dropdown-item"><i class="fas fa-shield-alt"></i> Setup Duo</button>
+                                                        <button type="button" onclick="setup2FA(<?php echo $u['id']; ?>, 'totp', '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" class="dropdown-item">📱 Setup TOTP</button>
+                                                        <button type="button" onclick="setup2FA(<?php echo $u['id']; ?>, 'duo', '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" class="dropdown-item"><i class="fas fa-shield-alt"></i> Setup Duo</button>
                                                     <?php endif; ?>
                                                     <?php if ($u['twofa_enabled']): ?>
                                                         <?php if (!empty($u['email'])): ?>
                                                             <div class="dropdown-divider"></div>
                                                         <?php endif; ?>
                                                         <?php if ($u['twofa_method'] === 'totp' && !empty($u['email'])): ?>
-                                                            <button onclick="send2FAEmail(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" class="dropdown-item"><i class="fas fa-envelope"></i> Enviar QR</button>
+                                                            <button type="button" onclick="send2FAEmail(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" class="dropdown-item"><i class="fas fa-envelope"></i> Enviar QR</button>
                                                         <?php endif; ?>
-                                                        <button onclick="reset2FA(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" class="dropdown-item" style="color: var(--danger);">🔄 Desactivar 2FA</button>
+                                                        <button type="button" onclick="reset2FA(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" class="dropdown-item" style="color: var(--danger);">🔄 Desactivar 2FA</button>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
                                         <?php endif; ?>
                                         
                                         <?php if ($u['id'] != $user['id']): ?>
-                                            <button onclick="deleteUser(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" 
+                                            <button type="button" onclick="deleteUser(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" 
                                                     class="btn btn-sm btn-danger" 
                                                     title="Eliminar"><i class="fas fa-trash"></i></button>
                                         <?php endif; ?>
@@ -832,10 +832,10 @@ function resetUserPassword(userId, username) {
                 </div>
                 
                 <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button onclick="closePasswordModal()" class="btn btn-secondary" style="background: #6c757d; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
+                    <button type="button" onclick="closePasswordModal()" class="btn btn-secondary" style="background: #6c757d; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
                         <i class="fas fa-times"></i> Cancelar
                     </button>
-                    <button onclick="executePasswordReset(${userId}, '${username}')" class="btn btn-primary" style="background: #4a90e2; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
+                    <button type="button" onclick="executePasswordReset(${userId}, '${username}')" class="btn btn-primary" style="background: #4a90e2; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
                         <i class="fas fa-check"></i> Resetear
                     </button>
                 </div>
@@ -963,8 +963,8 @@ function setup2FA(userId, method, username) {
                 // Show QR code and backup codes in modal
                 showTOTPSetupModal(data.username, data.qr_code, data.backup_codes, userId);
             } else {
-                Mimir.showAlert(data.message, 'success');
-                setTimeout(() => location.reload(), 1500);
+                // For Duo, reload immediately without delay
+                location.href = location.href.split('?')[0] + '?success=' + encodeURIComponent(data.message);
             }
         } else {
             Mimir.showAlert(data.message, 'error');
@@ -1010,10 +1010,10 @@ function showTOTPSetupModal(username, qrCode, backupCodes, userId) {
                 </div>
                 
                 <div style="display: flex; gap: 1rem; justify-content: space-between; align-items: center;">
-                    <button onclick="sendTOTPEmail(${userId}, '${username}')" class="btn btn-secondary" style="background: #28a745; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
+                    <button type="button" onclick="sendTOTPEmail(${userId}, '${username}')" class="btn btn-secondary" style="background: #28a745; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
                         <i class="fas fa-envelope"></i> Enviar por Email
                     </button>
-                    <button onclick="closeTOTPModal()" class="btn btn-primary" style="background: #4a90e2; color: white; border: none; padding: 0.625rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
+                    <button type="button" onclick="closeTOTPModal()" class="btn btn-primary" style="background: #4a90e2; color: white; border: none; padding: 0.625rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
                         <i class="fas fa-check"></i> Entendido
                     </button>
                 </div>
@@ -1062,7 +1062,9 @@ function closeTOTPModal() {
     const modal = document.getElementById('totpSetupModal');
     if (modal) modal.remove();
     Mimir.showAlert('2FA TOTP configurado correctamente', 'success');
-    setTimeout(() => location.reload(), 1500);
+    setTimeout(() => {
+        location.reload(true); // Force reload from server
+    }, 1000);
 }
 
 function reset2FA(userId, username) {
@@ -1086,7 +1088,9 @@ function reset2FA(userId, username) {
     .then(data => {
         if (data.success) {
             Mimir.showAlert('2FA desactivado correctamente', 'success');
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => {
+                location.reload(true); // Force reload from server
+            }, 1000);
         } else {
             Mimir.showAlert(data.message || 'Error al desactivar 2FA', 'error');
         }
@@ -1162,8 +1166,20 @@ if (document.readyState === 'loading') {
 }
 
 // Close dropdown when clicking outside
-document.addEventListener('click', function() {
-    document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+document.addEventListener('click', function(e) {
+    // Don't close if clicking inside a dropdown menu
+    if (!e.target.closest('.dropdown-menu')) {
+        document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+    }
+});
+
+// Close dropdown after clicking a dropdown item
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.dropdown-item')) {
+        setTimeout(() => {
+            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+        }, 100);
+    }
 });
 </script>
 
