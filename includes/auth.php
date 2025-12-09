@@ -91,9 +91,17 @@ class Auth {
                         // Update role if changed according to AD admin group
                         $desiredRole = $isAdminFromAd ? 'admin' : 'user';
                         if ($user['role'] !== $desiredRole) {
+                            $prevRole = $user['role'];
                             $stmt = $this->db->prepare("UPDATE users SET role = ? WHERE id = ?");
                             $stmt->execute([$desiredRole, $user['id']]);
-                            $this->logger->log($user['id'], 'role_updated', 'user', $user['id'], "Role updated via AD group sync to $desiredRole");
+                            // Log specific events
+                            if ($prevRole !== 'admin' && $desiredRole === 'admin') {
+                                $this->logger->log($user['id'], 'role_granted_via_ad', 'user', $user['id'], "Role granted via AD group: admin");
+                            } elseif ($prevRole === 'admin' && $desiredRole !== 'admin') {
+                                $this->logger->log($user['id'], 'role_revoked_via_ad', 'user', $user['id'], "Role revoked via AD group: admin -> $desiredRole");
+                            } else {
+                                $this->logger->log($user['id'], 'role_updated', 'user', $user['id'], "Role updated via AD group sync to $desiredRole");
+                            }
                             // Refresh user
                             $user = $this->getUserById($user['id']);
                         }
@@ -131,9 +139,16 @@ class Auth {
                     } else {
                         $desiredRole = $isAdminFromLdap ? 'admin' : 'user';
                         if ($user['role'] !== $desiredRole) {
+                            $prevRole = $user['role'];
                             $stmt = $this->db->prepare("UPDATE users SET role = ? WHERE id = ?");
                             $stmt->execute([$desiredRole, $user['id']]);
-                            $this->logger->log($user['id'], 'role_updated', 'user', $user['id'], "Role updated via LDAP group sync to $desiredRole");
+                            if ($prevRole !== 'admin' && $desiredRole === 'admin') {
+                                $this->logger->log($user['id'], 'role_granted_via_ldap', 'user', $user['id'], "Role granted via LDAP group: admin");
+                            } elseif ($prevRole === 'admin' && $desiredRole !== 'admin') {
+                                $this->logger->log($user['id'], 'role_revoked_via_ldap', 'user', $user['id'], "Role revoked via LDAP group: admin -> $desiredRole");
+                            } else {
+                                $this->logger->log($user['id'], 'role_updated', 'user', $user['id'], "Role updated via LDAP group sync to $desiredRole");
+                            }
                             $user = $this->getUserById($user['id']);
                         }
                     }
