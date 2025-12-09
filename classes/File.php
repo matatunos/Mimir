@@ -24,7 +24,7 @@ class File {
     /**
      * Upload a file
      */
-    public function upload($fileData, $userId, $description = null) {
+    public function upload($fileData, $userId, $description = null, $parentFolderId = null) {
         try {
             require_once __DIR__ . '/SecurityValidator.php';
             $security = SecurityValidator::getInstance();
@@ -120,11 +120,23 @@ class File {
                 throw new Exception("Failed to move uploaded file");
             }
             
+            // Verify parent folder if specified
+            if ($parentFolderId !== null) {
+                $stmt = $this->db->prepare("
+                    SELECT id FROM files 
+                    WHERE id = ? AND user_id = ? AND is_folder = 1
+                ");
+                $stmt->execute([$parentFolderId, $userId]);
+                if (!$stmt->fetch()) {
+                    throw new Exception("Carpeta destino no válida");
+                }
+            }
+            
             // Insert file record
             $stmt = $this->db->prepare("
                 INSERT INTO files 
-                (user_id, original_name, stored_name, file_path, file_size, mime_type, file_hash, description) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (user_id, original_name, stored_name, file_path, file_size, mime_type, file_hash, description, parent_folder_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             $stmt->execute([
@@ -135,7 +147,8 @@ class File {
                 $fileSize,
                 $mimeType,
                 $fileHash,
-                $description
+                $description,
+                $parentFolderId
             ]);
             
             $fileId = $this->db->lastInsertId();
@@ -702,5 +715,306 @@ class File {
         if (in_array($mimeType, $dangerousMimes)) {
             throw new Exception("Dangerous file type detected");
         }
+    }
+    
+    /**
+     * Create a new folder
+     */
+    public function createFolder($userId, $folderName, $parentFolderId = null) {
+        try {
+            require_once __DIR__ . '/SecurityValidator.php';
+            $security = SecurityValidator::getInstance();
+            
+            // Validate folder name
+            if (!$security->validateFilename($folderName)) {
+                throw new Exception("Nombre de carpeta no válido");
+            }
+            
+            // Remove file extension from folder names
+            $folderName = preg_replace('/\.[^.]+$/', '', $folderName);
+            
+            // Verify parent folder exists and belongs to user if specified
+            if ($parentFolderId !== null) {
+                $stmt = $this->db->prepare("
+                    SELECT id FROM files 
+                    WHERE id = ? AND user_id = ? AND is_folder = 1
+                ");
+                $stmt->execute([$parentFolderId, $userId]);
+                if (!$stmt->fetch()) {
+                    throw new Exception("Carpeta padre no válida");
+                }
+            }
+            
+            // Check if folder with same name exists in same location
+            $stmt = $this->db->prepare("
+                SELECT id FROM files 
+                WHERE user_id = ? 
+                AND original_name = ? 
+                AND is_folder = 1
+                AND " . ($parentFolderId ? "parent_folder_id = ?" : "parent_folder_id IS NULL")
+            );
+            $params = [$userId, $folderName];
+            if ($parentFolderId) {
+                $params[] = $parentFolderId;
+            }
+            $stmt->execute($params);
+            
+            if ($stmt->fetch()) {
+                throw new Exception("Ya existe una carpeta con ese nombre");
+            }
+            
+            // Insert folder record
+            $stmt = $this->db->prepare("
+                INSERT INTO files 
+                (user_id, original_name, is_folder, parent_folder_id, file_size, stored_name, file_path) 
+                VALUES (?, ?, 1, ?, 0, '', '')
+            ");
+            
+            $stmt->execute([
+                $userId,
+                $folderName,
+                $parentFolderId
+            ]);
+            
+            $folderId = $this->db->lastInsertId();
+            
+            // Log action
+            $this->logger->log($userId, 'folder_created', 'folder', $folderId, "Folder created: $folderName");
+            
+            return $folderId;
+        } catch (Exception $e) {
+            error_log("Create folder error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Get folder contents (files and subfolders)
+     */
+    public function getFolderContents($userId, $folderId = null) {
+        try {
+            $sql = "
+                SELECT 
+                    f.*,
+                    (SELECT COUNT(*) FROM shares WHERE file_id = f.id AND is_active = 1) as share_count,
+                    (SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 1) as subfolder_count,
+                    (SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 0) as file_count
+                FROM files f
+                WHERE f.user_id = ?
+                AND " . ($folderId ? "f.parent_folder_id = ?" : "f.parent_folder_id IS NULL") . "
+                ORDER BY f.is_folder DESC, f.original_name ASC
+            ";
+            
+            $params = [$userId];
+            if ($folderId) {
+                $params[] = $folderId;
+            }
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            
+            return $stmt->fetchAll();
+        } catch (Exception $e) {
+            error_log("Get folder contents error: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * Get folder breadcrumb path
+     */
+    public function getFolderPath($folderId) {
+        try {
+            $path = [];
+            $currentId = $folderId;
+            
+            while ($currentId) {
+                $stmt = $this->db->prepare("
+                    SELECT id, original_name, parent_folder_id 
+                    FROM files 
+                    WHERE id = ? AND is_folder = 1
+                ");
+                $stmt->execute([$currentId]);
+                $folder = $stmt->fetch();
+                
+                if (!$folder) {
+                    break;
+                }
+                
+                array_unshift($path, [
+                    'id' => $folder['id'],
+                    'name' => $folder['original_name']
+                ]);
+                
+                $currentId = $folder['parent_folder_id'];
+            }
+            
+            return $path;
+        } catch (Exception $e) {
+            error_log("Get folder path error: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * Move file or folder to another folder
+     */
+    public function moveToFolder($itemId, $userId, $targetFolderId = null) {
+        try {
+            // Verify item exists and belongs to user
+            $stmt = $this->db->prepare("
+                SELECT id, original_name, is_folder FROM files 
+                WHERE id = ? AND user_id = ?
+            ");
+            $stmt->execute([$itemId, $userId]);
+            $item = $stmt->fetch();
+            
+            if (!$item) {
+                throw new Exception("Archivo o carpeta no encontrada");
+            }
+            
+            // Verify target folder if specified
+            if ($targetFolderId !== null) {
+                $stmt = $this->db->prepare("
+                    SELECT id FROM files 
+                    WHERE id = ? AND user_id = ? AND is_folder = 1
+                ");
+                $stmt->execute([$targetFolderId, $userId]);
+                if (!$stmt->fetch()) {
+                    throw new Exception("Carpeta destino no válida");
+                }
+                
+                // Prevent moving folder into itself or its descendants
+                if ($item['is_folder']) {
+                    if ($this->isDescendant($targetFolderId, $itemId)) {
+                        throw new Exception("No se puede mover una carpeta dentro de sí misma");
+                    }
+                }
+            }
+            
+            // Check for name conflicts
+            $stmt = $this->db->prepare("
+                SELECT id FROM files 
+                WHERE user_id = ? 
+                AND original_name = ? 
+                AND id != ?
+                AND " . ($targetFolderId ? "parent_folder_id = ?" : "parent_folder_id IS NULL")
+            );
+            $params = [$userId, $item['original_name'], $itemId];
+            if ($targetFolderId) {
+                $params[] = $targetFolderId;
+            }
+            $stmt->execute($params);
+            
+            if ($stmt->fetch()) {
+                throw new Exception("Ya existe un elemento con ese nombre en el destino");
+            }
+            
+            // Move item
+            $stmt = $this->db->prepare("
+                UPDATE files 
+                SET parent_folder_id = ? 
+                WHERE id = ?
+            ");
+            $stmt->execute([$targetFolderId, $itemId]);
+            
+            // Log action
+            $action = $item['is_folder'] ? 'folder_moved' : 'file_moved';
+            $this->logger->log($userId, $action, 'file', $itemId, "Moved: {$item['original_name']}");
+            
+            return true;
+        } catch (Exception $e) {
+            error_log("Move to folder error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Check if a folder is a descendant of another
+     */
+    private function isDescendant($folderId, $ancestorId) {
+        $currentId = $folderId;
+        
+        while ($currentId) {
+            if ($currentId == $ancestorId) {
+                return true;
+            }
+            
+            $stmt = $this->db->prepare("
+                SELECT parent_folder_id FROM files 
+                WHERE id = ? AND is_folder = 1
+            ");
+            $stmt->execute([$currentId]);
+            $folder = $stmt->fetch();
+            
+            if (!$folder) {
+                break;
+            }
+            
+            $currentId = $folder['parent_folder_id'];
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Delete folder and all its contents recursively
+     */
+    public function deleteFolder($folderId, $userId) {
+        try {
+            // Verify folder exists and belongs to user
+            $stmt = $this->db->prepare("
+                SELECT id, original_name FROM files 
+                WHERE id = ? AND user_id = ? AND is_folder = 1
+            ");
+            $stmt->execute([$folderId, $userId]);
+            $folder = $stmt->fetch();
+            
+            if (!$folder) {
+                throw new Exception("Carpeta no encontrada");
+            }
+            
+            // Get all items in folder recursively
+            $items = $this->getFolderContentsRecursive($folderId);
+            
+            // Delete all files (physical files)
+            foreach ($items as $item) {
+                if (!$item['is_folder'] && file_exists($item['file_path'])) {
+                    unlink($item['file_path']);
+                    $this->userClass->updateStorageUsed($userId, -$item['file_size']);
+                }
+            }
+            
+            // Delete folder and all contents from database (CASCADE will handle it)
+            $stmt = $this->db->prepare("DELETE FROM files WHERE id = ?");
+            $stmt->execute([$folderId]);
+            
+            // Log action
+            $this->logger->log($userId, 'folder_deleted', 'folder', $folderId, "Folder deleted: {$folder['original_name']}");
+            
+            return true;
+        } catch (Exception $e) {
+            error_log("Delete folder error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Get all items in folder recursively
+     */
+    private function getFolderContentsRecursive($folderId) {
+        $allItems = [];
+        $items = $this->db->prepare("SELECT * FROM files WHERE parent_folder_id = ?");
+        $items->execute([$folderId]);
+        
+        foreach ($items->fetchAll() as $item) {
+            $allItems[] = $item;
+            
+            if ($item['is_folder']) {
+                $allItems = array_merge($allItems, $this->getFolderContentsRecursive($item['id']));
+            }
+        }
+        
+        return $allItems;
     }
 }
