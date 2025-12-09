@@ -26,6 +26,9 @@ class File {
      */
     public function upload($fileData, $userId, $description = null) {
         try {
+            require_once __DIR__ . '/SecurityValidator.php';
+            $security = SecurityValidator::getInstance();
+            
             // Validate file
             if (!isset($fileData['tmp_name']) || !is_uploaded_file($fileData['tmp_name'])) {
                 throw new Exception("Invalid file upload");
@@ -33,17 +36,41 @@ class File {
             
             $fileSize = $fileData['size'];
             $originalName = basename($fileData['name']);
-            $mimeType = mime_content_type($fileData['tmp_name']);
+            
+            // Validate filename
+            if (!$security->validateFilename($originalName)) {
+                error_log("Invalid filename detected: " . $originalName);
+                throw new Exception("Nombre de archivo no válido");
+            }
+            
+            // Detect real MIME type (not from user input)
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $fileData['tmp_name']);
+            finfo_close($finfo);
             
             // Check file size
             $maxFileSize = $this->config->get('max_file_size', MAX_FILE_SIZE);
             if ($fileSize > $maxFileSize) {
-                throw new Exception("File size exceeds maximum allowed");
+                // Log security event for unusually large files
+                $stmt = $this->db->prepare("
+                    INSERT INTO security_events 
+                    (event_type, severity, ip_address, user_agent, description, details)
+                    VALUES ('file_too_large', 'low', ?, ?, ?, ?)
+                ");
+                
+                $stmt->execute([
+                    $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                    $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                    'Intento de subir archivo demasiado grande',
+                    json_encode(['filename' => $originalName, 'size' => $fileSize, 'max' => $maxFileSize])
+                ]);
+                
+                throw new Exception("El archivo excede el tamaño máximo permitido");
             }
             
             // Check storage quota
             if (!$this->userClass->hasStorageAvailable($userId, $fileSize)) {
-                throw new Exception("Storage quota exceeded");
+                throw new Exception("Cuota de almacenamiento excedida");
             }
             
             // Check file extension
@@ -53,15 +80,28 @@ class File {
             $allowedExtensionsStr = $this->config->get('allowed_extensions', ALLOWED_EXTENSIONS);
             $allowedExts = array_map('trim', explode(',', $allowedExtensionsStr));
             
-            // If not wildcard, validate extension
-            if (!in_array('*', $allowedExts)) {
-                if (!in_array($ext, $allowedExts)) {
-                    throw new Exception("File type not allowed");
-                }
+            // Validate extension using SecurityValidator
+            if (!$security->validateFileExtension($originalName, $allowedExts)) {
+                // Log security event for blocked extension
+                $stmt = $this->db->prepare("
+                    INSERT INTO security_events 
+                    (event_type, severity, user_id, ip_address, user_agent, description, details)
+                    VALUES ('invalid_file_extension', 'medium', ?, ?, ?, ?, ?)
+                ");
                 
-                // Validate MIME type matches extension (basic security check)
-                $this->validateMimeType($mimeType, $ext);
+                $stmt->execute([
+                    $userId,
+                    $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                    $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                    'Intento de subir archivo con extensión no permitida',
+                    json_encode(['filename' => $originalName, 'extension' => $ext])
+                ]);
+                
+                throw new Exception("Tipo de archivo no permitido");
             }
+            
+            // Validate MIME type matches extension
+            $this->validateMimeType($mimeType, $ext);
             
             // Generate unique file name and hash
             $fileHash = hash_file('sha256', $fileData['tmp_name']);
@@ -394,8 +434,45 @@ class File {
      */
     public function download($id, $userId = null) {
         try {
+            require_once __DIR__ . '/SecurityValidator.php';
+            require_once __DIR__ . '/SecurityHeaders.php';
+            
+            $security = SecurityValidator::getInstance();
+            
             $file = $this->getById($id, $userId);
-            if (!$file || !file_exists($file['file_path'])) {
+            if (!$file) {
+                return false;
+            }
+            
+            // Validate file path to prevent path traversal
+            $validPath = $security->validateFilePath($file['stored_name'], UPLOADS_PATH);
+            
+            if (!$validPath || !file_exists($validPath)) {
+                error_log("Invalid or missing file path: " . $file['file_path']);
+                return false;
+            }
+            
+            // Verify file is within allowed directory
+            $realPath = realpath($file['file_path']);
+            $realUploadsPath = realpath(UPLOADS_PATH);
+            
+            if ($realPath === false || strpos($realPath, $realUploadsPath) !== 0) {
+                error_log("Path traversal attempt blocked: " . $file['file_path']);
+                
+                // Log security event
+                $stmt = $this->db->prepare("
+                    INSERT INTO security_events 
+                    (event_type, severity, ip_address, user_agent, description, details)
+                    VALUES ('unauthorized_access', 'critical', ?, ?, ?, ?)
+                ");
+                
+                $stmt->execute([
+                    $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                    $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                    'Intento de path traversal en descarga',
+                    json_encode(['file_id' => $id, 'path' => $file['file_path']])
+                ]);
+                
                 return false;
             }
             
@@ -408,13 +485,12 @@ class File {
                 "File downloaded: {$file['original_name']}"
             );
             
-            // Send file
-            header('Content-Type: ' . $file['mime_type']);
-            header('Content-Disposition: attachment; filename="' . $file['original_name'] . '"');
+            // Set secure download headers
+            SecurityHeaders::setDownloadHeaders($file['original_name'], $file['mime_type'], true);
             header('Content-Length: ' . $file['file_size']);
-            header('Cache-Control: no-cache');
             
-            readfile($file['file_path']);
+            // Send file
+            readfile($realPath);
             exit;
         } catch (Exception $e) {
             error_log("File download error: " . $e->getMessage());

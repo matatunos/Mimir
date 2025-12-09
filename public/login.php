@@ -4,8 +4,14 @@ require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../classes/TwoFactor.php';
 require_once __DIR__ . '/../classes/DuoAuth.php';
+require_once __DIR__ . '/../classes/SecurityValidator.php';
+require_once __DIR__ . '/../classes/SecurityHeaders.php';
+
+// Apply security headers
+SecurityHeaders::applyAll();
 
 $auth = new Auth();
+$security = SecurityValidator::getInstance();
 
 // Check if already logged in (but not if 2FA is pending)
 if ($auth->isLoggedIn() && empty($_SESSION['2fa_pending'])) {
@@ -16,19 +22,28 @@ if ($auth->isLoggedIn() && empty($_SESSION['2fa_pending'])) {
 $error = $_GET['error'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
+    $username = $security->sanitizeString($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? ''; // Don't sanitize password
+    
+    // Get client IP
+    $clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     
     if (empty($username) || empty($password)) {
         $error = 'Por favor, introduce usuario y contraseña';
     } else {
-        // First, verify username and password
-        $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT * FROM users WHERE username = ? AND is_active = 1");
-        $stmt->execute([$username]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($user && password_verify($password, $user['password'])) {
+        // Check rate limiting - max 5 attempts per IP in 15 minutes
+        if (!$security->checkIPRateLimit($clientIP, 'failed_login', 5, 15)) {
+            $error = 'Demasiados intentos fallidos. Por favor, espera 15 minutos antes de intentar de nuevo.';
+        } elseif ($security->detectSQLInjection($username)) {
+            $error = 'Entrada no válida detectada';
+        } else {
+            // First, verify username and password
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT * FROM users WHERE username = ? AND is_active = 1");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($user && password_verify($password, $user['password'])) {
             // Credentials valid, check for 2FA
             $twoFactor = new TwoFactor();
             
@@ -76,7 +91,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         } else {
+            // Failed login attempt - log to security events
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("
+                INSERT INTO security_events 
+                (event_type, severity, ip_address, user_agent, description, details)
+                VALUES ('failed_login', 'low', ?, ?, ?, ?)
+            ");
+            
+            $stmt->execute([
+                $clientIP,
+                $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                'Intento de login fallido',
+                json_encode(['username' => $username, 'time' => date('Y-m-d H:i:s')])
+            ]);
+            
             $error = 'Usuario o contraseña incorrectos';
+            
+            // Sleep to slow down brute force attacks
+            sleep(2);
         }
     }
 }
