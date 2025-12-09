@@ -44,72 +44,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user && password_verify($password, $user['password'])) {
-            // Credentials valid, check for 2FA
-            $twoFactor = new TwoFactor();
-            
-            if ($twoFactor->isEnabled($user['id'])) {
-                // Check if device is trusted
-                $deviceHash = $twoFactor->getDeviceHash();
-                if ($twoFactor->isDeviceTrusted($user['id'], $deviceHash)) {
-                    // Trusted device, skip 2FA
+                // Credentials valid, check for 2FA
+                $twoFactor = new TwoFactor();
+                
+                if ($twoFactor->isEnabled($user['id'])) {
+                    // Check if device is trusted
+                    $deviceHash = $twoFactor->getDeviceHash();
+                    if ($twoFactor->isDeviceTrusted($user['id'], $deviceHash)) {
+                        // Trusted device, skip 2FA
+                        if ($auth->login($username, $password)) {
+                            header('Location: ' . BASE_URL . '/index.php');
+                            exit;
+                        }
+                    } else {
+                        // 2FA is enabled, set pending state
+                        $_SESSION['2fa_user_id'] = $user['id'];
+                        $_SESSION['2fa_pending'] = true;
+                        
+                        // Get 2FA config
+                        $config = $twoFactor->getUserConfig($user['id']);
+                        
+                        if (!$config) {
+                            $error = 'ERROR DEBUG: 2FA habilitado pero sin configuración. User ID: ' . $user['id'];
+                        } elseif ($config['method'] === 'totp') {
+                            // Redirect to TOTP verification
+                            header('Location: ' . BASE_URL . '/login_2fa_totp.php');
+                            exit;
+                        } elseif ($config['method'] === 'duo') {
+                            // Generate Duo auth URL and redirect
+                            $duoAuth = new DuoAuth();
+                            $authUrl = $duoAuth->generateAuthUrl($user['username']);
+                            
+                            if ($authUrl) {
+                                header('Location: ' . $authUrl);
+                                exit;
+                            } else {
+                                $error = 'Error al iniciar autenticación Duo';
+                            }
+                        }
+                    }
+                } else {
+                    // No 2FA, complete login normally
                     if ($auth->login($username, $password)) {
                         header('Location: ' . BASE_URL . '/index.php');
                         exit;
                     }
-                } else {
-                    // 2FA is enabled, set pending state
-                    $_SESSION['2fa_user_id'] = $user['id'];
-                    $_SESSION['2fa_pending'] = true;
-                    
-                    // Get 2FA config
-                    $config = $twoFactor->getUserConfig($user['id']);
-                    
-                    if (!$config) {
-                        $error = 'ERROR DEBUG: 2FA habilitado pero sin configuración. User ID: ' . $user['id'];
-                    } elseif ($config['method'] === 'totp') {
-                        // Redirect to TOTP verification
-                        header('Location: ' . BASE_URL . '/login_2fa_totp.php');
-                        exit;
-                    } elseif ($config['method'] === 'duo') {
-                        // Generate Duo auth URL and redirect
-                        $duoAuth = new DuoAuth();
-                        $authUrl = $duoAuth->generateAuthUrl($user['username']);
-                        
-                        if ($authUrl) {
-                            header('Location: ' . $authUrl);
-                            exit;
-                        } else {
-                            $error = 'Error al iniciar autenticación Duo';
-                        }
-                    }
                 }
             } else {
-                // No 2FA, complete login normally
-                if ($auth->login($username, $password)) {
-                    header('Location: ' . BASE_URL . '/index.php');
-                    exit;
-                }
+                // Failed login attempt - log to security events
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare("
+                    INSERT INTO security_events 
+                    (event_type, severity, ip_address, user_agent, description, details)
+                    VALUES ('failed_login', 'low', ?, ?, ?, ?)
+                ");
+                
+                $stmt->execute([
+                    $clientIP,
+                    $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                    'Intento de login fallido',
+                    json_encode(['username' => $username, 'time' => date('Y-m-d H:i:s')])
+                ]);
+                
+                $error = 'Usuario o contraseña incorrectos';
+                
+                // Sleep to slow down brute force attacks
+                sleep(2);
             }
-        } else {
-            // Failed login attempt - log to security events
-            $db = Database::getInstance()->getConnection();
-            $stmt = $db->prepare("
-                INSERT INTO security_events 
-                (event_type, severity, ip_address, user_agent, description, details)
-                VALUES ('failed_login', 'low', ?, ?, ?, ?)
-            ");
-            
-            $stmt->execute([
-                $clientIP,
-                $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-                'Intento de login fallido',
-                json_encode(['username' => $username, 'time' => date('Y-m-d H:i:s')])
-            ]);
-            
-            $error = 'Usuario o contraseña incorrectos';
-            
-            // Sleep to slow down brute force attacks
-            sleep(2);
         }
     }
 }
