@@ -7,8 +7,10 @@
 class LdapAuth {
     private $config;
     private $conn;
+    private $type;
     
     public function __construct($type = 'ldap') {
+        $this->type = $type;
         $this->loadConfig($type);
     }
     
@@ -72,6 +74,7 @@ class LdapAuth {
             $userDn = $this->buildUserDn($username);
             $bind = @ldap_bind($this->conn, $userDn, $password);
             if ($bind) {
+                // Successful user bind. Keep connection open long enough for optional checks by caller.
                 ldap_close($this->conn);
                 return true;
             } else {
@@ -102,6 +105,87 @@ class LdapAuth {
             if ($this->conn) {
                 ldap_close($this->conn);
             }
+            return false;
+        }
+    }
+
+    /**
+     * Check if a user is member of a given group (DN). Uses AD matching rule for nested groups when available.
+     * Returns boolean.
+     */
+    public function isMemberOf($username, $groupDn) {
+        if (empty($groupDn) || empty($this->config['host'])) {
+            return false;
+        }
+
+        try {
+            $port = $this->config['port'] ?? 389;
+            $useSsl = !empty($this->config['use_ssl']);
+            $useTls = !empty($this->config['use_tls']);
+            $scheme = ($port == 636 || $useSsl) ? 'ldaps://' : 'ldap://';
+            $ldapUri = $scheme . $this->config['host'] . ':' . $port;
+            $conn = @ldap_connect($ldapUri);
+            if (!$conn) return false;
+            ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3);
+            ldap_set_option($conn, LDAP_OPT_REFERRALS, 0);
+            ldap_set_option($conn, LDAP_OPT_NETWORK_TIMEOUT, 10);
+            if ($useTls && !$useSsl) {
+                @ldap_start_tls($conn);
+            }
+
+            // Bind with configured bind DN if available, otherwise anonymous
+            if (!empty($this->config['bind_dn']) && !empty($this->config['bind_password'])) {
+                $bind = @ldap_bind($conn, $this->config['bind_dn'], $this->config['bind_password']);
+            } else {
+                $bind = @ldap_bind($conn);
+            }
+
+            if (!$bind) {
+                ldap_close($conn);
+                return false;
+            }
+
+            $baseDn = $this->config['base_dn'] ?? '';
+
+            // Prefer AD matching rule in chain for nested groups if this is AD
+            $filter = "(sAMAccountName={$username})";
+            if (strpos($this->config['user_dn'] ?? '', 'uid=') !== false) {
+                $filter = "(uid={$username})";
+            }
+
+            // If using AD or explicit request, use matching rule in chain
+            $matchingRule = ':1.2.840.113556.1.4.1941:';
+            $searchFilter = "(&{$filter}(memberOf{$matchingRule}={$groupDn}))";
+            $search = @ldap_search($conn, $baseDn, $searchFilter, ['dn']);
+
+            if ($search) {
+                $entries = ldap_get_entries($conn, $search);
+                ldap_close($conn);
+                return ($entries && $entries['count'] > 0);
+            }
+
+            // Fallback: fetch the user entry and inspect memberOf attribute
+            $search2 = @ldap_search($conn, $baseDn, $filter, ['memberOf']);
+            if ($search2) {
+                $entries2 = ldap_get_entries($conn, $search2);
+                if ($entries2 && $entries2['count'] > 0) {
+                    $entry = $entries2[0];
+                    if (!empty($entry['memberof'])) {
+                        for ($i = 0; $i < $entry['memberof']['count']; $i++) {
+                            if (strcasecmp($entry['memberof'][$i], $groupDn) === 0) {
+                                ldap_close($conn);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            ldap_close($conn);
+            return false;
+        } catch (Exception $e) {
+            error_log('LDAP isMemberOf error: ' . $e->getMessage());
+            if (isset($conn) && $conn) ldap_close($conn);
             return false;
         }
     }

@@ -65,10 +65,38 @@ class Auth {
                 if ($ldapAuth->authenticate($username, $password)) {
                     $isLdapUser = true;
                     $user = $this->getUserByUsername($username);
+
+                    // Enforce AD required group if configured
+                    require_once __DIR__ . '/../classes/Config.php';
+                    $config = new Config();
+                    $requiredGroup = $config->get('ad_required_group_dn', '');
+                    $adminGroup = $config->get('ad_admin_group_dn', '');
+
+                    if (!empty($requiredGroup) && !$ldapAuth->isMemberOf($username, $requiredGroup)) {
+                        $this->logger->log(null, 'login_failed', 'user', null, "AD user not in required group: $username");
+                        return false;
+                    }
+
+                    $isAdminFromAd = false;
+                    if (!empty($adminGroup) && $ldapAuth->isMemberOf($username, $adminGroup)) {
+                        $isAdminFromAd = true;
+                    }
+
                     if (!$user) {
                         $ldapUser = $ldapAuth->getUserInfo($username);
-                        $userId = $this->createLdapUser($username, $ldapUser);
+                        $role = $isAdminFromAd ? 'admin' : 'user';
+                        $userId = $this->createLdapUser($username, $ldapUser, $role);
                         $user = $this->getUserById($userId);
+                    } else {
+                        // Update role if changed according to AD admin group
+                        $desiredRole = $isAdminFromAd ? 'admin' : 'user';
+                        if ($user['role'] !== $desiredRole) {
+                            $stmt = $this->db->prepare("UPDATE users SET role = ? WHERE id = ?");
+                            $stmt->execute([$desiredRole, $user['id']]);
+                            $this->logger->log($user['id'], 'role_updated', 'user', $user['id'], "Role updated via AD group sync to $desiredRole");
+                            // Refresh user
+                            $user = $this->getUserById($user['id']);
+                        }
                     }
                 }
             }
@@ -78,10 +106,36 @@ class Auth {
                 if ($ldapAuth->authenticate($username, $password)) {
                     $isLdapUser = true;
                     $user = $this->getUserByUsername($username);
+
+                    // Enforce LDAP required group if configured (optional)
+                    require_once __DIR__ . '/../classes/Config.php';
+                    $config = new Config();
+                    $requiredGroup = $config->get('ldap_required_group_dn', '');
+                    $adminGroup = $config->get('ldap_admin_group_dn', '');
+
+                    if (!empty($requiredGroup) && !$ldapAuth->isMemberOf($username, $requiredGroup)) {
+                        $this->logger->log(null, 'login_failed', 'user', null, "LDAP user not in required group: $username");
+                        return false;
+                    }
+
+                    $isAdminFromLdap = false;
+                    if (!empty($adminGroup) && $ldapAuth->isMemberOf($username, $adminGroup)) {
+                        $isAdminFromLdap = true;
+                    }
+
                     if (!$user) {
                         $ldapUser = $ldapAuth->getUserInfo($username);
-                        $userId = $this->createLdapUser($username, $ldapUser);
+                        $role = $isAdminFromLdap ? 'admin' : 'user';
+                        $userId = $this->createLdapUser($username, $ldapUser, $role);
                         $user = $this->getUserById($userId);
+                    } else {
+                        $desiredRole = $isAdminFromLdap ? 'admin' : 'user';
+                        if ($user['role'] !== $desiredRole) {
+                            $stmt = $this->db->prepare("UPDATE users SET role = ? WHERE id = ?");
+                            $stmt->execute([$desiredRole, $user['id']]);
+                            $this->logger->log($user['id'], 'role_updated', 'user', $user['id'], "Role updated via LDAP group sync to $desiredRole");
+                            $user = $this->getUserById($user['id']);
+                        }
                     }
                 }
             }
@@ -294,16 +348,16 @@ class Auth {
     /**
      * Create LDAP user in database
      */
-    private function createLdapUser($username, $ldapData) {
+    private function createLdapUser($username, $ldapData, $role = 'user') {
         $stmt = $this->db->prepare("
             INSERT INTO users (username, email, full_name, role, is_active, is_ldap) 
-            VALUES (?, ?, ?, 'user', 1, 1)
+            VALUES (?, ?, ?, ?, 1, 1)
         ");
         
         $email = $ldapData['email'] ?? $username . '@ldap.local';
         $fullName = $ldapData['name'] ?? $username;
         
-        $stmt->execute([$username, $email, $fullName]);
+        $stmt->execute([$username, $email, $fullName, $role]);
         
         return $this->db->lastInsertId();
     }
