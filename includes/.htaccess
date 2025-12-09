@@ -1,0 +1,66 @@
+# Mimir File Management System - Apache Security Configuration
+
+# Prevent directory listing
+Options -Indexes
+
+# Prevent access to sensitive files
+<FilesMatch "(^#.*#|\.(bak|config|dist|fla|inc|ini|log|psd|sh|sql|sw[op])|~)$">
+    Require all denied
+</FilesMatch>
+
+# Protect configuration files
+<Files "config.php">
+    Require all denied
+</Files>
+
+# Protect database files
+<FilesMatch "\.(db|sqlite|sql)$">
+    Require all denied
+</FilesMatch>
+
+# Prevent access to version control
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^\.git - [F,L]
+    RewriteRule ^\.env - [F,L]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    # Prevent MIME sniffing
+    Header set X-Content-Type-Options "nosniff"
+    
+    # Prevent clickjacking
+    Header set X-Frame-Options "SAMEORIGIN"
+    
+    # XSS Protection
+    Header set X-XSS-Protection "1; mode=block"
+    
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Remove server information
+    Header unset Server
+    Header unset X-Powered-By
+</IfModule>
+
+# PHP security settings
+<IfModule mod_php7.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_log /opt/Mimir/storage/logs/php_errors.log
+    php_flag expose_php Off
+    php_value session.cookie_httponly On
+    php_value session.cookie_secure On
+    php_value session.use_strict_mode On
+</IfModule>
+
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_log /opt/Mimir/storage/logs/php_errors.log
+    php_flag expose_php Off
+    php_value session.cookie_httponly On
+    php_value session.cookie_secure On
+    php_value session.use_strict_mode On
+</IfModule>

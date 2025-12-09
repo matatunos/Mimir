@@ -4,6 +4,20 @@
  * Shared Layout Functions
  */
 
+// Apply security headers globally
+if (file_exists(__DIR__ . '/../classes/SecurityHeaders.php')) {
+    require_once __DIR__ . '/../classes/SecurityHeaders.php';
+    
+    // Only apply if not already applied
+    if (!headers_sent()) {
+        SecurityHeaders::applyAll([
+            'frame' => 'SAMEORIGIN',
+            'referrer' => 'strict-origin-when-cross-origin',
+            'hsts' => true
+        ]);
+    }
+}
+
 function renderHeader($title, $user, $auth = null) {
     // Generate CSRF token - try to get auth from parameter or create new instance
     $csrfToken = '';

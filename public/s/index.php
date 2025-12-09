@@ -5,14 +5,34 @@ require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/Share.php';
 require_once __DIR__ . '/../../classes/Logger.php';
 require_once __DIR__ . '/../../classes/ForensicLogger.php';
+require_once __DIR__ . '/../../classes/SecurityValidator.php';
+require_once __DIR__ . '/../../classes/SecurityHeaders.php';
+
+// Apply security headers
+SecurityHeaders::applyAll();
 
 $shareClass = new Share();
 $logger = new Logger();
 $forensicLogger = new ForensicLogger();
+$security = SecurityValidator::getInstance();
 
 // Get token from URL
-$token = $_GET['token'] ?? basename($_SERVER['REQUEST_URI']);
-$error = '';
+$tokenRaw = $_GET['token'] ?? basename($_SERVER['REQUEST_URI']);
+$token = $security->sanitizeString($tokenRaw);
+
+// Validate token format (should be alphanumeric, 64 chars)
+if (!preg_match('/^[a-zA-Z0-9]{64}$/', $token)) {
+    $error = 'Token no válido';
+    $token = '';
+}
+
+// Check rate limiting - max 20 download attempts per IP per hour
+$clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+if ($token && !$security->checkIPRateLimit($clientIP, 'share_download', 20, 60)) {
+    $error = 'Demasiados intentos. Por favor, espera una hora antes de intentar de nuevo.';
+    $token = '';
+}
+
 $needsPassword = false;
 $share = null;
 
