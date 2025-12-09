@@ -25,8 +25,6 @@ if ($currentFolderId) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    error_log("POST received - FILES count: " . (isset($_FILES['files']) ? count($_FILES['files']['name']) : 0));
-    
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Token de seguridad inválido';
     } elseif (!isset($_FILES['files']) || empty($_FILES['files']['tmp_name'][0])) {

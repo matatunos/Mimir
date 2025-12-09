@@ -97,7 +97,7 @@ renderHeader('Mis Archivos', $user);
                     <div style="font-size: 5rem; margin-bottom: 1.5rem; opacity: 0.3;"><i class="fas fa-folder"></i></div>
                     <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">No tienes archivos aún</h3>
                     <p style="color: var(--text-muted); margin-bottom: 2rem;">Comienza subiendo tu primer archivo</p>
-                    <a href="<?php echo BASE_URL; ?>/user/upload.php" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.0625rem; font-weight: 600; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);"><i class="fas fa-upload"></i> Subir tu primer archivo</a>
+                    <a href="<?php echo BASE_URL; ?>/user/upload.php<?php echo $currentFolderId ? '?folder=' . $currentFolderId : ''; ?>" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.0625rem; font-weight: 600; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);"><i class="fas fa-upload"></i> Subir tu primer archivo</a>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
