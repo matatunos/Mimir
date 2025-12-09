@@ -283,19 +283,37 @@ EOF
 
 # Function to import database schema
 import_schema() {
-    if [ -f "${INSTALL_DIR}/database/schema.sql" ]; then
-        print_info "Importing database schema..."
+    # Use the complete schema that includes all tables and migrations
+    if [ -f "${INSTALL_DIR}/database/complete_schema.sql" ]; then
+        print_info "Importing complete database schema (includes all migrations)..."
+        sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/complete_schema.sql 2>/dev/null
+        print_status "Complete database schema imported successfully"
+        print_info "Schema includes: users, files, shares, sessions, config, 2FA tables, forensic logging, and security events"
+    elif [ -f "${INSTALL_DIR}/database/schema.sql" ]; then
+        # Fallback to old schema if complete_schema.sql doesn't exist
+        print_info "Importing base database schema..."
         sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/schema.sql 2>/dev/null
-        print_status "Database schema imported"
+        print_status "Base database schema imported"
         
-        # Import forensic logging migrations
+        # Apply migrations if using old schema
+        print_info "Applying migrations..."
+        
+        # 2FA migration
+        if [ -f "${INSTALL_DIR}/database/migration_2fa.sql" ]; then
+            print_info "Applying 2FA migration..."
+            sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migration_2fa.sql 2>/dev/null
+            print_status "2FA migration applied"
+        fi
+        
+        # Forensic logging migration
         if [ -f "${INSTALL_DIR}/database/migrations/add_forensic_fields.sql" ]; then
-            print_info "Applying forensic logging migrations..."
+            print_info "Applying forensic logging migration..."
             sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migrations/add_forensic_fields.sql 2>/dev/null
-            print_status "Forensic logging migrations applied"
+            print_status "Forensic logging migration applied"
         fi
     else
-        print_info "Database schema file not found yet - will be created in next steps"
+        print_error "No database schema file found!"
+        exit 1
     fi
 }
 
