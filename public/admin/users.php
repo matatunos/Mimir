@@ -208,30 +208,11 @@ renderHeader('Gestión de Usuarios', $user);
     color: var(--primary);
     font-weight: 700;
 }
-.bulk-actions-bar {
-    position: fixed;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 2rem;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    display: none;
-    z-index: 1000;
-    animation: slideUp 0.3s ease-out;
-}
-@keyframes slideUp {
-    from { transform: translateX(-50%) translateY(100px); opacity: 0; }
-    to { transform: translateX(-50%) translateY(0); opacity: 1; }
-}
-.bulk-actions-bar.show {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
+    /* bulk actions bar moved to global CSS */
+    @keyframes slideUp {
+        from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
 .user-checkbox {
     width: 18px;
     height: 18px;
@@ -396,8 +377,8 @@ renderHeader('Gestión de Usuarios', $user);
     </div>
     
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <div class="card-header" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-            <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-users"></i> Usuarios (<?php echo number_format($totalUsers); ?>)</h2>
+        <div class="card-header card-header--padded card-header--flex">
+            <h2 class="card-title" style="color: var(--text-on-primary); font-weight: 700; font-size: 1.5rem;"><i class="fas fa-users"></i> Usuarios (<?php echo number_format($totalUsers); ?>)</h2>
             <div style="display: flex; gap: 0.5rem;">
                 <button type="button" class="btn btn-primary" onclick="toggleSelectAll()">
                     <i class="fas fa-check-square"></i> Seleccionar

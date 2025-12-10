@@ -114,7 +114,7 @@ renderHeader('Editar Usuario', $adminUser);
             <h1><i class="fas fa-edit"></i> Editar Usuario</h1>
             <p>Modificar información del usuario <?php echo htmlspecialchars($user['username']); ?></p>
         </div>
-        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline" style="background: white; color: #667eea; border: none; font-weight: 600;">← Volver</a>
+        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark" style="background: white; color: #667eea; border: none; font-weight: 600;">← Volver</a>
     </div>
 
     <?php if ($success): ?>
@@ -126,7 +126,7 @@ renderHeader('Editar Usuario', $adminUser);
     <?php endif; ?>
 
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <div class="card-header" style="background: linear-gradient(135deg, #4a90e2, #50c878); color: white; padding: 1.5rem;">
+        <div class="card-header" style="padding: 1.5rem;">
             <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;">📝 Información del Usuario</h2>
         </div>
         <div class="card-body">
@@ -193,7 +193,7 @@ renderHeader('Editar Usuario', $adminUser);
 
                 <div style="display: flex; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar Cambios</button>
-                    <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline">Cancelar</a>
+                    <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark">Cancelar</a>
                 </div>
             </form>
         </div>

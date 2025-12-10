@@ -158,7 +158,7 @@ renderHeader('Crear Nuevo Usuario', $user);
 
     <div style="max-width: 700px; margin: 0 auto;">
         <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-            <div class="card-header" style="background: linear-gradient(135deg, #30cfd0, #330867); color: white; padding: 1.5rem;">
+            <div class="card-header" style="padding: 1.5rem;">
                 <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-plus"></i> Datos del Usuario</h2>
             </div>
             <div class="card-body">
@@ -248,7 +248,7 @@ renderHeader('Crear Nuevo Usuario', $user);
                     
                     <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
                         <button type="submit" class="btn btn-primary" style="padding: 0.875rem 2rem; font-weight: 700;"><i class="fas fa-plus"></i> Crear Usuario</button>
-                        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline" style="padding: 0.875rem 2rem; font-weight: 600;">Cancelar</a>
+                        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark" style="padding: 0.875rem 2rem; font-weight: 600;">Cancelar</a>
                     </div>
                 </form>
             </div>

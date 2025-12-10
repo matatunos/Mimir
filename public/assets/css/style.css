@@ -29,6 +29,9 @@
     --text-primary: #1e293b;
     --text-secondary: #475569;
     --text-muted: #64748b;
+    /* Legacy / compatibility aliases used across templates */
+    --text-main: var(--text-primary);
+    --text-on-primary: #ffffff;
     --border-color: #e2e8f0;
     --border-light: #f1f5f9;
     
@@ -49,6 +52,11 @@
     
     /* Primary color with opacity for professional effects */
     --primary: var(--brand-primary);
+    /* Period button tuning */
+    --period-bg: rgba(255,255,255,0.92);
+    --period-border: rgba(0,0,0,0.06);
+    --period-text: var(--text-primary);
+    --period-hover-bg: rgba(0,0,0,0.04);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -97,10 +105,133 @@ a:hover { color: var(--primary-dark); }
 .card-body { padding: 1.5rem; }
 .card-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background-color: var(--bg-color); }
 
+/* Brandized card headers: use brand gradient and white text by default */
+.card-header {
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+    color: var(--text-on-primary, #ffffff);
+}
+
+/* Utility helpers to avoid inline styles */
+.card-header--padded {
+    padding: 1.5rem;
+}
+.card-header--flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bulk-actions-bar {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+    color: var(--text-on-primary, #ffffff);
+    padding: 1rem 2rem;
+    border-radius: 2rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    display: none;
+    z-index: 1000;
+    animation: slideUp 0.3s ease-out;
+}
+.bulk-actions-bar.show {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
 /* ===== Buttons ===== */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 500; border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; text-decoration: none; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary { background-color: var(--primary-color); /* color set dynamically in layout.php */ }
+.btn-primary { background-color: var(--primary-color); color: var(--text-on-primary); border-color: transparent; }
+
+/* Period selector buttons (chart period) - ensure high contrast */
+.period-btn {
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--border-color);
+    background: var(--surface-color);
+    color: var(--text-main);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.period-btn:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+}
+.period-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-on-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Outline variant for buttons placed on dark/brand headers */
+.btn-outline--on-dark {
+    background: rgba(255,255,255,0.08);
+    color: var(--text-on-primary);
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: none;
+}
+.btn-outline--on-dark:hover {
+    background: rgba(255,255,255,0.12);
+    color: var(--text-on-primary);
+    transform: translateY(-1px);
+}
+
+/* Ensure period selector buttons inside brand headers are readable */
+.card-header .period-btn {
+    padding: 0.42rem 0.9rem;
+    border: 1px solid var(--period-border);
+    background: var(--period-bg);
+    color: var(--period-text);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.card-header .period-btn:hover {
+    background: color-mix(in srgb, var(--period-bg) 88%, black 12%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+.card-header .period-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-on-primary);
+}
+
+/* Fallback for period buttons outside headers */
+.period-btn {
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--border-color);
+    background: var(--surface-color);
+    color: var(--text-main);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.period-btn:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+}
+.period-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-on-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
 .btn-primary:hover:not(:disabled) { background-color: var(--primary-dark); }
 .btn-secondary { background-color: var(--secondary-color); color: white; }
 .btn-success { background-color: var(--success-color); color: white; }

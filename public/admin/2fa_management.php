@@ -397,7 +397,7 @@ renderHeader('Gestión de Autenticación 2FA', $adminUser);
                         </div>
                         
                         <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-                            <button onclick="window.print()" class="btn btn-outline">
+                            <button onclick="window.print()" class="btn btn-outline btn-outline--on-dark">
                                 🖨️ Imprimir
                             </button>
                             <form method="POST" style="display: inline;">

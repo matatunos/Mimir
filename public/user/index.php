@@ -145,7 +145,7 @@ renderHeader('Dashboard', $user);
 
     <!-- Acciones Rápidas -->
     <div class="card" style="margin-bottom: 2rem;">
-        <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+        <div class="card-header" style="padding: 1.5rem;">
             <h2 class="card-title" style="color: white; margin: 0;"><i class="fas fa-bolt"></i> Acciones Rápidas</h2>
         </div>
         <div class="card-body" style="padding: 1.5rem;">
@@ -172,9 +172,9 @@ renderHeader('Dashboard', $user);
     if (!empty($recentFiles)):
     ?>
     <div class="card">
-        <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-header card-header--padded card-header--flex">
             <h2 class="card-title" style="color: white; margin: 0;"><i class="fas fa-clock"></i> Archivos Recientes</h2>
-            <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-sm btn-outline" style="background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.3);">Ver todos</a>
+            <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-sm btn-outline btn-outline--on-dark">Ver todos</a>
         </div>
         <div class="card-body">
             <div class="table-responsive">

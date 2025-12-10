@@ -98,7 +98,7 @@ renderHeader('Comparticiones del Sistema', $user);
 ?>
 <div class="content">
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <div class="card-header" style="background: linear-gradient(135deg, #9b59b6, #e74c3c); color: white; padding: 1.5rem;">
+        <div class="card-header" style="padding: 1.5rem;">
             <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-link"></i> Todas las Comparticiones</h2>
         </div>
         <div class="card-body">
@@ -163,7 +163,7 @@ renderHeader('Comparticiones del Sistema', $user);
                     <span id="adminSharesCount">0</span> comparticiones seleccionadas
                     <button type="button" class="btn btn-warning" onclick="adminSharesDoAction('unshare')"><i class="fas fa-ban"></i> Desactivar seleccionadas</button>
                     <button type="button" class="btn btn-danger" onclick="adminSharesDoAction('delete')"><i class="fas fa-trash"></i> Eliminar seleccionadas</button>
-                    <button type="button" class="btn btn-outline" onclick="adminSharesClearSelection()">Cancelar</button>
+                    <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="adminSharesClearSelection()">Cancelar</button>
                 </div>
                 <?php if ($totalPages > 1): ?>
                 <div class="pagination" style="margin-top:1rem;">

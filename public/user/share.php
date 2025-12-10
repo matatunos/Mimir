@@ -67,7 +67,7 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
 
     <div class="card">
 
-    <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+    <div class="card-header" style="padding: 1.5rem;">
             <h2 class="card-title" style="color: white; margin: 0;">Crear Enlace de Compartición</h2>
         </div>
         <div class="card-body">
@@ -107,7 +107,7 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
 
                 <div style="display: flex; gap: 0.75rem;">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-link"></i> Crear Enlace</button>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline">Cancelar</a>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark">Cancelar</a>
                 </div>
             </form>
         </div>
