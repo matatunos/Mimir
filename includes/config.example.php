@@ -56,4 +56,50 @@ date_default_timezone_set('Europe/Madrid');
 error_reporting(E_ALL & ~E_DEPRECATED);
 ini_set('display_errors', 1);
 
+/*
+ * Email / SMTP configuration examples
+ *
+ * The application reads SMTP settings from the DB-backed `config` table
+ * (keys: smtp_host, smtp_port, smtp_username, smtp_password, smtp_encryption,
+ *  email_from_address, email_from_name). You can also define them here
+ * as constants if you prefer filesystem config.
+ *
+ * Example: Exchange Online (Microsoft 365) using SMTP AUTH (port 587, STARTTLS)
+ * Note: Microsoft recommends using Graph API or OAuth2 for modern auth. If
+ * SMTP AUTH is disabled in your tenant, enable it or use an app/password/OAuth.
+ *
+ * define('SMTP_HOST', 'smtp.office365.com');
+ * define('SMTP_PORT', 587);
+ * define('SMTP_USERNAME', 'mimir@yourtenant.onmicrosoft.com');
+ * define('SMTP_PASSWORD', 'your-app-password-or-credential');
+ * define('SMTP_ENCRYPTION', 'tls'); // 'tls' or 'ssl' or empty for none
+ * define('EMAIL_FROM_ADDRESS', 'noreply@yourdomain.com');
+ * define('EMAIL_FROM_NAME', 'Mimir Files');
+ *
+ * Example: Exchange On-Premises (authenticated relay) over TLS
+ *
+ * define('SMTP_HOST', 'exchange.corp.example.com');
+ * define('SMTP_PORT', 587);
+ * define('SMTP_USERNAME', 'svc-mimir@corp.example.com');
+ * define('SMTP_PASSWORD', 'changeme');
+ * define('SMTP_ENCRYPTION', 'tls');
+ * define('EMAIL_FROM_ADDRESS', 'noreply@corp.example.com');
+ * define('EMAIL_FROM_NAME', 'Mimir Files');
+ *
+ * Example: Exchange On-Premises unauthenticated relay (IP-based)
+ * (no username/password required; restrict by IP on the Exchange side)
+ *
+ * define('SMTP_HOST', 'exchange-relay.corp.example.com');
+ * define('SMTP_PORT', 25);
+ * define('SMTP_USERNAME', '');
+ * define('SMTP_PASSWORD', '');
+ * define('SMTP_ENCRYPTION', '');
+ * define('EMAIL_FROM_ADDRESS', 'noreply@corp.example.com');
+ *
+ * Security notes:
+ * - `smtp_password` and other secrets are stored in plaintext in the DB by
+ *   default; consider encrypting the column or using an external secret store.
+ * - Exchange Online may require enabling SMTP AUTH or using OAuth2 / Graph.
+ */
+
 // END
