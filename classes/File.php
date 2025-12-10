@@ -51,19 +51,27 @@ class File {
             // Check file size
             $maxFileSize = $this->config->get('max_file_size', MAX_FILE_SIZE);
             if ($fileSize > $maxFileSize) {
+                    // Resolve username for logging if available
+                    $usernameForLog = null;
+                    if ($userId) {
+                        $uStmt = $this->db->prepare("SELECT username FROM users WHERE id = ?");
+                        $uStmt->execute([$userId]);
+                        $usernameForLog = $uStmt->fetchColumn() ?: null;
+                    }
                 // Log security event for unusually large files
-                $stmt = $this->db->prepare("
-                    INSERT INTO security_events 
-                    (event_type, severity, ip_address, user_agent, description, details)
-                    VALUES ('file_too_large', 'low', ?, ?, ?, ?)
-                ");
-                
-                $stmt->execute([
-                    $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                    $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-                    'Intento de subir archivo demasiado grande',
-                    json_encode(['filename' => $originalName, 'size' => $fileSize, 'max' => $maxFileSize])
-                ]);
+                    $stmt = $this->db->prepare("
+                        INSERT INTO security_events 
+                        (event_type, username, severity, ip_address, user_agent, description, details)
+                        VALUES ('file_too_large', ?, 'low', ?, ?, ?, ?)
+                    ");
+
+                    $stmt->execute([
+                        $usernameForLog,
+                        $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                        'Intento de subir archivo demasiado grande',
+                        json_encode(['filename' => $originalName, 'size' => $fileSize, 'max' => $maxFileSize])
+                    ]);
                 
                 throw new Exception("El archivo excede el tamaño máximo permitido");
             }
@@ -83,19 +91,27 @@ class File {
             // Validate extension using SecurityValidator
             if (!$security->validateFileExtension($originalName, $allowedExts)) {
                 // Log security event for blocked extension
-                $stmt = $this->db->prepare("
-                    INSERT INTO security_events 
-                    (event_type, severity, user_id, ip_address, user_agent, description, details)
-                    VALUES ('invalid_file_extension', 'medium', ?, ?, ?, ?, ?)
-                ");
-                
-                $stmt->execute([
-                    $userId,
-                    $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                    $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-                    'Intento de subir archivo con extensión no permitida',
-                    json_encode(['filename' => $originalName, 'extension' => $ext])
-                ]);
+                    $usernameForLog = null;
+                    if ($userId) {
+                        $uStmt = $this->db->prepare("SELECT username FROM users WHERE id = ?");
+                        $uStmt->execute([$userId]);
+                        $usernameForLog = $uStmt->fetchColumn() ?: null;
+                    }
+
+                    $stmt = $this->db->prepare("
+                        INSERT INTO security_events 
+                        (event_type, username, severity, user_id, ip_address, user_agent, description, details)
+                        VALUES ('invalid_file_extension', ?, 'medium', ?, ?, ?, ?, ?)
+                    ");
+
+                    $stmt->execute([
+                        $usernameForLog,
+                        $userId,
+                        $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                        'Intento de subir archivo con extensión no permitida',
+                        json_encode(['filename' => $originalName, 'extension' => $ext])
+                    ]);
                 
                 throw new Exception("Tipo de archivo no permitido");
             }
@@ -460,18 +476,21 @@ class File {
                 error_log("Path traversal attempt blocked: " . $file['file_path']);
                 
                 // Log security event
-                $stmt = $this->db->prepare("
-                    INSERT INTO security_events 
-                    (event_type, severity, ip_address, user_agent, description, details)
-                    VALUES ('unauthorized_access', 'critical', ?, ?, ?, ?)
-                ");
-                
-                $stmt->execute([
-                    $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                    $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-                    'Intento de path traversal en descarga',
-                    json_encode(['file_id' => $id, 'path' => $file['file_path']])
-                ]);
+                    $usernameForLog = $file['username'] ?? null;
+
+                    $stmt = $this->db->prepare("
+                        INSERT INTO security_events 
+                        (event_type, username, severity, ip_address, user_agent, description, details)
+                        VALUES ('unauthorized_access', ?, 'critical', ?, ?, ?, ?)
+                    ");
+
+                    $stmt->execute([
+                        $usernameForLog,
+                        $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                        'Intento de path traversal en descarga',
+                        json_encode(['file_id' => $id, 'path' => $file['file_path']])
+                    ]);
                 
                 return false;
             }

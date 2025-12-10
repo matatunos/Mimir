@@ -1,5 +1,7 @@
 <?php
 /**
+<?php
+/**
  * Mimir File Management System
  * Forensic Logging Class
  * 
@@ -316,15 +318,24 @@ class ForensicLogger {
      */
     public function logSecurityEvent($eventType, $severity, $description, $details = null, $userId = null) {
         try {
+            // Resolve username when possible for easier querying
+            $username = null;
+            if ($userId) {
+                $uStmt = $this->db->prepare("SELECT username FROM users WHERE id = ?");
+                $uStmt->execute([$userId]);
+                $username = $uStmt->fetchColumn() ?: null;
+            }
+
             $stmt = $this->db->prepare("
                 INSERT INTO security_events (
-                    event_type, severity, user_id, ip_address, user_agent,
+                    event_type, username, severity, user_id, ip_address, user_agent,
                     description, details
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            
+
             $stmt->execute([
                 $eventType,
+                $username,
                 $severity,
                 $userId,
                 $this->getClientIP(),
@@ -332,12 +343,11 @@ class ForensicLogger {
                 $description,
                 is_array($details) ? json_encode($details) : $details
             ]);
-            
-            return true;
         } catch (Exception $e) {
             error_log("Security event log error: " . $e->getMessage());
             return false;
         }
+        return true;
     }
     
     /**
