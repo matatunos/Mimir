@@ -219,6 +219,19 @@ class TwoFactor {
         
         return $result;
     }
+
+    /**
+     * Get Duo username for a user (helper)
+     * @param int $userId
+     * @return string|null
+     */
+    public function getDuoUsername($userId) {
+        $config = $this->getUserConfig($userId);
+        if (!$config) {
+            return null;
+        }
+        return !empty($config['duo_username']) ? $config['duo_username'] : null;
+    }
     
     /**
      * Check if user has 2FA enabled
