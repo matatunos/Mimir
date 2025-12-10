@@ -588,11 +588,48 @@ renderHeader('Panel de Administración', $user, $auth);
                                             if ($days > 180) $badgeBg = 'var(--danger-color)';
                                             elseif ($days > 90) $badgeBg = '#ff8c00';
                                             elseif ($days > 30) $badgeBg = '#ffa500';
-                                            else $badgeBg = 'var(--warning)';
+                                            else $badgeBg = 'var(--warning-color)';
                                             $badgeText = $days . ' días';
                                         }
+
+                                        // Resolve CSS variable names to hex when possible
+                                        $varMap = [
+                                            'var(--brand-primary)' => $config->get('brand_primary_color', '#1e40af'),
+                                            'var(--brand-secondary)' => $config->get('brand_secondary_color', '#475569'),
+                                            'var(--brand-accent)' => $config->get('brand_accent_color', '#0ea5e9'),
+                                            'var(--danger-color)' => '#dc2626',
+                                            'var(--warning-color)' => '#d97706',
+                                            'var(--bg-secondary)' => '#f1f5f9'
+                                        ];
+
+                                        // Helper functions
+                                        $hexToRgbArray = function($hex) {
+                                            $h = ltrim($hex, '#');
+                                            return [
+                                                'r' => hexdec(substr($h, 0, 2)),
+                                                'g' => hexdec(substr($h, 2, 2)),
+                                                'b' => hexdec(substr($h, 4, 2))
+                                            ];
+                                        };
+                                        $readableTextColor = function($hex) use ($hexToRgbArray) {
+                                            $rgb = $hexToRgbArray($hex);
+                                            $brightness = ($rgb['r'] * 299 + $rgb['g'] * 587 + $rgb['b'] * 114) / 1000;
+                                            return ($brightness < 140) ? '#ffffff' : '#000000';
+                                        };
+
+                                        $resolvedBg = $badgeBg;
+                                        if (strpos($badgeBg, 'var(') === 0) {
+                                            $resolvedBg = $varMap[$badgeBg] ?? null;
+                                        }
+
+                                        if ($resolvedBg && strpos($resolvedBg, '#') === 0) {
+                                            $badgeTextColor = $readableTextColor($resolvedBg);
+                                        } else {
+                                            // Fallback to white for unknowns
+                                            $badgeTextColor = '#ffffff';
+                                        }
                                     ?>
-                                    <span class="badge" style="background: <?php echo $badgeBg; ?>; color: white; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                    <span class="badge" style="background: <?php echo $badgeBg; ?>; color: <?php echo htmlspecialchars($badgeTextColor); ?>; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
                                         <?php echo htmlspecialchars($badgeText); ?>
                                     </span>
                                 </td>
