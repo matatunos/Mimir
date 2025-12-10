@@ -208,7 +208,7 @@ class File {
     /**
      * Get files by user
      */
-    public function getByUser($userId, $filters = [], $limit = 50, $offset = 0) {
+    public function getByUser($userId, $filters = [], $limit = 50, $offset = 0, $includeExpired = false) {
         try {
             $where = ["user_id = ?"];
             $params = [$userId];
@@ -223,6 +223,11 @@ class File {
             if (isset($filters['is_shared'])) {
                 $where[] = "is_shared = ?";
                 $params[] = $filters['is_shared'];
+            }
+
+            // By default hide expired files from user views unless explicitly requested
+            if (!$includeExpired) {
+                $where[] = "(f.is_expired = 0)";
             }
             
             $whereClause = implode(' AND ', $where);

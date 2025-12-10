@@ -233,7 +233,7 @@ class Share {
     /**
      * Get all shares (admin)
      */
-    public function getAll($filters = [], $limit = 50, $offset = 0) {
+    public function getAll($filters = [], $limit = 50, $offset = 0, $sortBy = 'created_at', $sortOrder = 'DESC') {
         try {
             $where = [];
             $params = [];
@@ -258,6 +258,21 @@ class Share {
             
             $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
             
+            // Whitelist sortable columns and map to SQL expressions
+            $allowedSort = [
+                'created_at' => 's.created_at',
+                'download_count' => 's.download_count',
+                'owner_username' => 'u.username',
+                'original_name' => 'f.original_name',
+                'is_active' => 's.is_active'
+            ];
+
+            $sortCol = $allowedSort['created_at'];
+            if (!empty($sortBy) && isset($allowedSort[$sortBy])) {
+                $sortCol = $allowedSort[$sortBy];
+            }
+            $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'ASC' : 'DESC';
+
             $sql = "
                 SELECT 
                     s.*,
@@ -273,7 +288,7 @@ class Share {
                 JOIN files f ON s.file_id = f.id
                 JOIN users u ON s.created_by = u.id
                 $whereClause
-                ORDER BY s.created_at DESC
+                ORDER BY $sortCol $sortOrder
                 LIMIT ? OFFSET ?
             ";
             

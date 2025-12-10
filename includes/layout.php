@@ -117,6 +117,9 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="menu-item <?php echo $currentPage === 'orphan_files' ? 'active' : ''; ?>">
                         <i class="fas fa-box"></i> Archivos huérfanos
                     </a>
+                    <a href="<?php echo BASE_URL; ?>/admin/expired_files.php" class="menu-item <?php echo $currentPage === 'expired_files' ? 'active' : ''; ?>">
+                        <i class="fas fa-clock"></i> Archivos Expirados
+                    </a>
                     <a href="<?php echo BASE_URL; ?>/admin/shares.php" class="menu-item <?php echo $currentPage === 'shares' ? 'active' : ''; ?>">
                         <i class="fas fa-share-alt"></i> Comparticiones
                     </a>

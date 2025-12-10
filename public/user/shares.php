@@ -55,7 +55,7 @@ $shares = array_filter($allShares, function($share) {
 });
 
 $isAdmin = ($user['role'] === 'admin');
-renderPageStart('Mis Enlaces', 'shares', $isAdmin);
+renderPageStart('Mis Enlaces', 'user-shares', $isAdmin);
 renderHeader('Mis Enlaces Compartidos', $user);
 ?>
 

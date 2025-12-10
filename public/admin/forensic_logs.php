@@ -236,6 +236,45 @@ renderHeader('Análisis Forense de Descargas', $user);
                     </div>
                 </div>
             </form>
+            
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                <h4 style="margin-bottom: 1rem;"><i class="fas fa-file-excel"></i> Exportar a Excel</h4>
+                
+                <div style="display: grid; gap: 1rem;">
+                    <!-- Quick Export -->
+                    <div>
+                        <p style="margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.875rem;">Exportar con filtros actuales (últimos <?php echo $filterDays; ?> días):</p>
+                        <a href="<?php 
+                            $exportParams = [
+                                'date_from' => date('Y-m-d', strtotime("-{$filterDays} days")),
+                                'date_to' => date('Y-m-d'),
+                                'ip' => $filterIP
+                            ];
+                            echo BASE_URL . '/admin/export_forensic_log.php?' . http_build_query($exportParams); 
+                        ?>" class="btn btn-success" style="width: 100%;">
+                            <i class="fas fa-download"></i> Exportar Logs Actuales
+                        </a>
+                    </div>
+                    
+                    <!-- Custom Date Range -->
+                    <div>
+                        <p style="margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.875rem;">O seleccionar fechas personalizadas:</p>
+                        <form method="GET" action="<?php echo BASE_URL; ?>/admin/export_forensic_log.php" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; align-items: end;">
+                            <div>
+                                <label style="font-size: 0.875rem;">Desde:</label>
+                                <input type="date" name="date_from" class="form-control" value="<?php echo date('Y-m-d', strtotime('-30 days')); ?>" required>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.875rem;">Hasta:</label>
+                                <input type="date" name="date_to" class="form-control" value="<?php echo date('Y-m-d'); ?>" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-file-excel"></i> Exportar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
