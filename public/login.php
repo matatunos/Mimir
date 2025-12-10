@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../classes/Config.php';
 require_once __DIR__ . '/../classes/TwoFactor.php';
 require_once __DIR__ . '/../classes/DuoAuth.php';
 require_once __DIR__ . '/../classes/SecurityValidator.php';
@@ -12,6 +13,16 @@ SecurityHeaders::applyAll();
 
 $auth = new Auth();
 $security = SecurityValidator::getInstance();
+
+// Load config values for user lock behavior
+$configClass = new Config();
+$enableUserLock = $configClass->get('enable_user_lock', 1);
+$userLockThreshold = $configClass->get('user_lock_threshold', 5);
+$userLockWindow = $configClass->get('user_lock_window_minutes', 15);
+$userLockDuration = $configClass->get('user_lock_duration_minutes', 15);
+// IP rate limit configuration (configurable)
+$ipRateThreshold = $configClass->get('ip_rate_limit_threshold', 5);
+$ipRateWindow = $configClass->get('ip_rate_limit_window_minutes', 15);
 
 // Check if already logged in (but not if 2FA is pending)
 if ($auth->isLoggedIn() && empty($_SESSION['2fa_pending'])) {
@@ -24,29 +35,45 @@ $error = $_GET['error'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $security->sanitizeString($_POST['username'] ?? '');
     $password = $_POST['password'] ?? ''; // Don't sanitize password
-    
+
     // Get client IP
     $clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    
+
     if (empty($username) || empty($password)) {
         $error = 'Por favor, introduce usuario y contraseña';
     } else {
-        // Check rate limiting - max 5 attempts per IP in 15 minutes
-        if (!$security->checkIPRateLimit($clientIP, 'failed_login', 5, 15)) {
-            $error = 'Demasiados intentos fallidos. Por favor, espera 15 minutos antes de intentar de nuevo.';
+        // Check rate limiting - configurable attempts per IP in X minutes
+        if (!$security->checkIPRateLimit($clientIP, 'failed_login', $ipRateThreshold, $ipRateWindow)) {
+            $error = 'Demasiados intentos fallidos desde tu IP (bloqueo temporal por IP). Por favor, espera ' . intval($ipRateWindow) . ' minutos antes de intentar de nuevo.';
         } elseif ($security->detectSQLInjection($username)) {
             $error = 'Entrada no válida detectada';
         } else {
-            // First, verify username and password
+            // First, verify username and password against local DB
             $db = Database::getInstance()->getConnection();
             $stmt = $db->prepare("SELECT * FROM users WHERE username = ? AND is_active = 1");
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($user && password_verify($password, $user['password'])) {
+
+            // If user exists, check locked_until
+            if ($user && !empty($user['locked_until'])) {
+                $lockedUntil = strtotime($user['locked_until']);
+                if ($lockedUntil > time()) {
+                    $error = 'Cuenta bloqueada hasta ' . date('Y-m-d H:i:s', $lockedUntil);
+                    // Skip further verification
+                    goto RENDER_LOGIN;
+                } else {
+                    // expired lock - clear it
+                    $stmtClear = $db->prepare("UPDATE users SET locked_until = NULL WHERE id = ?");
+                    $stmtClear->execute([$user['id']]);
+                    $user['locked_until'] = null;
+                }
+            }
+
+            // Local password verification
+            if ($user && !empty($user['password']) && password_verify($password, $user['password'])) {
                 // Credentials valid, check for 2FA
                 $twoFactor = new TwoFactor();
-                
+
                 if ($twoFactor->isEnabled($user['id'])) {
                     // Check if device is trusted
                     $deviceHash = $twoFactor->getDeviceHash();
@@ -55,15 +82,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($auth->login($username, $password)) {
                             header('Location: ' . BASE_URL . '/index.php');
                             exit;
+                        } else {
+                            $error = 'Error al iniciar sesión en dispositivo confiable.';
                         }
                     } else {
                         // 2FA is enabled, set pending state
                         $_SESSION['2fa_user_id'] = $user['id'];
                         $_SESSION['2fa_pending'] = true;
-                        
+
                         // Get 2FA config
                         $config = $twoFactor->getUserConfig($user['id']);
-                        
+
                         if (!$config) {
                             $error = 'ERROR DEBUG: 2FA habilitado pero sin configuración. User ID: ' . $user['id'];
                         } elseif ($config['method'] === 'totp') {
@@ -74,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             // Generate Duo auth URL and redirect
                             $duoAuth = new DuoAuth();
                             $authUrl = $duoAuth->generateAuthUrl($user['username']);
-                            
+
                             if ($authUrl) {
                                 header('Location: ' . $authUrl);
                                 exit;
@@ -88,35 +117,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($auth->login($username, $password)) {
                         header('Location: ' . BASE_URL . '/index.php');
                         exit;
+                    } else {
+                        $error = 'Error al iniciar sesión. Por favor, inténtalo de nuevo.';
                     }
                 }
+
             } else {
-                // Failed login attempt - log to security events
-                $db = Database::getInstance()->getConnection();
-                $stmt = $db->prepare("
-                    INSERT INTO security_events 
-                    (event_type, severity, ip_address, user_agent, description, details)
-                    VALUES ('failed_login', 'low', ?, ?, ?, ?)
-                ");
-                
-                $stmt->execute([
+                // Local auth failed — try external auth (AD/LDAP)
+                if ($auth->login($username, $password)) {
+                    header('Location: ' . BASE_URL . '/index.php');
+                    exit;
+                }
+
+                // External auth also failed — log failed attempt
+                $stmtIns = $db->prepare("INSERT INTO security_events (event_type, username, severity, ip_address, user_agent, description, details) VALUES ('failed_login', ?, 'low', ?, ?, ?, ?)");
+                $detailsJson = json_encode(['username' => $username, 'time' => date('Y-m-d H:i:s')]);
+                $stmtIns->execute([
+                    $username,
                     $clientIP,
                     $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
                     'Intento de login fallido',
-                    json_encode(['username' => $username, 'time' => date('Y-m-d H:i:s')])
+                    $detailsJson
                 ]);
-                
+
+                // If user lock enabled and user exists, count recent failed attempts and lock if threshold exceeded
+                if ($user && $enableUserLock) {
+                    // Count failed_login attempts using the dedicated username column (fallback to details JSON if needed)
+                    $stmtCount = $db->prepare("SELECT COUNT(*) as attempts FROM security_events WHERE event_type='failed_login' AND username = ? AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)");
+                    $stmtCount->execute([$username, $userLockWindow]);
+                    $res = $stmtCount->fetch(PDO::FETCH_ASSOC);
+                    $attempts = $res['attempts'] ?? 0;
+
+                    if ($attempts >= $userLockThreshold) {
+                        // Lock user
+                        $stmtLock = $db->prepare("UPDATE users SET locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?");
+                        $stmtLock->execute([$userLockDuration, $user['id']]);
+
+                        // Insert rate_limit event
+                        $stmtRate = $db->prepare("INSERT INTO security_events (event_type, username, severity, ip_address, user_agent, description, details, action_taken) VALUES ('rate_limit', ?, 'high', ?, ?, ?, ?, 'user locked')");
+                        $rateDetails = json_encode(['username' => $username, 'attempts' => $attempts, 'threshold' => $userLockThreshold]);
+                        $stmtRate->execute([$username, $clientIP, $_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 'Usuario bloqueado por intentos fallidos', $rateDetails]);
+                    }
+                }
+
                 $error = 'Usuario o contraseña incorrectos';
-                
                 // Sleep to slow down brute force attacks
                 sleep(2);
             }
         }
     }
 }
-?>
-<?php
-require_once __DIR__ . '/../classes/Config.php';
+
+RENDER_LOGIN:
+
 require_once __DIR__ . '/../includes/layout.php';
 
 $configClass = new Config();
