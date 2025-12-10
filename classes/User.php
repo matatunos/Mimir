@@ -385,10 +385,39 @@ class User {
     }
     
     /**
-     * Get users with most inactivity
+     * Get users with most inactivity (supports sorting)
      */
-    public function getMostInactiveUsers($limit = 10) {
+    public function getMostInactiveUsers($limit = 10, $sortBy = 'last_login', $sortDir = 'asc') {
         try {
+            // Allow safe sorting by predefined fields
+            $allowedSorts = ['last_login', 'days_inactive', 'username', 'file_count'];
+            $sortBy = in_array($sortBy, $allowedSorts) ? $sortBy : 'last_login';
+            $sortDir = strtolower($sortDir) === 'desc' ? 'DESC' : 'ASC';
+
+            // Build ORDER BY clause safely
+            switch ($sortBy) {
+                case 'username':
+                    $orderBy = "u.username $sortDir";
+                    break;
+                case 'file_count':
+                    // use the same subquery for ordering
+                    $orderBy = "(SELECT COUNT(*) FROM files WHERE user_id = u.id) $sortDir";
+                    break;
+                case 'days_inactive':
+                    // Place users who never logged in (NULL last_login) first, then by days_inactive
+                    $orderBy = "(u.last_login IS NULL) DESC, DATEDIFF(NOW(), u.last_login) $sortDir";
+                    break;
+                case 'last_login':
+                default:
+                    // For last_login, control null ordering so 'Nunca' users can appear first when sorting asc
+                    if ($sortDir === 'ASC') {
+                        $orderBy = "(u.last_login IS NULL) DESC, u.last_login ASC";
+                    } else {
+                        $orderBy = "(u.last_login IS NULL) ASC, u.last_login DESC";
+                    }
+                    break;
+            }
+
             $stmt = $this->db->prepare("
                 SELECT 
                     u.id,
@@ -400,8 +429,7 @@ class User {
                 FROM users u
                 WHERE u.role = 'user' 
                     AND u.is_active = 1
-                -- Include users with NULL last_login (never logged in) and order them first
-                ORDER BY (u.last_login IS NULL) DESC, u.last_login ASC
+                ORDER BY $orderBy
                 LIMIT ?
             ");
             $stmt->execute([$limit]);
