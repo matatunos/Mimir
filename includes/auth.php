@@ -58,9 +58,11 @@ class Auth {
             $user = null;
             $isLdapUser = false;
             
-            // Try LDAP authentication first if enabled
+            // Try AD/LDAP authentication first if enabled
             if ($ldapEnabled) {
-                $ldapAuth = new LdapAuth();
+                // Prefer AD settings when enabled
+                $useAd = $this->isAdEnabled();
+                $ldapAuth = $useAd ? new LdapAuth('ad') : new LdapAuth('ldap');
                 if ($ldapAuth->authenticate($username, $password)) {
                     // LDAP authentication successful
                     $isLdapUser = true;
@@ -73,6 +75,42 @@ class Auth {
                         $ldapUser = $ldapAuth->getUserInfo($username);
                         $userId = $this->createLdapUser($username, $ldapUser);
                         $user = $this->getUserById($userId);
+                    }
+                    
+                    // If AD is enabled, check admin group membership and set role accordingly
+                    if ($useAd) {
+                        try {
+                            $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'ad_admin_group_dn' LIMIT 1");
+                            $stmt->execute();
+                            $r = $stmt->fetch();
+                            $adAdminGroupDn = $r ? trim($r['config_value']) : '';
+                            if (!empty($adAdminGroupDn)) {
+                                $isMember = false;
+                                try {
+                                    $isMember = $ldapAuth->isMemberOf($username, $adAdminGroupDn);
+                                } catch (Exception $e) {
+                                    // ignore membership check failures but log
+                                    $this->logger->log($user['id'] ?? null, 'ldap_group_check_failed', 'auth', $user['id'] ?? null, 'AD group membership check failed: ' . $e->getMessage());
+                                }
+
+                                if ($isMember && $user && $user['role'] !== 'admin') {
+                                    $uStmt = $this->db->prepare("UPDATE users SET role = 'admin' WHERE id = ?");
+                                    $uStmt->execute([$user['id']]);
+                                    $this->logger->log($user['id'], 'role_granted_via_ad', 'user', $user['id'], "Granted admin via AD group: $adAdminGroupDn");
+                                    // refresh user
+                                    $user = $this->getUserById($user['id']);
+                                } elseif (!$isMember && $user && $user['role'] === 'admin') {
+                                    // If user previously had admin and no longer in AD group, revoke
+                                    $uStmt = $this->db->prepare("UPDATE users SET role = 'user' WHERE id = ?");
+                                    $uStmt->execute([$user['id']]);
+                                    $this->logger->log($user['id'], 'role_revoked_via_ad', 'user', $user['id'], "Revoked admin via AD group absence: $adAdminGroupDn");
+                                    $user = $this->getUserById($user['id']);
+                                }
+                            }
+                        } catch (Exception $e) {
+                            // don't block login on config read failure
+                            error_log('AD admin group check error: ' . $e->getMessage());
+                        }
                     }
                 }
             }
@@ -296,10 +334,23 @@ class Auth {
      * Get LDAP enabled status from config
      */
     private function getLdapStatus() {
-        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'enable_ldap'");
+        // Consider either LDAP or AD enabling flags
+        $stmt = $this->db->prepare("SELECT config_key, config_value FROM config WHERE config_key IN ('enable_ldap','enable_ad')");
         $stmt->execute();
-        $result = $stmt->fetch();
-        return $result ? (bool)$result['config_value'] : false;
+        $rows = $stmt->fetchAll();
+        $enabled = false;
+        foreach ($rows as $r) {
+            if ($r['config_key'] === 'enable_ldap' && $r['config_value']) $enabled = $enabled || (bool)$r['config_value'];
+            if ($r['config_key'] === 'enable_ad' && $r['config_value']) $enabled = $enabled || (bool)$r['config_value'];
+        }
+        return $enabled;
+    }
+
+    private function isAdEnabled() {
+        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'enable_ad'");
+        $stmt->execute();
+        $r = $stmt->fetch();
+        return $r ? (bool)$r['config_value'] : false;
     }
     
     /**

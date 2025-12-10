@@ -104,7 +104,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
 
         // If the admin used "select all" (apply to all matching results), add a single bulk log entry
         if (!empty($_POST['select_all']) && $_POST['select_all'] === '1') {
-            $details = sprintf('Acción masiva "%s" aplicada por admin %d a %d elementos (exitosos=%d, errores=%d)', $action, $user['id'], count($fileIds), $success, $errors);
+            // collect applied filters for auditability
+            $applied = [];
+            $filterKeys = ['filter','q','expired_from','expired_to'];
+            foreach ($filterKeys as $k) {
+                if (isset($_GET[$k]) && $_GET[$k] !== '') {
+                    $applied[$k] = (string)$_GET[$k];
+                }
+            }
+            $filterStr = '';
+            if (!empty($applied)) {
+                $parts = [];
+                foreach ($applied as $k => $v) {
+                    $val = preg_replace('/\s+/', ' ', $v);
+                    $parts[] = "$k=" . $val;
+                }
+                $filterStr = ' Filters: ' . implode(', ', $parts);
+            }
+
+            $details = sprintf('Acción masiva "%s" aplicada por admin %d a %d elementos (exitosos=%d, errores=%d)', $action, $user['id'], count($fileIds), $success, $errors) . $filterStr;
             $logger->log($user['id'], 'file_bulk_action_all', 'files', null, $details);
         }
 

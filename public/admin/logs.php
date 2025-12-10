@@ -50,13 +50,26 @@ renderHeader('Registros de Actividad', $user);
                         <label>Acción:</label>
                         <select name="action" class="form-control">
                             <option value="">Todas</option>
-                            <option value="login" <?php echo $action === 'login' ? 'selected' : ''; ?>>Login</option>
-                            <option value="logout" <?php echo $action === 'logout' ? 'selected' : ''; ?>>Logout</option>
-                            <option value="file_uploaded" <?php echo $action === 'file_uploaded' ? 'selected' : ''; ?>>Archivo Subido</option>
-                            <option value="file_downloaded" <?php echo $action === 'file_downloaded' ? 'selected' : ''; ?>>Archivo Descargado</option>
-                            <option value="share_created" <?php echo $action === 'share_created' ? 'selected' : ''; ?>>Share Creado</option>
-                            <option value="share_downloaded" <?php echo $action === 'share_downloaded' ? 'selected' : ''; ?>>Share Descargado</option>
+                            <optgroup label="Autenticación">
+                                <option value="login" <?php echo $action === 'login' ? 'selected' : ''; ?>>Login</option>
+                                <option value="logout" <?php echo $action === 'logout' ? 'selected' : ''; ?>>Logout</option>
+                            </optgroup>
+                            <optgroup label="Archivos">
+                                <option value="file_uploaded" <?php echo $action === 'file_uploaded' ? 'selected' : ''; ?>>Archivo Subido</option>
+                                <option value="file_downloaded" <?php echo $action === 'file_downloaded' ? 'selected' : ''; ?>>Archivo Descargado</option>
+                            </optgroup>
+                            <optgroup label="Comparticiones">
+                                <option value="share_created" <?php echo $action === 'share_created' ? 'selected' : ''; ?>>Share Creado</option>
+                                <option value="share_downloaded" <?php echo $action === 'share_downloaded' ? 'selected' : ''; ?>>Share Descargado</option>
+                            </optgroup>
+                            <optgroup label="Active Directory / LDAP">
+                                <option value="role_granted_via_ad" <?php echo $action === 'role_granted_via_ad' ? 'selected' : ''; ?>>Rol concedido vía AD</option>
+                                <option value="role_revoked_via_ad" <?php echo $action === 'role_revoked_via_ad' ? 'selected' : ''; ?>>Rol revocado vía AD</option>
+                                <option value="ldap_bind_failed" <?php echo $action === 'ldap_bind_failed' ? 'selected' : ''; ?>>LDAP bind fallido</option>
+                                <option value="ldap_starttls_failed" <?php echo $action === 'ldap_starttls_failed' ? 'selected' : ''; ?>>LDAP STARTTLS fallido</option>
+                            </optgroup>
                         </select>
+                        <small style="display:block; margin-top:0.25rem; color:var(--text-muted);">Selecciona una acción para filtrar los registros.</small>
                     </div>
                     <div class="col-md-3" style="display: flex; align-items: flex-end; gap: 0.5rem;">
                         <button type="submit" class="btn btn-primary" style="flex: 1;">

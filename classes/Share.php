@@ -88,21 +88,7 @@ class Share {
      */
     public function getByToken($token) {
         try {
-            $stmt = $this->db->prepare("
-                SELECT 
-                    s.*,
-                    f.id as file_id,
-                    f.original_name,
-                    f.file_size,
-                    f.mime_type,
-                    f.file_path,
-                    u.username as owner_username,
-                    u.full_name as owner_name
-                FROM shares s
-                JOIN files f ON s.file_id = f.id
-                JOIN users u ON s.created_by = u.id
-                WHERE s.share_token = ?
-            ");
+            $stmt = $this->db->prepare("\n                SELECT \n                    s.*,\n                    s.id as share_id,\n                    f.id as file_id,\n                    f.original_name,\n                    f.file_size,\n                    f.mime_type,\n                    f.file_path,\n                    u.username as owner_username,\n                    u.full_name as owner_name\n                FROM shares s\n                JOIN files f ON s.file_id = f.id\n                JOIN users u ON s.created_by = u.id\n                WHERE s.share_token = ?\n            ");
             $stmt->execute([$token]);
             return $stmt->fetch();
         } catch (Exception $e) {
