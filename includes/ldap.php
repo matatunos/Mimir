@@ -8,6 +8,7 @@ class LdapAuth {
     private $config;
     private $conn;
     private $type;
+    private $lastUserEntry = null;
     
     public function __construct($type = 'ldap') {
         $this->type = $type;
@@ -27,6 +28,33 @@ class LdapAuth {
             $key = str_replace($prefix, '', $row['config_key']);
             $this->config[$key] = $row['config_value'];
         }
+
+        // If base_dn not set but domain is available, derive base_dn from domain
+        if (empty($this->config['base_dn']) && !empty($this->config['domain'])) {
+            $parts = explode('.', $this->config['domain']);
+            $dns = array_map(function($p){ return 'DC=' . $p; }, $parts);
+            $this->config['base_dn'] = implode(',', $dns);
+        }
+    }
+
+    /**
+     * Derive a sensible base DN from config or host/domain
+     */
+    private function getBaseDn() {
+        if (!empty($this->config['base_dn'])) return $this->config['base_dn'];
+        if (!empty($this->config['domain'])) {
+            $parts = explode('.', $this->config['domain']);
+            return implode(',', array_map(function($p){ return 'DC=' . $p; }, $parts));
+        }
+        if (!empty($this->config['host'])) {
+            // try to parse host as FQDN
+            $host = $this->config['host'];
+            if (strpos($host, '.') !== false) {
+                $parts = explode('.', $host);
+                return implode(',', array_map(function($p){ return 'DC=' . $p; }, $parts));
+            }
+        }
+        return '';
     }
     
     /**
@@ -76,6 +104,28 @@ class LdapAuth {
             $userDn = $this->buildUserDn($username);
             $bind = @ldap_bind($this->conn, $userDn, $password);
             if ($bind) {
+                // After successful bind, try to read user attributes (memberOf etc.) to cache for later checks
+                try {
+                    $baseDn = $this->getBaseDn();
+                    $primaryFilter = "(sAMAccountName={$username})";
+                    if (strpos($this->config['user_dn'] ?? '', 'uid=') !== false) {
+                        $primaryFilter = "(uid={$username})";
+                    }
+                    $filters = [$primaryFilter];
+                    if (!empty($this->config['domain'])) {
+                        $filters[] = "(userPrincipalName={$username}@{$this->config['domain']})";
+                    }
+                    $searchFilter = count($filters) > 1 ? '(|' . implode('', $filters) . ')' : $filters[0];
+                    $search = @ldap_search($this->conn, $baseDn, $searchFilter, ['dn','memberOf','mail','cn','displayName','givenName','sn']);
+                    if ($search) {
+                        $entries = ldap_get_entries($this->conn, $search);
+                        if ($entries && $entries['count'] > 0) {
+                            $this->lastUserEntry = $entries[0];
+                        }
+                    }
+                } catch (Exception $e) {
+                    // ignore
+                }
                 ldap_close($this->conn);
                 return true;
             } else {
@@ -149,16 +199,31 @@ class LdapAuth {
                 return null;
             }
             
-            // Search for user
-            $baseDn = $this->config['base_dn'] ?? '';
-            $filter = "(sAMAccountName=$username)"; // Active Directory
-            
-            // Try alternative filter for standard LDAP
-            if (strpos($this->config['user_dn'] ?? '', 'uid=') !== false) {
-                $filter = "(uid=$username)";
+            // If we already cached the user entry during authenticate, use it
+            if ($this->lastUserEntry && (!empty($this->lastUserEntry['cn'][0]) || !empty($this->lastUserEntry['dn']))) {
+                $entry = $this->lastUserEntry;
+                return [
+                    'email' => $entry['mail'][0] ?? null,
+                    'name' => $entry['displayName'][0] ?? $entry['cn'][0] ?? $username,
+                    'first_name' => $entry['givenName'][0] ?? null,
+                    'last_name' => $entry['sn'][0] ?? null
+                ];
             }
-            
-            $search = @ldap_search($this->conn, $baseDn, $filter, ['mail', 'cn', 'displayName', 'givenName', 'sn']);
+
+            // Search for user
+            $baseDn = $this->getBaseDn();
+            // Prefer sAMAccountName (AD) but allow uid or userPrincipalName as alternatives
+            $primaryFilter = "(sAMAccountName={$username})";
+            if (strpos($this->config['user_dn'] ?? '', 'uid=') !== false) {
+                $primaryFilter = "(uid={$username})";
+            }
+            $filters = [$primaryFilter];
+            if (!empty($this->config['domain'])) {
+                $filters[] = "(userPrincipalName={$username}@{$this->config['domain']})";
+            }
+            $searchFilter = count($filters) > 1 ? '(|' . implode('', $filters) . ')' : $filters[0];
+
+            $search = @ldap_search($this->conn, $baseDn, $searchFilter, ['mail', 'cn', 'displayName', 'givenName', 'sn']);
             
             if (!$search) {
                 ldap_close($this->conn);
@@ -290,6 +355,13 @@ class LdapAuth {
             return false;
         }
 
+        // If we have a cached user entry from a recent authenticate(), check it first
+        if ($this->lastUserEntry && !empty($this->lastUserEntry['memberof'])) {
+            for ($i = 0; $i < $this->lastUserEntry['memberof']['count']; $i++) {
+                if (strcasecmp($this->lastUserEntry['memberof'][$i], $groupDn) === 0) return true;
+            }
+        }
+
         try {
             $port = $this->config['port'] ?? 389;
             $useSsl = !empty($this->config['use_ssl']);
@@ -316,7 +388,7 @@ class LdapAuth {
                 return false;
             }
 
-            $baseDn = $this->config['base_dn'] ?? '';
+            $baseDn = $this->getBaseDn();
 
             $filter = "(sAMAccountName={$username})";
             if (strpos($this->config['user_dn'] ?? '', 'uid=') !== false) {

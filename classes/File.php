@@ -349,6 +349,41 @@ class File {
             return 0;
         }
     }
+
+    /**
+     * Get folder contents (files and folders) for a user at a given folder level
+     * Returns array of rows including `file_count` and `subfolder_count` for folders
+     */
+    public function getFolderContents($userId, $folderId = null) {
+        try {
+            $params = [$userId];
+            if ($folderId === null) {
+                $parentClause = 'f.parent_folder_id IS NULL';
+            } else {
+                $parentClause = 'f.parent_folder_id = ?';
+                $params[] = $folderId;
+            }
+
+            // Hide expired files/folders from user views
+            $sql = "
+                SELECT
+                    f.*,
+                    (SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 0 AND is_expired = 0) as file_count,
+                    (SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 1 AND is_expired = 0) as subfolder_count,
+                    (SELECT COUNT(*) FROM shares WHERE file_id = f.id AND is_active = 1) as share_count
+                FROM files f
+                WHERE f.user_id = ? AND {$parentClause} AND f.is_expired = 0
+                ORDER BY f.is_folder DESC, f.created_at DESC
+            ";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll();
+        } catch (Exception $e) {
+            error_log('getFolderContents error: ' . $e->getMessage());
+            return [];
+        }
+    }
     
     /**
      * Update file
