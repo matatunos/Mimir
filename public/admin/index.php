@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../classes/User.php';
 require_once __DIR__ . '/../../classes/File.php';
 require_once __DIR__ . '/../../classes/Share.php';
 require_once __DIR__ . '/../../classes/Logger.php';
+require_once __DIR__ . '/../../classes/Config.php';
 
 $auth = new Auth();
 $auth->requireAdmin();
@@ -16,6 +17,7 @@ $userClass = new User();
 $fileClass = new File();
 $shareClass = new Share();
 $logger = new Logger();
+$config = new Config();
 
 // Get system statistics
 $db = Database::getInstance()->getConnection();
@@ -144,6 +146,14 @@ foreach ($fileTypeDistribution as $type) {
 renderPageStart('Dashboard Admin', 'dashboard', true);
 renderHeader('Panel de Administración', $user, $auth);
 ?>
+<?php
+// Brand colors for admin dashboard cards
+$brandPrimary = $config->get('brand_primary_color', '#667eea');
+$brandSecondary = $config->get('brand_secondary_color', '#764ba2');
+$brandAccent = $config->get('brand_accent_color', '#667eea');
+?>
+
+<div class="admin-dashboard">
 
 <style>
 .admin-stat-card {
@@ -155,6 +165,11 @@ renderHeader('Panel de Administración', $user, $auth);
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+/* Brandized card headers for admin dashboard */
+.admin-dashboard .card-header {
+    background: linear-gradient(135deg, <?php echo htmlspecialchars($brandPrimary); ?> 0%, <?php echo htmlspecialchars($brandSecondary); ?> 100%);
+    color: white;
 }
 .admin-stat-card:hover {
     transform: translateY(-6px);
@@ -976,3 +991,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <?php renderPageEnd(); ?>
+
+</div>
