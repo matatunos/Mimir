@@ -282,6 +282,41 @@ AND event_type = 'failed_login'
 AND created_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
 ```
 
+## Cambios recientes: campo `security_events.username` y límites por IP configurables
+
+- Se añadió la columna `username` en la tabla `security_events` para mejorar precisión en auditoría y conteo de intentos fallidos por usuario.
+- Las comprobaciones por IP usan ahora valores configurables en la tabla `config`:
+    - `ip_rate_limit_threshold` (int, por defecto 5)
+    - `ip_rate_limit_window_minutes` (int, por defecto 15)
+
+Pasos de migración/rollback rápidos
+
+1. Hacer backup de la base de datos:
+
+```bash
+mysqldump -h <host> -u <user> -p<pass> <db> > /tmp/mimir_backup.sql
+```
+
+2. Aplicar migración que añade la columna (si no existe):
+
+```sql
+ALTER TABLE security_events ADD COLUMN username VARCHAR(100) NULL AFTER event_type;
+```
+
+3. Rellenar datos históricos con el script PHP incluido:
+
+```bash
+php tools/backfill_username.php
+```
+
+4. (Opcional) Añadir índice para consultas por usuario:
+
+```sql
+ALTER TABLE security_events ADD KEY idx_username (username);
+```
+
+El repositorio incluye un helper `scripts/migrate_security_events.sh` que automatiza backup + migración + backfill + creación del índice.
+
 ---
 
 ## 7. HTTP Security Headers
