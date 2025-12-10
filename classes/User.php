@@ -400,8 +400,8 @@ class User {
                 FROM users u
                 WHERE u.role = 'user' 
                     AND u.is_active = 1
-                    AND u.last_login IS NOT NULL
-                ORDER BY u.last_login ASC
+                -- Include users with NULL last_login (never logged in) and order them first
+                ORDER BY (u.last_login IS NULL) DESC, u.last_login ASC
                 LIMIT ?
             ");
             $stmt->execute([$limit]);

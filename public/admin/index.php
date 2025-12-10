@@ -554,16 +554,30 @@ renderHeader('Panel de Administración', $user, $auth);
                                     <br>
                                     <small style="color: var(--text-muted);">@<?php echo htmlspecialchars($inactiveUser['username']); ?></small>
                                 </td>
-                                <td><?php echo date('d/m/Y H:i', strtotime($inactiveUser['last_login'])); ?></td>
                                 <td>
-                                    <span class="badge" style="background: <?php 
-                                        $days = $inactiveUser['days_inactive'];
-                                        if ($days > 180) echo 'var(--danger-color)';
-                                        elseif ($days > 90) echo '#ff8c00';
-                                        elseif ($days > 30) echo '#ffa500';
-                                        else echo 'var(--warning)';
-                                    ?>; color: white; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
-                                        <?php echo $inactiveUser['days_inactive']; ?> días
+                                    <?php if (!empty($inactiveUser['last_login'])): ?>
+                                        <?php echo date('d/m/Y H:i', strtotime($inactiveUser['last_login'])); ?>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-muted);">Nunca</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php
+                                        $days = isset($inactiveUser['days_inactive']) ? $inactiveUser['days_inactive'] : null;
+                                        if ($days === null) {
+                                            // Never logged in
+                                            $badgeBg = 'var(--bg-secondary)';
+                                            $badgeText = 'Nunca';
+                                        } else {
+                                            if ($days > 180) $badgeBg = 'var(--danger-color)';
+                                            elseif ($days > 90) $badgeBg = '#ff8c00';
+                                            elseif ($days > 30) $badgeBg = '#ffa500';
+                                            else $badgeBg = 'var(--warning)';
+                                            $badgeText = $days . ' días';
+                                        }
+                                    ?>
+                                    <span class="badge" style="background: <?php echo $badgeBg; ?>; color: white; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                        <?php echo htmlspecialchars($badgeText); ?>
                                     </span>
                                 </td>
                                 <td><?php echo $inactiveUser['file_count']; ?></td>
