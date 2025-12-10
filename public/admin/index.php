@@ -516,7 +516,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
         <?php if (!empty($inactiveUsers)): ?>
         <div class="card" style="margin-bottom: 2rem;">
             <div class="card-header card-header--padded">
-                <h2 class="card-title" style="color: white; margin: 0;"><i class="fas fa-user-clock"></i> Usuarios Más Inactivos</h2>
+                <h2 class="card-title" style="margin: 0;"><i class="fas fa-user-clock"></i> Usuarios Más Inactivos</h2>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -732,7 +732,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     
     <div class="card mt-3" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
         <div class="card-header card-header--padded">
-            <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-bolt"></i> Accesos Rápidos</h2>
+            <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem;"><i class="fas fa-bolt"></i> Accesos Rápidos</h2>
         </div>
         <div class="card-body" style="padding: 2rem;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">

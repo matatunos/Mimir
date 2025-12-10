@@ -146,7 +146,7 @@ renderHeader('Dashboard', $user);
     <!-- Acciones Rápidas -->
     <div class="card" style="margin-bottom: 2rem;">
         <div class="card-header" style="padding: 1.5rem;">
-            <h2 class="card-title" style="color: white; margin: 0;"><i class="fas fa-bolt"></i> Acciones Rápidas</h2>
+            <h2 class="card-title" style="margin: 0;"><i class="fas fa-bolt"></i> Acciones Rápidas</h2>
         </div>
         <div class="card-body" style="padding: 1.5rem;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
@@ -173,7 +173,7 @@ renderHeader('Dashboard', $user);
     ?>
     <div class="card">
         <div class="card-header card-header--padded card-header--flex">
-            <h2 class="card-title" style="color: white; margin: 0;"><i class="fas fa-clock"></i> Archivos Recientes</h2>
+            <h2 class="card-title" style="margin: 0;"><i class="fas fa-clock"></i> Archivos Recientes</h2>
             <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-sm btn-outline btn-outline--on-dark">Ver todos</a>
         </div>
         <div class="card-body">
