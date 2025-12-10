@@ -44,7 +44,12 @@ $topUsersByUploads = $userClass->getTopUsersByUploads(10);
 $shareStats = $userClass->getSystemShareStats();
 $mostSharedFiles = $userClass->getMostSharedFiles(10);
 $storageUsageByUser = $userClass->getStorageUsageByUser();
-$inactiveUsers = $userClass->getMostInactiveUsers(10);
+$sortBy = $_GET['sort_by'] ?? 'last_login';
+$sortDir = strtolower($_GET['sort_dir'] ?? 'desc');
+$allowedSorts = ['last_login','days_inactive','username','file_count'];
+if (!in_array($sortBy, $allowedSorts)) $sortBy = 'last_login';
+$sortDir = $sortDir === 'asc' ? 'asc' : 'desc';
+$inactiveUsers = $userClass->getMostInactiveUsers(10, $sortBy, $sortDir);
 
 // Recent activity
 $recentActivity = $logger->getActivityLogs([], 10, 0);
@@ -525,10 +530,21 @@ renderHeader('Panel de Administración', $user, $auth);
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Usuario</th>
-                                <th>Último Acceso</th>
-                                <th>Días Inactivo</th>
-                                <th>Archivos</th>
+                                <?php
+                                // Helper to build sort links and toggle direction
+                                function sortLink($col, $label, $currentSort, $currentDir) {
+                                    $newDir = ($currentSort === $col && $currentDir === 'asc') ? 'desc' : 'asc';
+                                    $qs = array_merge($_GET, ['sort_by' => $col, 'sort_dir' => $newDir]);
+                                    $url = basename($_SERVER['PHP_SELF']) . '?' . http_build_query($qs);
+                                    $arrow = '';
+                                    if ($currentSort === $col) $arrow = $currentDir === 'asc' ? ' ▲' : ' ▼';
+                                    return "<a href=\"$url\">" . htmlspecialchars($label) . htmlspecialchars($arrow) . "</a>";
+                                }
+                                ?>
+                                <th><?php echo sortLink('username', 'Usuario', $sortBy, $sortDir); ?></th>
+                                <th><?php echo sortLink('last_login', 'Último Acceso', $sortBy, $sortDir); ?></th>
+                                <th><?php echo sortLink('days_inactive', 'Días Inactivo', $sortBy, $sortDir); ?></th>
+                                <th><?php echo sortLink('file_count', 'Archivos', $sortBy, $sortDir); ?></th>
                             </tr>
                         </thead>
                         <tbody>
