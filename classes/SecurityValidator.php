@@ -426,19 +426,26 @@ class SecurityValidator {
      */
     private function logSecurityEvent($eventType, $details = [], $severity = 'medium') {
         try {
-            $stmt = $this->db->prepare("
-                INSERT INTO security_events 
-                (event_type, severity, ip_address, user_agent, description, details)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ");
-            
+            // Extract username if provided in details array for easier querying
+            $username = null;
+            if (is_array($details) && isset($details['username'])) {
+                $username = $details['username'];
+            }
+
+            $stmt = $this->db->prepare(
+                "INSERT INTO security_events 
+                (event_type, username, severity, ip_address, user_agent, description, details)
+                VALUES (?, ?, ?, ?, ?, ?, ?)"
+            );
+
             $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
             $description = $this->getEventDescription($eventType);
             $detailsJson = json_encode($details);
-            
+
             $stmt->execute([
                 $eventType,
+                $username,
                 $severity,
                 $ip,
                 $userAgent,

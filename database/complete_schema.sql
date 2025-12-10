@@ -342,6 +342,7 @@ CREATE TABLE IF NOT EXISTS `download_log` (
 CREATE TABLE IF NOT EXISTS `security_events` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `event_type` enum('failed_login','brute_force','suspicious_download','rate_limit','unauthorized_access','data_breach_attempt','malware_upload') NOT NULL,
+  `username` varchar(100) DEFAULT NULL,
   `severity` enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
   `user_id` int(11) DEFAULT NULL,
   `ip_address` varchar(45) NOT NULL,
