@@ -29,7 +29,7 @@ $orphans = $fileClass->getOrphans($filters, $perPage, $offset);
 $totalOrphans = $fileClass->countOrphans($filters);
 $totalPages = ceil($totalOrphans / $perPage);
 
-renderPageStart('Archivos Huérfanos', 'users', true);
+renderPageStart('Archivos Huérfanos', 'orphan_files', true);
 renderHeader('Archivos Huérfanos', $user);
 ?>
 
@@ -53,8 +53,8 @@ renderHeader('Archivos Huérfanos', $user);
     background-color: rgba(0, 0, 0, 0.5);
 }
 .modal-content {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
+    background-color: #fff;
+    color: #222;
     margin: 5% auto;
     padding: 2rem;
     border-radius: 0.5rem;
@@ -155,6 +155,9 @@ renderHeader('Archivos Huérfanos', $user);
                         🗑️ Eliminar seleccionados
                     </button>
                 </div>
+                <div id="selectAllNotice" style="display:none; padding:0.5rem 1rem; background:#fffbe6; border:1px solid #ffe58f; color:#ad8b00; margin-bottom:1rem; border-radius:0.25rem;">
+                    Se han seleccionado los <span id="selectedVisibleCount"></span> archivos visibles. <button class="btn btn-link" onclick="selectAllFiles()">Seleccionar los <strong><?php echo $totalOrphans; ?></strong> archivos huérfanos</button>
+                </div>
                 <table class="table">
                     <thead>
                         <tr>
@@ -241,12 +244,15 @@ renderHeader('Archivos Huérfanos', $user);
         <div>
             <p id="modalFileInfo"><strong>Archivo:</strong> <span id="modalFileName"></span></p>
             <div class="form-group">
-                <label>Buscar usuario</label>
-                <input type="text" id="userSearch" class="form-control" 
-                       placeholder="Escribe nombre, email o usuario..." 
-                       oninput="searchUsers()">
+                <label>Seleccionar usuario</label>
+                <select id="userSelect" class="form-control">
+                    <?php foreach ($userClass->getAll(['is_active' => 1], 1000, 0) as $u): ?>
+                        <option value="<?php echo $u['id']; ?>">
+                            <?php echo htmlspecialchars($u['username']); ?><?php if ($u['full_name']) echo ' - ' . htmlspecialchars($u['full_name']); ?><?php if ($u['email']) echo ' (' . htmlspecialchars($u['email']) . ')'; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
-            <div id="userSearchResults" class="user-search-results" style="display: none;"></div>
         </div>
     </div>
 </div>
@@ -263,16 +269,35 @@ function toggleSelectAll() {
     updateBulkActions();
 }
 
+let allFilesSelected = false;
+let allFileIds = <?php echo json_encode(array_column($orphans, 'id')); ?>;
+let totalOrphans = <?php echo $totalOrphans; ?>;
+
 function updateBulkActions() {
     const selected = document.querySelectorAll('.file-select:checked').length;
     const deleteBtn = document.getElementById('bulkDeleteBtn');
     const assignBtn = document.getElementById('bulkAssignBtn');
     
-    deleteBtn.disabled = selected === 0;
-    assignBtn.disabled = selected === 0;
+    deleteBtn.disabled = selected === 0 && !allFilesSelected;
+    assignBtn.disabled = selected === 0 && !allFilesSelected;
     
-    deleteBtn.innerHTML = selected > 0 ? `🗑️ Eliminar ${selected} archivo(s)` : '🗑️ Eliminar seleccionados';
-    assignBtn.innerHTML = selected > 0 ? `👤 Asignar ${selected} archivo(s)` : '👤 Asignar seleccionados';
+    deleteBtn.innerHTML = (selected > 0 || allFilesSelected) ? `🗑️ Eliminar ${(allFilesSelected ? totalOrphans : selected)} archivo(s)` : '🗑️ Eliminar seleccionados';
+    assignBtn.innerHTML = (selected > 0 || allFilesSelected) ? `👤 Asignar ${(allFilesSelected ? totalOrphans : selected)} archivo(s)` : '👤 Asignar seleccionados';
+
+    // Mostrar aviso para seleccionar todos
+    const selectAllNotice = document.getElementById('selectAllNotice');
+    const selectedVisibleCount = document.getElementById('selectedVisibleCount');
+    if (selected === allFileIds.length && totalOrphans > allFileIds.length && !allFilesSelected) {
+        selectAllNotice.style.display = 'block';
+        selectedVisibleCount.textContent = selected;
+    } else {
+        selectAllNotice.style.display = 'none';
+    }
+}
+
+function selectAllFiles() {
+    allFilesSelected = true;
+    updateBulkActions();
 }
 
 function showAssignModal(fileId, fileName) {
@@ -286,14 +311,18 @@ function showAssignModal(fileId, fileName) {
 }
 
 function bulkAssign() {
-    const selected = document.querySelectorAll('.file-select:checked');
-    if (selected.length === 0) return;
-    
+    let ids;
+    if (allFilesSelected) {
+        ids = Array.from({length: totalOrphans}, (_, i) => i + 1); // Asume IDs secuenciales, ajustar si no
+    } else {
+        const selected = document.querySelectorAll('.file-select:checked');
+        ids = Array.from(selected).map(cb => parseInt(cb.value));
+    }
+    if (ids.length === 0) return;
     currentFileId = null;
-    currentFileIds = Array.from(selected).map(cb => parseInt(cb.value));
-    
+    currentFileIds = ids;
     document.getElementById('modalFileInfo').style.display = 'block';
-    document.getElementById('modalFileName').textContent = `${selected.length} archivo(s) seleccionado(s)`;
+    document.getElementById('modalFileName').textContent = `${ids.length} archivo(s) seleccionado(s)`;
     document.getElementById('assignModal').style.display = 'block';
     document.getElementById('userSearch').value = '';
     document.getElementById('userSearchResults').style.display = 'none';

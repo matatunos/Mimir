@@ -16,10 +16,15 @@ $logger = new Logger();
 
 $error = '';
 $success = '';
+$currentFolderId = isset($_GET['folder']) && $_GET['folder'] !== '' ? (int)$_GET['folder'] : null;
+
+// Get folder path for breadcrumbs
+$breadcrumbs = [];
+if ($currentFolderId) {
+    $breadcrumbs = $fileClass->getFolderPath($currentFolderId);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    error_log("POST received - FILES count: " . (isset($_FILES['files']) ? count($_FILES['files']['name']) : 0));
-    
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Token de seguridad inválido';
     } elseif (!isset($_FILES['files']) || empty($_FILES['files']['tmp_name'][0])) {
@@ -28,6 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $uploadedCount = 0;
         $errors = [];
         $description = $_POST['description'] ?? '';
+        $parentFolderId = isset($_POST['parent_folder_id']) && $_POST['parent_folder_id'] !== '' 
+            ? (int)$_POST['parent_folder_id'] 
+            : null;
         $fileCount = count($_FILES['files']['tmp_name']);
         
         for ($i = 0; $i < $fileCount; $i++) {
@@ -47,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
             
             try {
-                $result = $fileClass->upload($fileData, $user['id'], $description);
+                $result = $fileClass->upload($fileData, $user['id'], $description, $parentFolderId);
                 if ($result) {
                     $uploadedCount++;
                     $logger->log($user['id'], 'file_upload', 'file', $result, "Archivo subido: {$fileData['name']}");
@@ -64,7 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!empty($errors)) {
                 $success .= ' (algunos fallaron)';
             }
-            header('Location: ' . BASE_URL . '/user/files.php?success=' . urlencode($success));
+            $redirect = BASE_URL . '/user/files.php?success=' . urlencode($success);
+            if ($parentFolderId) {
+                $redirect .= '&folder=' . $parentFolderId;
+            }
+            header('Location: ' . $redirect);
             exit;
         } else {
             $error = 'No se pudo subir ningún archivo. ' . implode(', ', $errors);
@@ -92,6 +104,39 @@ renderHeader('Subir Archivos', $user);
             <h2 class="card-title" style="color: white; margin: 0;">Subir Archivo</h2>
         </div>
         <div class="card-body">
+            
+            <!-- Breadcrumb Navigation -->
+            <?php if ($currentFolderId): ?>
+            <div style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--bg-secondary); border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-home" style="color: var(--text-muted);"></i>
+                <a href="<?php echo BASE_URL; ?>/user/files.php" style="color: var(--text-main); text-decoration: none; font-weight: 500;">
+                    Inicio
+                </a>
+                <?php foreach ($breadcrumbs as $folder): ?>
+                    <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $folder['id']; ?>" style="color: var(--text-main); text-decoration: none; font-weight: 500;">
+                        <?php echo htmlspecialchars($folder['name']); ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Breadcrumb Navigation -->
+            <?php if ($currentFolderId): ?>
+            <div style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--bg-secondary); border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-info-circle" style="color: var(--primary);"></i>
+                <span style="color: var(--text-main); font-weight: 500;">Subiendo a:</span>
+                <a href="<?php echo BASE_URL; ?>/user/files.php" style="color: var(--text-main); text-decoration: none;">
+                    Inicio
+                </a>
+                <?php foreach ($breadcrumbs as $folder): ?>
+                    <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $folder['id']; ?>" style="color: var(--text-main); text-decoration: none;">
+                        <?php echo htmlspecialchars($folder['name']); ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
             <div class="mb-3" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--primary);">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                     <span>Almacenamiento usado:</span>
@@ -107,6 +152,7 @@ renderHeader('Subir Archivos', $user);
 
             <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
+                <input type="hidden" name="parent_folder_id" value="<?php echo $currentFolderId ?? ''; ?>">
                 
                 <div class="form-group">
                     <label>Archivos *</label>
@@ -121,7 +167,7 @@ renderHeader('Subir Archivos', $user);
 
                 <div style="display: flex; gap: 0.75rem;">
                     <button type="submit" class="btn btn-primary">⬆️ Subir Archivos</button>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline">Cancelar</a>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php<?php echo $currentFolderId ? '?folder=' . $currentFolderId : ''; ?>" class="btn btn-outline">Cancelar</a>
                 </div>
             </form>
         </div>

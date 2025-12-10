@@ -20,8 +20,8 @@ $security = SecurityValidator::getInstance();
 $tokenRaw = $_GET['token'] ?? basename($_SERVER['REQUEST_URI']);
 $token = $security->sanitizeString($tokenRaw);
 
-// Validate token format (should be alphanumeric, 64 chars)
-if (!preg_match('/^[a-zA-Z0-9]{64}$/', $token)) {
+// Validate token format (should be alphanumeric, 32 or 64 chars)
+if (!preg_match('/^[a-f0-9]{32}$|^[a-f0-9]{64}$/', $token)) {
     $error = 'Token no válido';
     $token = '';
 }
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <p>Descargar Archivo Compartido</p>
             </div>
             
-            <?php if ($error): ?>
+            <?php if (isset($error) && $error): ?>
                 <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             
@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <button type="submit" class="btn btn-primary btn-block">⬇️ Descargar</button>
                 </form>
-            <?php elseif ($error): ?>
+            <?php elseif (isset($error) && $error): ?>
                 <div style="text-align: center; padding: 2rem;">
                     <div style="font-size: 4rem; margin-bottom: 1rem;">❌</div>
                     <p style="color: var(--text-muted);">No se puede acceder al archivo</p>

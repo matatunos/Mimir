@@ -1,0 +1,3 @@
+# Cron file for Mimir: run expire script daily at 03:00
+# Place this file content into /etc/cron.d/mimir-expire (owner root, mode 644)
+0 3 * * * www-data /usr/bin/php /opt/Mimir/tools/expire_files.php >> /var/log/mimir/expire_files.log 2>&1

@@ -41,4 +41,33 @@ else
   echo "Index 'idx_username' already exists, skipping."
 fi
 
+echo "Adding indexes for performance (created_at, event_type, activity.action) if not exists..."
+IDX_SE_CREATED_AT=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='security_events' AND INDEX_NAME='idx_se_created_at';")
+if [ "$IDX_SE_CREATED_AT" -eq 0 ]; then
+  mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "ALTER TABLE security_events ADD INDEX idx_se_created_at (created_at);"
+else
+  echo "Index 'idx_se_created_at' exists, skipping."
+fi
+
+IDX_SE_EVENT_TYPE=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='security_events' AND INDEX_NAME='idx_se_event_type';")
+if [ "$IDX_SE_EVENT_TYPE" -eq 0 ]; then
+  mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "ALTER TABLE security_events ADD INDEX idx_se_event_type (event_type);"
+else
+  echo "Index 'idx_se_event_type' exists, skipping."
+fi
+
+IDX_AL_CREATED_AT=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='activity_log' AND INDEX_NAME='idx_al_created_at';")
+if [ "$IDX_AL_CREATED_AT" -eq 0 ]; then
+  mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "ALTER TABLE activity_log ADD INDEX idx_al_created_at (created_at);"
+else
+  echo "Index 'idx_al_created_at' exists, skipping."
+fi
+
+IDX_AL_ACTION=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='activity_log' AND INDEX_NAME='idx_al_action';")
+if [ "$IDX_AL_ACTION" -eq 0 ]; then
+  mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "ALTER TABLE activity_log ADD INDEX idx_al_action (action);"
+else
+  echo "Index 'idx_al_action' exists, skipping."
+fi
+
 echo "Migration complete. Backup at: $BACKUP_FILE"
