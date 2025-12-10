@@ -125,6 +125,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 // Local auth failed — try external auth (AD/LDAP)
                 if ($auth->login($username, $password)) {
+                    // If 2FA was set as pending by the Auth layer (e.g. AD/LDAP users), handle it here
+                    if (!empty($_SESSION['2fa_pending']) && !empty($_SESSION['2fa_user_id'])) {
+                        $twoFactor = new TwoFactor();
+                        $config = $twoFactor->getUserConfig($_SESSION['2fa_user_id']);
+
+                        if (!$config) {
+                            $error = 'ERROR DEBUG: 2FA habilitado pero sin configuración. User ID: ' . $_SESSION['2fa_user_id'];
+                        } elseif ($config['method'] === 'totp') {
+                            header('Location: ' . BASE_URL . '/login_2fa_totp.php');
+                            exit;
+                        } elseif ($config['method'] === 'duo') {
+                            $duoAuth = new DuoAuth();
+                            // Prefer stored duo_username if available
+                            $duoUsername = $twoFactor->getDuoUsername($_SESSION['2fa_user_id']);
+                            $authUrl = $duoAuth->generateAuthUrl($duoUsername ?: $username);
+
+                            if ($authUrl) {
+                                header('Location: ' . $authUrl);
+                                exit;
+                            } else {
+                                $error = 'Error al iniciar autenticación Duo';
+                            }
+                        }
+
+                        // If we reach here, clear pending markers and fall through (to show error)
+                        unset($_SESSION['2fa_pending']);
+                        unset($_SESSION['2fa_user_id']);
+                    }
+
                     header('Location: ' . BASE_URL . '/index.php');
                     exit;
                 }

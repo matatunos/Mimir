@@ -9,6 +9,7 @@ require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/ldap.php';
 require_once __DIR__ . '/../classes/User.php';
 require_once __DIR__ . '/../classes/Logger.php';
+require_once __DIR__ . '/../classes/TwoFactor.php';
 
 class Auth {
     private $db;
@@ -137,6 +138,24 @@ class Auth {
                 return false;
             }
             
+            // If user has 2FA enabled, set pending state instead of creating the session
+            try {
+                $twoFactor = new TwoFactor();
+                if ($twoFactor->isEnabled($user['id'])) {
+                    $deviceHash = $twoFactor->getDeviceHash();
+                    if (!$twoFactor->isDeviceTrusted($user['id'], $deviceHash)) {
+                        // Set pending 2FA and return; login page will handle redirect to Duo/TOTP
+                        $_SESSION['2fa_user_id'] = $user['id'];
+                        $_SESSION['2fa_pending'] = true;
+                        return true;
+                    }
+                    // If device is trusted, fall through and create normal session
+                }
+            } catch (Exception $e) {
+                // If any 2FA check fails, proceed with normal session creation to avoid blocking login
+                error_log('TwoFactor check failed during login: ' . $e->getMessage());
+            }
+
             // Create session
             $this->createSession($user);
             
