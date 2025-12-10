@@ -87,3 +87,45 @@ https://files.favala.es/admin/test_ldap.php?action=member&type=ad&username=jdoe&
 Si necesitas que añada más ejemplos o copiar fragmentos de SQL/LDAP para tu AD particular, dímelo y lo incluyo.
 
 Fin del documento.
+
+**Cambios recientes en la aplicación (relacionados con seguridad y auditoría)**
+
+- Se ha añadido la columna `username` en la tabla `security_events` para facilitar consultas exactas sobre intentos de login y auditoría de acciones por usuario.
+- El sistema de rate-limiting por IP ahora es configurable via la tabla `config` con las claves:
+   - `ip_rate_limit_threshold` (por defecto `5`) — intentos máximos por IP.
+   - `ip_rate_limit_window_minutes` (por defecto `15`) — ventana en minutos.
+
+Por qué: antes las consultas buscaban el nombre de usuario dentro de un campo `details` (texto JSON) usando LIKE, lo que podía producir colisiones entre usuarios con nombres parecidos (por ejemplo `nacho` y `nacho_ad`). Con la columna dedicada `username` las comprobaciones son exactas y más eficientes.
+
+Cómo aplicar la migración en producción
+
+1. Ejecutar la migración SQL que añade la columna (archivo incluido en el repo):
+
+```sql
+ALTER TABLE `security_events`
+   ADD COLUMN `username` VARCHAR(100) NULL AFTER `event_type`;
+```
+
+2. Rellenar las filas históricas donde `details` contiene un JSON con `username`.
+    - Si tu MySQL soporta `JSON_EXTRACT` y todos los valores `details` son JSON válidos, puedes intentar:
+
+```sql
+UPDATE security_events
+SET username = JSON_UNQUOTE(JSON_EXTRACT(details, '$.username'))
+WHERE username IS NULL AND details IS NOT NULL AND JSON_EXTRACT(details, '$.username') IS NOT NULL;
+```
+
+    - Si no todos los valores `details` son JSON válidos (caso común), usa el script PHP incluido en el repositorio (`/tmp/backfill_username.php` como ejemplo) que:
+       - Selecciona filas con `details` conteniendo `"username"`.
+       - Intenta `json_decode` y actualiza `username` cuando el JSON es válido.
+
+3. (Opcional) Añadir un índice si esperas consultas frecuentes por `username`:
+
+```sql
+ALTER TABLE security_events ADD KEY idx_username (username);
+```
+
+Notas finales
+
+- Hay commits en el repositorio que ya modifican las inserciones recientes de `security_events` para poblar la columna `username` automáticamente cuando esté disponible.
+- Si quieres que aplique la migración en tu base de datos ahora (ejecutarla), dímelo y la ejecuto — necesitaremos acceso al servidor MySQL y preferiblemente un backup previo.
