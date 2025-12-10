@@ -204,14 +204,16 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     transform: translateY(-50%) scale(1.15) rotate(5deg);
 }
 .admin-stat-value {
-    font-size: 3rem;
-    font-weight: 900;
-    background: linear-gradient(135deg, #4a90e2, #50c878);
+    font-size: 2.6rem;
+    font-weight: 800;
+    /* softer, less saturated gradient for stat numbers */
+    background: linear-gradient(135deg, rgba(74,144,226,0.9) 0%, rgba(80,200,120,0.85) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     line-height: 1;
     margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
 }
 .admin-stat-label {
     font-size: 0.9375rem;
@@ -224,30 +226,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     color: var(--text-muted);
     font-weight: 500;
 }
-.period-btn {
-    padding: 0.5rem 1rem;
-    border: 2px solid var(--border-color);
-    background: var(--bg-main);
-    color: var(--text-main);
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.period-btn:hover {
-    border-color: var(--primary);
-    background: var(--primary);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(74, 144, 226, 0.2);
-}
-.period-btn.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: white;
-    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
-}
+/* Period buttons moved to global CSS for consistent contrast */
 </style>
 
 <div class="content">
@@ -536,7 +515,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
         <!-- Ranking de Usuarios Inactivos -->
         <?php if (!empty($inactiveUsers)): ?>
         <div class="card" style="margin-bottom: 2rem;">
-            <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+            <div class="card-header card-header--padded">
                 <h2 class="card-title" style="color: white; margin: 0;"><i class="fas fa-user-clock"></i> Usuarios Más Inactivos</h2>
             </div>
             <div class="card-body">
@@ -752,7 +731,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     </style>
     
     <div class="card mt-3" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+        <div class="card-header card-header--padded">
             <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-bolt"></i> Accesos Rápidos</h2>
         </div>
         <div class="card-body" style="padding: 2rem;">

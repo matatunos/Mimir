@@ -88,7 +88,7 @@ renderHeader('Mis Archivos', $user);
     <?php endif; ?>
 
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <div class="card-header" style="background: linear-gradient(135deg, #e9b149, #444e52); color: white; padding: 1.5rem;">
+        <div class="card-header" style="padding: 1.5rem;">
             <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem; margin: 0;"><i class="fas fa-folder"></i> Mis Archivos (<?php echo $totalFiles; ?>)</h2>
             <div style="display: flex; gap: 0.5rem;">
                 <button onclick="showCreateFolderModal()" class="btn btn-primary" style="background: white; color: #4a90e2; border: none; font-weight: 600;">
@@ -121,7 +121,7 @@ renderHeader('Mis Archivos', $user);
                     <input type="text" name="search" class="form-control" placeholder="Buscar archivos..." value="<?php echo htmlspecialchars($search); ?>">
                     <button type="submit" class="btn btn-primary">Buscar</button>
                     <?php if ($search): ?>
-                        <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline">Limpiar</a>
+                        <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark">Limpiar</a>
                     <?php endif; ?>
                 </div>
             </form>
@@ -244,7 +244,7 @@ renderHeader('Mis Archivos', $user);
                     <button type="button" class="btn btn-secondary" onclick="clearUserSelection()">
                         <i class="fas fa-times"></i> Cancelar
                     </button>
-                    <button type="button" class="btn btn-outline" id="selectAllMatchingBtn" style="margin-left:1rem;">
+                    <button type="button" class="btn btn-outline btn-outline--on-dark" id="selectAllMatchingBtn" style="margin-left:1rem;">
                         Seleccionar todos los <?php echo $totalFiles; ?> coincidencias
                     </button>
                 </div>
@@ -255,7 +255,7 @@ renderHeader('Mis Archivos', $user);
                         <h3 id="bulkConfirmTitle">Confirmar acción</h3>
                         <p id="bulkConfirmBody">Se van a procesar <strong id="bulkConfirmCount">0</strong> elementos.</p>
                         <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
-                            <button type="button" class="btn btn-outline" onclick="hideBulkConfirmModal()">Cancelar</button>
+                            <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="hideBulkConfirmModal()">Cancelar</button>
                             <button type="button" class="btn btn-danger" id="bulkConfirmBtn">Confirmar</button>
                         </div>
                     </div>
@@ -293,7 +293,7 @@ renderHeader('Mis Archivos', $user);
                 <input type="text" id="folderName" class="form-control" placeholder="Mi Carpeta" required autofocus>
             </div>
             <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-                <button type="button" onclick="hideCreateFolderModal()" class="btn btn-outline">Cancelar</button>
+                <button type="button" onclick="hideCreateFolderModal()" class="btn btn-outline btn-outline--on-dark">Cancelar</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Crear Carpeta</button>
             </div>
         </form>

@@ -281,7 +281,7 @@ renderHeader('Autenticación 2FA', $user);
                         <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                         <input type="hidden" name="action" value="setup_totp_generate">
                         <button type="submit" class="btn btn-primary btn-lg">Generar Código QR</button>
-                        <a href="?step=choose" class="btn btn-outline">Volver</a>
+                        <a href="?step=choose" class="btn btn-outline btn-outline--on-dark">Volver</a>
                     </form>
                 </div>
             </div>
@@ -327,7 +327,7 @@ renderHeader('Autenticación 2FA', $user);
                         </div>
                         <div style="display: flex; gap: 0.75rem;">
                             <button type="submit" class="btn btn-primary btn-lg">Verificar y Activar</button>
-                            <a href="?step=choose" class="btn btn-outline">Cancelar</a>
+                            <a href="?step=choose" class="btn btn-outline btn-outline--on-dark">Cancelar</a>
                         </div>
                     </form>
                 </div>
@@ -365,8 +365,8 @@ renderHeader('Autenticación 2FA', $user);
                     </div>
                     
                     <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
-                        <button onclick="window.print()" class="btn btn-outline">🖨️ Imprimir</button>
-                        <button onclick="copyBackupCodes()" class="btn btn-outline"><i class="fas fa-clipboard"></i> Copiar</button>
+                        <button onclick="window.print()" class="btn btn-outline btn-outline--on-dark">🖨️ Imprimir</button>
+                        <button onclick="copyBackupCodes()" class="btn btn-outline btn-outline--on-dark"><i class="fas fa-clipboard"></i> Copiar</button>
                         <a href="<?php echo BASE_URL; ?>/user/profile.php" class="btn btn-primary">Continuar</a>
                     </div>
                 </div>
@@ -413,7 +413,7 @@ renderHeader('Autenticación 2FA', $user);
                         
                         <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
                             <button type="submit" class="btn btn-primary">Activar Duo 2FA</button>
-                            <a href="?step=choose" class="btn btn-outline">Volver</a>
+                            <a href="?step=choose" class="btn btn-outline btn-outline--on-dark">Volver</a>
                         </div>
                     </form>
                 </div>

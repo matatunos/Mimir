@@ -31,7 +31,7 @@ renderHeader('Registros de Actividad', $user);
 ?>
 <div class="content">
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <div class="card-header" style="background: linear-gradient(135deg, #fa709a, #fee140); color: white; padding: 1.5rem;">
+        <div class="card-header" style="padding: 1.5rem;">
             <h2 class="card-title" style="color: white; font-weight: 700; font-size: 1.5rem;"><i class="fas fa-clipboard"></i> Actividad del Sistema</h2>
         </div>
         <div class="card-body">

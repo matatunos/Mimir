@@ -130,41 +130,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // External auth also failed — log failed attempt
-                // Add temporary debug log to help diagnose web vs CLI differences
-                try {
-                    $dbg = [];
-                    $dbg['timestamp'] = date('c');
-                    $dbg['username'] = $username;
-                    $dbg['php_sapi'] = php_sapi_name();
-                    $dbg['ldap_extension'] = function_exists('ldap_connect') ? 'yes' : 'no';
-
-                    // Read AD/LDAP flags from DB to see what the web process is configured to use
-                    try {
-                        $cfgStmt = $db->prepare("SELECT config_key, config_value FROM config WHERE config_key IN ('enable_ldap','enable_ad','ad_host','ldap_host')");
-                        $cfgStmt->execute();
-                        $cfgRows = $cfgStmt->fetchAll();
-                        foreach ($cfgRows as $r) $dbg[$r['config_key']] = $r['config_value'];
-                    } catch (Exception $e) {
-                        $dbg['cfg_error'] = $e->getMessage();
-                    }
-
-                    // Run testConnection on AD and LDAP (if possible)
-                    if (function_exists('ldap_connect')) {
-                        try {
-                            require_once __DIR__ . '/../includes/ldap.php';
-                            $ad = new LdapAuth('ad');
-                            $ldap = new LdapAuth('ldap');
-                            $dbg['ad_test'] = $ad->testConnection();
-                            $dbg['ldap_test'] = $ldap->testConnection();
-                        } catch (Exception $e) {
-                            $dbg['ldap_test_error'] = $e->getMessage();
-                        }
-                    }
-
-                    @file_put_contents('/tmp/mimir_ldap_debug.log', json_encode($dbg) . PHP_EOL, FILE_APPEND | LOCK_EX);
-                } catch (Exception $e) {
-                    error_log('Debug write failed: ' . $e->getMessage());
-                }
 
                 $stmtIns = $db->prepare("INSERT INTO security_events (event_type, username, severity, ip_address, user_agent, description, details) VALUES ('failed_login', ?, 'low', ?, ?, ?, ?)");
                 $detailsJson = json_encode(['username' => $username, 'time' => date('Y-m-d H:i:s')]);
