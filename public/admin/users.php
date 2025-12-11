@@ -224,14 +224,14 @@ renderHeader('Gestión de Usuarios', $user);
 /* Responsive adjustments to save horizontal space */
 .users-table-compact { table-layout: fixed; width: 100%; }
 .users-table-compact th, .users-table-compact td {
-    padding: 0.28rem 0.45rem;
+    padding: 0.18rem 0.35rem;
     vertical-align: middle;
     white-space: nowrap;
     overflow: hidden;
 }
 .users-table-compact .truncate {
     display: inline-block;
-    max-width: 220px;
+    max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -248,14 +248,14 @@ renderHeader('Gestión de Usuarios', $user);
 .col-role { width: 8rem; }
 .col-status { width: 6rem; }
 .col-2fa { width: 6rem; }
-.col-storage { width: 10rem; }
-.col-created { width: 8rem; }
-.col-last { width: 10rem; }
-.col-actions { width: 12rem; }
+.col-storage { width: 9rem; }
+.col-created { width: 6.5rem; }
+.col-last { width: 7rem; }
+.col-actions { width: 9rem; }
 
 /* Make action buttons wrap if necessary */
-.col-actions > div { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
-.col-actions .btn { padding: 4px 6px; font-size: 0.87rem; }
+.col-actions > div { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+.col-actions .btn { padding: 3px 5px; font-size: 0.86rem; }
 
 /* Do not hide columns automatically; prefer horizontal scrolling or a compact toggle.
    Hiding columns by media queries removed to preserve functionality. */
@@ -497,7 +497,7 @@ renderHeader('Gestión de Usuarios', $user);
                                     <th class="col-2fa" style="width: 120px;">2FA</th>
                                     <th class="col-storage">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'storage_quota', 'dir' => ($sortBy === 'storage_quota' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
-                                            Almacenamiento
+                                            Alm.
                                             <?php if ($sortBy === 'storage_quota'): ?>
                                                 <i class="fas fa-sort-<?php echo $sortDir === 'asc' ? 'up' : 'down'; ?>"></i>
                                             <?php else: ?>
@@ -507,7 +507,7 @@ renderHeader('Gestión de Usuarios', $user);
                                     </th>
                                     <th class="col-created">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'created_at', 'dir' => ($sortBy === 'created_at' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
-                                            Registro
+                                            Reg.
                                             <?php if ($sortBy === 'created_at'): ?>
                                                 <i class="fas fa-sort-<?php echo $sortDir === 'asc' ? 'up' : 'down'; ?>"></i>
                                             <?php else: ?>
@@ -517,7 +517,7 @@ renderHeader('Gestión de Usuarios', $user);
                                     </th>
                                     <th class="col-last">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'last_activity', 'dir' => ($sortBy === 'last_activity' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
-                                            Última Actividad
+                                            Últ. Act.
                                             <?php if ($sortBy === 'last_activity'): ?>
                                                 <i class="fas fa-sort-<?php echo $sortDir === 'asc' ? 'up' : 'down'; ?>"></i>
                                             <?php else: ?>

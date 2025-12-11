@@ -9,6 +9,7 @@ $auth = new Auth();
 $auth->requireAdmin();
 $user = $auth->getUser();
 $logger = new Logger();
+$actions = $logger->getDistinctActions();
 
 // Get filters
 $dateFrom = $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days'));
@@ -50,24 +51,9 @@ renderHeader('Registros de Actividad', $user);
                         <label>Acción:</label>
                         <select name="action" class="form-control">
                             <option value="">Todas</option>
-                            <optgroup label="Autenticación">
-                                <option value="login" <?php echo $action === 'login' ? 'selected' : ''; ?>>Login</option>
-                                <option value="logout" <?php echo $action === 'logout' ? 'selected' : ''; ?>>Logout</option>
-                            </optgroup>
-                            <optgroup label="Archivos">
-                                <option value="file_uploaded" <?php echo $action === 'file_uploaded' ? 'selected' : ''; ?>>Archivo Subido</option>
-                                <option value="file_downloaded" <?php echo $action === 'file_downloaded' ? 'selected' : ''; ?>>Archivo Descargado</option>
-                            </optgroup>
-                            <optgroup label="Comparticiones">
-                                <option value="share_created" <?php echo $action === 'share_created' ? 'selected' : ''; ?>>Share Creado</option>
-                                <option value="share_downloaded" <?php echo $action === 'share_downloaded' ? 'selected' : ''; ?>>Share Descargado</option>
-                            </optgroup>
-                            <optgroup label="Active Directory / LDAP">
-                                <option value="role_granted_via_ad" <?php echo $action === 'role_granted_via_ad' ? 'selected' : ''; ?>>Rol concedido vía AD</option>
-                                <option value="role_revoked_via_ad" <?php echo $action === 'role_revoked_via_ad' ? 'selected' : ''; ?>>Rol revocado vía AD</option>
-                                <option value="ldap_bind_failed" <?php echo $action === 'ldap_bind_failed' ? 'selected' : ''; ?>>LDAP bind fallido</option>
-                                <option value="ldap_starttls_failed" <?php echo $action === 'ldap_starttls_failed' ? 'selected' : ''; ?>>LDAP STARTTLS fallido</option>
-                            </optgroup>
+                            <?php foreach ($actions as $act): ?>
+                                <option value="<?php echo htmlspecialchars($act); ?>" <?php echo $action === $act ? 'selected' : ''; ?>><?php echo htmlspecialchars($act); ?></option>
+                            <?php endforeach; ?>
                         </select>
                         <small style="display:block; margin-top:0.25rem; color:var(--text-muted);">Selecciona una acción para filtrar los registros.</small>
                     </div>
@@ -76,9 +62,11 @@ renderHeader('Registros de Actividad', $user);
                             <i class="fas fa-filter"></i> Filtrar
                         </button>
                         <a href="<?php echo BASE_URL; ?>/admin/export_activity_log.php?date_from=<?php echo urlencode($dateFrom); ?>&date_to=<?php echo urlencode($dateTo); ?>&action=<?php echo urlencode($action); ?>" 
-                           class="btn btn-success" title="Exportar a Excel">
-                            <i class="fas fa-file-excel"></i>
+                           class="btn btn-success" title="Exportar a Excel" style="padding:0.55rem 1.25rem; font-size:1rem; margin-left:0.6rem; display:inline-flex; align-items:center; gap:0.5rem; min-width:120px; min-height:42px;">
+                            <i class="fas fa-file-excel fa-lg" aria-hidden="true"></i>
+                            <span style="font-weight:600;">Exportar</span>
                         </a>
+                        <!-- Compact view removed: always show full logs table for admins -->
                     </div>
                 </div>
             </form>

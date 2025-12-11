@@ -117,10 +117,20 @@ if ($filterType) {
 
 $whereClause = implode(' AND ', $where);
 
-// Valid sort columns
-$validSort = ['original_name', 'file_size', 'created_at', 'username', 'mime_type'];
+// Valid sort columns (include shared indicators)
+$validSort = ['original_name', 'file_size', 'created_at', 'username', 'mime_type', 'is_shared', 'share_count'];
 if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
 $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'ASC' : 'DESC';
+
+// Map sort key to actual ORDER BY expression
+if ($sortBy === 'username') {
+    $orderColumn = 'u.username';
+} elseif ($sortBy === 'share_count') {
+    // share_count is an alias in the SELECT, ordering by alias is supported
+    $orderColumn = 'share_count';
+} else {
+    $orderColumn = 'f.' . $sortBy;
+}
 
 // Get files
 $stmt = $db->prepare("
@@ -132,7 +142,7 @@ $stmt = $db->prepare("
     FROM files f
     LEFT JOIN users u ON f.user_id = u.id
     WHERE $whereClause
-    ORDER BY " . ($sortBy === 'username' ? 'u.username' : 'f.' . $sortBy) . " $sortOrder
+    ORDER BY " . $orderColumn . " $sortOrder
     LIMIT ? OFFSET ?
 ");
 $params[] = $perPage;
@@ -378,7 +388,15 @@ renderHeader('Gestión de Archivos', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th>Compartido</th>
+                                    <th>
+                                        <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'is_shared', 'order' => $sortBy === 'is_shared' && $sortOrder === 'ASC' ? 'DESC' : 'ASC'])); ?>" 
+                                           class="sort-link <?php echo $sortBy === 'is_shared' ? 'active' : ''; ?>">
+                                            Compartido
+                                            <?php if ($sortBy === 'is_shared'): ?>
+                                                <i class="fas fa-sort-<?php echo $sortOrder === 'ASC' ? 'up' : 'down'; ?>"></i>
+                                            <?php endif; ?>
+                                        </a>
+                                    </th>
                                     <th>
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'created_at', 'order' => $sortBy === 'created_at' && $sortOrder === 'ASC' ? 'DESC' : 'ASC'])); ?>" 
                                            class="sort-link <?php echo $sortBy === 'created_at' ? 'active' : ''; ?>">
