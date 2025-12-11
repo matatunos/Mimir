@@ -224,7 +224,7 @@ renderHeader('Gestión de Usuarios', $user);
 /* Responsive adjustments to save horizontal space */
 .users-table-compact { table-layout: fixed; width: 100%; }
 .users-table-compact th, .users-table-compact td {
-    padding: 0.18rem 0.35rem;
+    padding: 0.12rem 0.28rem;
     vertical-align: middle;
     white-space: nowrap;
     overflow: hidden;
@@ -243,9 +243,9 @@ renderHeader('Gestión de Usuarios', $user);
 /* sensible column widths (will be overridden by media queries) */
 .col-id { width: 6rem; }
 .col-username { width: 15rem; }
-.col-name { width: 13rem; }
-.col-email { width: 18rem; }
-.col-role { width: 8rem; }
+.col-name { width: 11rem; }
+.col-email { width: 14rem; }
+.col-role { width: 7rem; }
 .col-status { width: 6rem; }
 .col-2fa { width: 6rem; }
 .col-storage { width: 9rem; }
