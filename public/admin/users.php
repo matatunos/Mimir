@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['bulk_action']) && !e
     $success = 0;
     $errors = 0;
     
-    try {
+        try {
         foreach ($userIds as $userId) {
             if ($userId === $user['id']) continue; // Skip current user
             
@@ -85,7 +85,10 @@ $filter2FA = $_GET['twofa'] ?? '';
 $filterInactive = $_GET['inactive'] ?? '';
 $sortBy = $_GET['sort'] ?? 'created_at';
 $sortDir = $_GET['dir'] ?? 'desc';
-$sortOrder = $_GET['order'] ?? 'DESC';
+// Normalize sort direction and default to DESC
+$sortDir = strtoupper($sortDir) === 'ASC' ? 'ASC' : 'DESC';
+// Backwards compatibility: some parts used $sortOrder variable; keep for now but use $sortDir in SQL
+$sortOrder = $sortDir;
 $page = max(1, intval($_GET['page'] ?? 1));
 $perPage = isset($_GET['per_page']) ? max(10, min(100, intval($_GET['per_page']))) : 25;
 $offset = ($page - 1) * $perPage;
@@ -130,9 +133,9 @@ if ($filterInactive) {
 $whereClause = implode(' AND ', $where);
 
 // Valid sort columns
-$validSort = ['username', 'full_name', 'email', 'role', 'created_at', 'storage_quota', 'last_activity'];
+$validSort = ['id','username', 'full_name', 'email', 'role', 'created_at', 'storage_quota', 'last_activity'];
 if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
-$sortOrder = strtoupper($sortOrder) === 'ASC' ? 'ASC' : 'DESC';
+// $sortDir already normalized above
 
 // Get users with last activity
 $orderByColumn = ($sortBy === 'last_activity') ? 'last_activity' : "u.$sortBy";
@@ -218,6 +221,46 @@ renderHeader('Gestión de Usuarios', $user);
     height: 18px;
     cursor: pointer;
 }
+/* Responsive adjustments to save horizontal space */
+.users-table-compact { table-layout: fixed; width: 100%; }
+.users-table-compact th, .users-table-compact td {
+    padding: 0.28rem 0.45rem;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.users-table-compact .truncate {
+    display: inline-block;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.user-checkbox { width: 14px; height: 14px; }
+
+/* sensible column widths (will be overridden by media queries) */
+.col-id { width: 6rem; }
+.col-username { width: 13rem; }
+.col-name { width: 13rem; }
+.col-email { width: 18rem; }
+.col-role { width: 8rem; }
+.col-status { width: 6rem; }
+.col-2fa { width: 6rem; }
+.col-storage { width: 10rem; }
+.col-created { width: 8rem; }
+.col-last { width: 10rem; }
+.col-actions { width: 12rem; }
+
+/* Make action buttons wrap if necessary */
+.col-actions > div { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.col-actions .btn { padding: 4px 6px; font-size: 0.87rem; }
+
+/* Do not hide columns automatically; prefer horizontal scrolling or a compact toggle.
+   Hiding columns by media queries removed to preserve functionality. */
+
+/* Compact mode removed: always show all columns to preserve admin functionality */
 </style>
 
 <div class="content">
@@ -349,6 +392,7 @@ renderHeader('Gestión de Usuarios', $user);
                             <option value="50" <?php echo $perPage === 50 ? 'selected' : ''; ?>>50</option>
                             <option value="100" <?php echo $perPage === 100 ? 'selected' : ''; ?>>100</option>
                         </select>
+                            <!-- Compact view option removed: always display full columns -->
                     </div>
                 </div>
             </form>
@@ -394,11 +438,20 @@ renderHeader('Gestión de Usuarios', $user);
                 <div class="table-responsive">
                     <form method="POST" id="bulkActionForm">
                         <input type="hidden" name="bulk_action" id="bulkActionInput">
-                        <table class="table">
+                        <table class="table users-table-compact">
                             <thead>
-                                <tr>
                                     <th style="width: 40px;">
                                         <input type="checkbox" id="selectAll" onchange="updateSelectAll(this)">
+                                    </th>
+                                    <th style="width: 80px;" class="col-id">
+                                        <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'id', 'dir' => ($sortBy === 'id' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
+                                            ID
+                                            <?php if ($sortBy === 'id'): ?>
+                                                <i class="fas fa-sort-<?php echo $sortDir === 'asc' ? 'up' : 'down'; ?>"></i>
+                                            <?php else: ?>
+                                                <i class="fas fa-sort" style="opacity: 0.3;"></i>
+                                            <?php endif; ?>
+                                        </a>
                                     </th>
                                     <th>
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'username', 'dir' => ($sortBy === 'username' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
@@ -410,7 +463,7 @@ renderHeader('Gestión de Usuarios', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th>
+                                    <th class="col-name">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'full_name', 'dir' => ($sortBy === 'full_name' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
                                             Nombre
                                             <?php if ($sortBy === 'full_name'): ?>
@@ -420,7 +473,7 @@ renderHeader('Gestión de Usuarios', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th>
+                                    <th class="col-email">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'email', 'dir' => ($sortBy === 'email' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
                                             Email
                                             <?php if ($sortBy === 'email'): ?>
@@ -430,7 +483,7 @@ renderHeader('Gestión de Usuarios', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th>
+                                    <th class="col-role">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'role', 'dir' => ($sortBy === 'role' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
                                             Rol
                                             <?php if ($sortBy === 'role'): ?>
@@ -440,9 +493,9 @@ renderHeader('Gestión de Usuarios', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th>Estado</th>
-                                    <th style="width: 120px;">2FA</th>
-                                    <th>
+                                    <th class="col-status">Estado</th>
+                                    <th class="col-2fa" style="width: 120px;">2FA</th>
+                                    <th class="col-storage">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'storage_quota', 'dir' => ($sortBy === 'storage_quota' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
                                             Almacenamiento
                                             <?php if ($sortBy === 'storage_quota'): ?>
@@ -452,7 +505,7 @@ renderHeader('Gestión de Usuarios', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th>
+                                    <th class="col-created">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'created_at', 'dir' => ($sortBy === 'created_at' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
                                             Registro
                                             <?php if ($sortBy === 'created_at'): ?>
@@ -462,7 +515,7 @@ renderHeader('Gestión de Usuarios', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th>
+                                    <th class="col-last">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'last_activity', 'dir' => ($sortBy === 'last_activity' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
                                             Última Actividad
                                             <?php if ($sortBy === 'last_activity'): ?>
@@ -483,17 +536,22 @@ renderHeader('Gestión de Usuarios', $user);
                                             <input type="checkbox" name="selected_users[]" value="<?php echo $u['id']; ?>" class="user-checkbox">
                                         <?php endif; ?>
                                     </td>
-                                <td>
-                                    <div style="font-weight: 500;"><?php echo htmlspecialchars($u['username']); ?></div>
+                                    <td style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace; color: var(--text-muted);">
+                                        <code><?php echo intval($u['id']); ?></code>
+                                    </td>
+                                    <td>
+                                    <div class="truncate" style="font-weight: 500;" title="<?php echo htmlspecialchars($u['username']); ?>"><?php echo htmlspecialchars($u['username']); ?></div>
                                     <?php if ($u['is_ldap']): ?><div style="font-size: 0.8125rem; color: var(--text-muted);"><i class="fas fa-lock"></i> LDAP</div><?php endif; ?>
                                 </td>
-                                <td>
-                                    <div style="font-weight: 500;"><?php echo htmlspecialchars($u['full_name'] ?: '-'); ?></div>
+                                <td class="col-name">
+                                    <div class="truncate" title="<?php echo htmlspecialchars($u['full_name'] ?: '-'); ?>" style="font-weight:500;">
+                                        <?php echo htmlspecialchars($u['full_name'] ?: '-'); ?>
+                                    </div>
                                     <div style="font-size: 0.75rem; color: var(--text-muted);">
                                         <?php echo $u['file_count']; ?> archivos
                                     </div>
                                 </td>
-                                <td><?php echo htmlspecialchars($u['email'] ?? '-'); ?></td>
+                                <td><div class="truncate" title="<?php echo htmlspecialchars($u['email'] ?? '-'); ?>"><?php echo htmlspecialchars($u['email'] ?? '-'); ?></div></td>
                                 <td>
                                     <span class="badge <?php echo $u['role'] === 'admin' ? 'badge-primary' : 'badge-secondary'; ?>">
                                         <?php echo $u['role'] === 'admin' ? 'Administrador' : 'Usuario'; ?>
@@ -515,7 +573,7 @@ renderHeader('Gestión de Usuarios', $user);
                                         <span class="badge badge-secondary" title="Sin 2FA">Sin 2FA</span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td class="col-storage">
                                     <?php 
                                     $usedGB = $u['used_storage'] / 1024 / 1024 / 1024;
                                     $quotaGB = $u['storage_quota'] / 1024 / 1024 / 1024;
@@ -528,11 +586,11 @@ renderHeader('Gestión de Usuarios', $user);
                                         <div style="background: <?php echo $percentage > 90 ? '#e74c3c' : ($percentage > 75 ? '#f39c12' : 'var(--primary)'); ?>; height: 100%; width: <?php echo min($percentage, 100); ?>%;"></div>
                                     </div>
                                 </td>
-                                <td>
+                                <td class="col-created">
                                     <div><?php echo date('d/m/Y', strtotime($u['created_at'])); ?></div>
                                     <div style="font-size: 0.75rem; color: var(--text-muted);"><?php echo date('H:i', strtotime($u['created_at'])); ?></div>
                                 </td>
-                                <td>
+                                <td class="col-last">
                                     <?php if ($u['last_activity']): ?>
                                         <?php 
                                         $lastActivity = strtotime($u['last_activity']);
@@ -553,7 +611,7 @@ renderHeader('Gestión de Usuarios', $user);
                                         <div style="color: var(--text-muted); font-style: italic;">Nunca</div>
                                     <?php endif; ?>
                                 </td>
-                                <td style="text-align: right;">
+                                <td class="col-actions" style="text-align: right; white-space: nowrap;">
                                     <div style="display: flex; gap: 0.25rem; justify-content: flex-end;">
                                         <a href="<?php echo BASE_URL; ?>/admin/user_edit.php?id=<?php echo $u['id']; ?>" 
                                            class="btn btn-sm btn-outline" 
@@ -683,6 +741,8 @@ document.addEventListener('DOMContentLoaded', function() {
         checkbox.addEventListener('change', updateBulkActionsBar);
     });
 });
+
+// Compact view feature removed — all columns are always visible for admin users.
 
 function updateBulkActionsBar() {
     const checkboxes = document.querySelectorAll('.user-checkbox:checked');
