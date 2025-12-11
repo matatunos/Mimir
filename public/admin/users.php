@@ -241,7 +241,7 @@ renderHeader('Gestión de Usuarios', $user);
 .user-checkbox { width: 14px; height: 14px; }
 
 /* sensible column widths (will be overridden by media queries) */
-.col-id { width: 6rem; }
+.col-id { width: 4rem; }
 .col-username { width: 11.6rem; }
 .col-name { width: 8.6rem; }
 .col-email { width: 11.5rem; }
@@ -251,7 +251,7 @@ renderHeader('Gestión de Usuarios', $user);
 .col-storage { width: 9rem; }
 .col-created { width: 6.5rem; }
 .col-last { width: 7rem; }
-.col-actions { width: 9rem; }
+.col-actions { width: 11rem; }
 
 /* Make action buttons wrap if necessary */
 .col-actions > div { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
@@ -443,7 +443,7 @@ renderHeader('Gestión de Usuarios', $user);
                                     <th style="width: 40px;">
                                         <input type="checkbox" id="selectAll" onchange="updateSelectAll(this)">
                                     </th>
-                                    <th style="width: 80px;" class="col-id">
+                                    <th style="width: 56px;" class="col-id">
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'id', 'dir' => ($sortBy === 'id' && $sortDir === 'asc') ? 'desc' : 'asc'])); ?>" class="sort-link">
                                             ID
                                             <?php if ($sortBy === 'id'): ?>
@@ -525,7 +525,7 @@ renderHeader('Gestión de Usuarios', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th style="width: 200px; text-align: right;">Acciones</th>
+                                    <th style="width: 240px; text-align: right;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
