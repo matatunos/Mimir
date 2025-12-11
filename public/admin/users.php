@@ -231,7 +231,7 @@ renderHeader('Gestión de Usuarios', $user);
 }
 .users-table-compact .truncate {
     display: inline-block;
-    max-width: 200px;
+    max-width: 190px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -242,8 +242,8 @@ renderHeader('Gestión de Usuarios', $user);
 
 /* sensible column widths (will be overridden by media queries) */
 .col-id { width: 6rem; }
-.col-username { width: 12rem; }
-.col-name { width: 9rem; }
+.col-username { width: 11.6rem; }
+.col-name { width: 8.6rem; }
 .col-email { width: 11.5rem; }
 .col-role { width: 5.8rem; }
 .col-status { width: 6rem; }
