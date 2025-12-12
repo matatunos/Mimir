@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../classes/Config.php';
 require_once __DIR__ . '/../../classes/Logger.php';
+require_once __DIR__ . '/../../classes/ForensicLogger.php';
 
 header('Content-Type: application/json');
 
@@ -39,6 +40,13 @@ try {
         $configClass->set('enable_config_protection', $enabled ? '1' : '0', 'boolean');
         $action = $enabled ? 'Protección de configuración activada' : 'Protección de configuración desactivada';
         $logger->log($user['id'], 'config_protection_toggle', 'system', null, $action);
+        try {
+            $forensic = new ForensicLogger();
+            $forensic->logSecurityEvent('config_protection_toggle', 'high', $action, ['enabled' => $enabled ? 1 : 0], $user['id']);
+        } catch (Exception $e) {
+            // Non-fatal: if forensic logging fails, continue but note in PHP log
+            error_log('ForensicLogger error: ' . $e->getMessage());
+        }
         echo json_encode(['success' => true, 'enabled' => $enabled, 'message' => $action]);
     } else {
         // Update maintenance mode
