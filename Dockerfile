@@ -33,6 +33,10 @@ RUN printf '%s\n' "<Directory ${APACHE_DOCUMENT_ROOT}>" \
  "</Directory>" > /etc/apache2/conf-available/mimir.conf \
  && a2enconf mimir
 
+# Ensure ServerName is set to avoid Apache warning about FQDN
+RUN printf '%s\n' "ServerName localhost" > /etc/apache2/conf-available/servername.conf \
+ && a2enconf servername
+
 # Ensure permissions for storage and uploads
 RUN mkdir -p /var/www/html/storage /var/www/html/storage/uploads \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/public || true
