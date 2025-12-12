@@ -368,6 +368,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Token de seguridad inválido';
     } else {
         try {
+            // If global protection is enabled, do not accept updates from this page.
+            if ((bool)$globalConfigProtection) {
+                $error = 'Protección de configuración activada: no se permiten cambios desde esta página. Use el control de protección en el menú de usuario.';
+                // Skip processing updates
+                throw new Exception($error);
+            }
             // Handle logo upload
             if (isset($_FILES['site_logo_file']) && $_FILES['site_logo_file']['error'] === UPLOAD_ERR_OK) {
                 $uploadDir = BASE_PATH . '/public/uploads/branding/';
@@ -879,7 +885,8 @@ renderHeader('Configuración del Sistema', $user, $auth);
                             <?php
                             // Only treat configs as readonly if global protection is enabled and the key is marked system,
                             // unless the key is explicitly listed in `$editableSystemKeys`.
-                            $isReadonly = ((bool)$globalConfigProtection && $cfg['is_system']) && !in_array($cfg['config_key'], $editableSystemKeys);
+                            // Global protection: when enabled, all fields are readonly. When disabled, all editable.
+                            $isReadonly = (bool)$globalConfigProtection;
                             $inputType = 'text';
                             $valueAttr = htmlspecialchars($cfg['config_value'], ENT_QUOTES);
                             // For password fields, render a password input and leave value empty (admin can fill to change)
