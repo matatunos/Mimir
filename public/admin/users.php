@@ -533,7 +533,7 @@ renderHeader('Gestión de Usuarios', $user);
                                 <tr id="user-row-<?php echo $u['id']; ?>">
                                     <td>
                                         <?php if ($u['id'] != $user['id']): ?>
-                                            <input type="checkbox" name="selected_users[]" value="<?php echo $u['id']; ?>" class="user-checkbox">
+                                            <input type="checkbox" name="user_ids[]" value="<?php echo $u['id']; ?>" class="user-checkbox">
                                         <?php endif; ?>
                                     </td>
                                     <td style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace; color: var(--text-muted);">
@@ -818,7 +818,7 @@ function toggleUserStatus(userId, activate) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(Mimir.parseJsonResponse)
     .then(data => {
         if (data.success) {
             const badge = document.getElementById('status-badge-' + userId);
@@ -928,7 +928,7 @@ function executePasswordReset(userId, username) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(Mimir.parseJsonResponse)
     .then(data => {
         if (data.success) {
             let message = `Contraseña actualizada para "${username}"\n\n`;
@@ -998,7 +998,7 @@ function setup2FA(userId, method, username) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(Mimir.parseJsonResponse)
     .then(data => {
         if (data.success) {
             if (method === 'totp') {
@@ -1081,7 +1081,7 @@ function sendTOTPEmail(userId, username) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(Mimir.parseJsonResponse)
     .then(data => {
         btn.disabled = false;
         btn.innerHTML = originalText;
@@ -1126,7 +1126,7 @@ function reset2FA(userId, username) {
         },
         body: formData
     })
-    .then(response => response.json())
+    .then(Mimir.parseJsonResponse)
     .then(data => {
         if (data.success) {
             Mimir.showAlert('2FA desactivado correctamente', 'success');

@@ -9,8 +9,37 @@ require_once __DIR__ . '/../../classes/Logger.php';
 header('Content-Type: application/json');
 
 $auth = new Auth();
-$auth->requireAdmin();
 $adminUser = $auth->getUser();
+
+// If this is an API call and the user is not logged in or not admin, return JSON error
+if (!$auth->isLoggedIn() || !$auth->isAdmin()) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Autenticación requerida', 'code' => 'AUTH_REQUIRED']);
+    exit;
+}
+
+// Ensure any PHP errors/exceptions are returned as JSON (helpful for debugging client-side parse errors)
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+set_exception_handler(function($e) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    $msg = $e->getMessage();
+    echo json_encode(['success' => false, 'message' => 'Server error: ' . $msg]);
+    exit;
+});
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && ($err['type'] & (E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR))) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Fatal error: ' . ($err['message'] ?? 'unknown')]);
+        exit;
+    }
+});
 
 $fileClass = new File();
 $userClass = new User();
@@ -29,27 +58,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
         
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("
-            SELECT id, username, email, full_name, role
+        $stmt = $db->prepare("SELECT id, username, email, full_name, role
             FROM users
             WHERE is_active = 1
             AND (username LIKE ? OR email LIKE ? OR full_name LIKE ?)
             ORDER BY username ASC
-            LIMIT 10
-        ");
-        
+            LIMIT 10");
+
         $searchTerm = '%' . $query . '%';
-        $stmt->bind_param('sss', $searchTerm, $searchTerm, $searchTerm);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        $users = [];
-        while ($user = $result->fetch_assoc()) {
-            $users[] = $user;
-        }
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         echo json_encode(['success' => true, 'users' => $users]);
         exit;
+    }
+    
+    // Return list of file IDs matching filters (used for batching)
+    if ($action === 'list_ids') {
+        $search = trim($_GET['search'] ?? '');
+        $filterUser = $_GET['user'] ?? '';
+        $filterShared = $_GET['shared'] ?? '';
+        $filterType = $_GET['type'] ?? '';
+
+        // Log that an admin requested ids (helps diagnosing auth/session problems)
+        try {
+            $logger->log($adminUser['id'] ?? null, 'list_ids_requested', 'files', 0, 'Requested list_ids', [
+                'search' => $search,
+                'user' => $filterUser,
+                'shared' => $filterShared,
+                'type' => $filterType
+            ]);
+        } catch (Exception $e) {
+            // don't break functionality on logging failure
+        }
+
+        $db = Database::getInstance()->getConnection();
+        $where = ["1=1"];
+        $params = [];
+        if ($search) {
+            $where[] = "(f.original_name LIKE ? OR f.description LIKE ? )";
+            $params[] = "%$search%";
+            $params[] = "%$search%";
+        }
+        if ($filterUser) {
+            $where[] = "u.username LIKE ?";
+            $params[] = "%$filterUser%";
+        }
+        if ($filterShared === 'yes') {
+            $where[] = "f.is_shared = 1";
+        } elseif ($filterShared === 'no') {
+            $where[] = "f.is_shared = 0";
+        }
+        if ($filterType) {
+            $where[] = "f.mime_type LIKE ?";
+            $params[] = "$filterType%";
+        }
+
+        $whereClause = implode(' AND ', $where);
+
+        // Pagination support: if limit/offset provided, return a page and total count
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 0;
+        $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+
+        if ($limit > 0) {
+            // get total count
+            $countStmt = $db->prepare("SELECT COUNT(*) as c FROM files f LEFT JOIN users u ON f.user_id = u.id WHERE $whereClause");
+            $countStmt->execute($params);
+            $total = intval($countStmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+
+            $stmt = $db->prepare("SELECT f.id FROM files f LEFT JOIN users u ON f.user_id = u.id WHERE $whereClause ORDER BY f.id ASC LIMIT ? OFFSET ?");
+            $execParams = array_merge($params, [$limit, $offset]);
+            $stmt->execute($execParams);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $ids = array_map(function($r){ return intval($r['id']); }, $rows);
+            echo json_encode(['success' => true, 'ids' => $ids, 'total' => $total]);
+            exit;
+        } else {
+            $stmt = $db->prepare("SELECT f.id FROM files f LEFT JOIN users u ON f.user_id = u.id WHERE $whereClause ORDER BY f.id ASC");
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $ids = array_map(function($r){ return intval($r['id']); }, $rows);
+            echo json_encode(['success' => true, 'ids' => $ids, 'total' => count($ids)]);
+            exit;
+        }
     }
 }
 
@@ -72,6 +163,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (isset($_POST['file_id'])) {
             $fileIds = [intval($_POST['file_id'])];
         }
+
+        // If `all` flag is provided, select all orphan files possibly filtered by search
+        if ((empty($fileIds) || !is_array($fileIds)) && isset($_POST['all']) && $_POST['all'] == '1') {
+            $search = trim($_POST['search'] ?? '');
+            $db = Database::getInstance()->getConnection();
+            if ($search !== '') {
+                $stmt = $db->prepare("SELECT id FROM files WHERE user_id IS NULL AND original_name LIKE ?");
+                $like = '%' . $search . '%';
+                $stmt->execute([$like]);
+            } else {
+                $stmt = $db->prepare("SELECT id FROM files WHERE user_id IS NULL");
+                $stmt->execute();
+            }
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $fileIds = array_map(function($r){ return intval($r['id']); }, $rows);
+        }
         
         if (empty($fileIds) || !$userId) {
             echo json_encode(['success' => false, 'message' => 'Parámetros inválidos']);
@@ -92,9 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($fileIds as $fileId) {
             // Verify file exists and is orphaned
             $stmt = $db->prepare("SELECT id, original_name FROM files WHERE id = ? AND user_id IS NULL");
-            $stmt->bind_param('i', $fileId);
-            $stmt->execute();
-            $file = $stmt->get_result()->fetch_assoc();
+            $stmt->execute([$fileId]);
+            $file = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$file) {
                 $failedFiles[] = "ID $fileId (no encontrado o no es huérfano)";
@@ -135,6 +241,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
+
+    if ($action === 'reassign_any') {
+        $userId = intval($_POST['user_id'] ?? 0);
+
+        $db = Database::getInstance()->getConnection();
+
+        // Collect file IDs
+        $fileIds = [];
+        if (isset($_POST['file_ids'])) {
+            $fileIds = json_decode($_POST['file_ids'], true);
+            if (!is_array($fileIds)) {
+                echo json_encode(['success' => false, 'message' => 'Formato de IDs inválido']);
+                exit;
+            }
+            $fileIds = array_map('intval', $fileIds);
+        } elseif (isset($_POST['file_id'])) {
+            $fileIds = [intval($_POST['file_id'])];
+        }
+
+        // If `select_all` flag is provided, select all files matching filters
+        if ((empty($fileIds) || !is_array($fileIds)) && isset($_POST['select_all']) && $_POST['select_all'] == '1') {
+            $filters = $_POST['filters'] ?? '';
+            $farr = [];
+            if ($filters !== '') parse_str($filters, $farr);
+
+            $search = $farr['search'] ?? '';
+            $filterUser = $farr['user'] ?? '';
+            $filterShared = $farr['shared'] ?? '';
+            $filterType = $farr['type'] ?? '';
+
+            $where = ["1=1"];
+            $params = [];
+            if ($search) {
+                $where[] = "(f.original_name LIKE ? OR f.description LIKE ?)";
+                $params[] = "%$search%";
+                $params[] = "%$search%";
+            }
+            if ($filterUser) {
+                $where[] = "u.username LIKE ?";
+                $params[] = "%$filterUser%";
+            }
+            if ($filterShared === 'yes') {
+                $where[] = "f.is_shared = 1";
+            } elseif ($filterShared === 'no') {
+                $where[] = "f.is_shared = 0";
+            }
+            if ($filterType) {
+                $where[] = "f.mime_type LIKE ?";
+                $params[] = "$filterType%";
+            }
+
+            $whereClause = implode(' AND ', $where);
+            $stmt = $db->prepare("SELECT f.id FROM files f LEFT JOIN users u ON f.user_id = u.id WHERE $whereClause");
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $fileIds = array_map(function($r){ return intval($r['id']); }, $rows);
+        }
+
+        if (empty($fileIds) || !$userId) {
+            echo json_encode(['success' => false, 'message' => 'Parámetros inválidos']);
+            exit;
+        }
+
+        $user = $userClass->getById($userId);
+        if (!$user) {
+            echo json_encode(['success' => false, 'message' => 'Usuario no encontrado']);
+            exit;
+        }
+
+        $successCount = 0;
+        $failedFiles = [];
+
+        foreach ($fileIds as $fileId) {
+            $stmt = $db->prepare("SELECT id, original_name FROM files WHERE id = ?");
+            $stmt->execute([$fileId]);
+            $file = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$file) {
+                $failedFiles[] = "ID $fileId (no encontrado)";
+                continue;
+            }
+
+            try {
+                if ($fileClass->reassignOwner($fileId, $userId)) {
+                    $logger->log(
+                        $adminUser['id'],
+                        'file_reassigned',
+                        'file',
+                        $fileId,
+                        "Archivo '{$file['original_name']}' reasignado a {$user['username']}"
+                    );
+                    $successCount++;
+                } else {
+                    $failedFiles[] = $file['original_name'];
+                }
+            } catch (Exception $e) {
+                $failedFiles[] = $file['original_name'] . " (error: {$e->getMessage()})";
+            }
+        }
+
+        if ($successCount > 0 && empty($failedFiles)) {
+            echo json_encode(['success' => true, 'count' => $successCount]);
+        } elseif ($successCount > 0) {
+            echo json_encode([
+                'success' => true,
+                'count' => $successCount,
+                'message' => "Se reasignaron $successCount archivo(s), pero algunos fallaron: " . implode(', ', $failedFiles)
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'No se pudo reasignar ningún archivo. Errores: ' . implode(', ', $failedFiles)]);
+        }
+        exit;
+    }
     
     if ($action === 'delete') {
         $fileId = intval($_POST['file_id'] ?? 0);
@@ -146,10 +364,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Verify file exists and is orphaned
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT id, filename, file_path FROM files WHERE id = ? AND user_id IS NULL");
-        $stmt->bind_param('i', $fileId);
-        $stmt->execute();
-        $file = $stmt->get_result()->fetch_assoc();
+        $stmt = $db->prepare("SELECT id, original_name, file_path FROM files WHERE id = ? AND user_id IS NULL");
+        $stmt->execute([$fileId]);
+        $file = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$file) {
             echo json_encode(['success' => false, 'message' => 'Archivo no encontrado o no es huérfano']);
@@ -158,23 +375,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         try {
             // Delete physical file
-            $fullPath = UPLOAD_DIR . '/' . $file['file_path'];
+            $fullPath = UPLOADS_PATH . '/' . $file['file_path'];
             if (file_exists($fullPath)) {
                 unlink($fullPath);
             }
             
             // Delete database record
             $stmt = $db->prepare("DELETE FROM files WHERE id = ?");
-            $stmt->bind_param('i', $fileId);
-            
-            if ($stmt->execute()) {
-                $logger->log(
-                    $adminUser['id'],
-                    'orphan_deleted',
-                    'file',
-                    $fileId,
-                    "Archivo huérfano '{$file['filename']}' eliminado"
-                );
+            if ($stmt->execute([$fileId])) {
+                    $logger->log(
+                        $adminUser['id'],
+                        'orphan_deleted',
+                        'file',
+                        $fileId,
+                        "Archivo huérfano '{$file['original_name']}' eliminado"
+                    );
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Error al eliminar el archivo']);
@@ -186,49 +401,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if ($action === 'bulk_delete') {
-        $fileIds = json_decode($_POST['file_ids'] ?? '[]', true);
-        
-        if (!is_array($fileIds) || empty($fileIds)) {
-            echo json_encode(['success' => false, 'message' => 'No se seleccionaron archivos']);
-            exit;
-        }
-        
         $db = Database::getInstance()->getConnection();
-        $placeholders = implode(',', array_fill(0, count($fileIds), '?'));
-        $types = str_repeat('i', count($fileIds));
-        
-        // Get orphaned files
-        $stmt = $db->prepare("SELECT id, filename, file_path FROM files WHERE id IN ($placeholders) AND user_id IS NULL");
-        $stmt->bind_param($types, ...$fileIds);
-        $stmt->execute();
-        $files = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        
+
+        // If 'all' flag is set, select all orphan files (optionally filtered by search)
+        if (isset($_POST['all']) && $_POST['all'] == '1') {
+            $search = trim($_POST['search'] ?? '');
+            if ($search !== '') {
+                $stmt = $db->prepare("SELECT id, original_name, file_path FROM files WHERE user_id IS NULL AND original_name LIKE ?");
+                $like = '%' . $search . '%';
+                $stmt->execute([$like]);
+            } else {
+                $stmt = $db->prepare("SELECT id, original_name, file_path FROM files WHERE user_id IS NULL");
+                $stmt->execute();
+            }
+            $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            $fileIds = json_decode($_POST['file_ids'] ?? '[]', true);
+            if (!is_array($fileIds) || empty($fileIds)) {
+                echo json_encode(['success' => false, 'message' => 'No se seleccionaron archivos']);
+                exit;
+            }
+            $placeholders = implode(',', array_fill(0, count($fileIds), '?'));
+            $types = str_repeat('i', count($fileIds));
+            
+            // Get orphaned files
+            $stmt = $db->prepare("SELECT id, original_name, file_path FROM files WHERE id IN ($placeholders) AND user_id IS NULL");
+            $stmt->execute($fileIds);
+            $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
         if (empty($files)) {
             echo json_encode(['success' => false, 'message' => 'No se encontraron archivos huérfanos']);
             exit;
         }
-        
+
         $deleted = 0;
         foreach ($files as $file) {
             try {
                 // Delete physical file
-                $fullPath = UPLOAD_DIR . '/' . $file['file_path'];
+                $fullPath = UPLOADS_PATH . '/' . $file['file_path'];
                 if (file_exists($fullPath)) {
                     unlink($fullPath);
                 }
                 
                 // Delete database record
                 $stmt = $db->prepare("DELETE FROM files WHERE id = ?");
-                $stmt->bind_param('i', $file['id']);
-                
-                if ($stmt->execute()) {
+                if ($stmt->execute([$file['id']])) {
                     $deleted++;
                     $logger->log(
                         $adminUser['id'],
                         'orphan_deleted',
                         'file',
                         $file['id'],
-                        "Archivo huérfano '{$file['filename']}' eliminado (bulk)"
+                        "Archivo huérfano '{$file['original_name']}' eliminado (bulk)"
                     );
                 }
             } catch (Exception $e) {

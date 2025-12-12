@@ -50,21 +50,22 @@ try {
     switch ($action) {
         case 'delete':
             $result = $userClass->delete($userId);
-            if ($result['success']) {
+            if (is_array($result) && !empty($result['success'])) {
+                $orphaned = intval($result['orphaned_files'] ?? 0);
                 $logger->log(
                     $adminUser['id'], 
                     'user_delete', 
                     'user', 
                     $userId, 
-                    "Usuario '{$targetUser['username']}' eliminado. {$result['orphaned_files']} archivos huérfanos."
+                    "Usuario '{$targetUser['username']}' eliminado. {$orphaned} archivos huérfanos."
                 );
                 $response['success'] = true;
                 $response['message'] = "Usuario eliminado correctamente";
-                if ($result['orphaned_files'] > 0) {
-                    $response['message'] .= ". {$result['orphaned_files']} archivos quedaron huérfanos.";
+                if ($orphaned > 0) {
+                    $response['message'] .= ". {$orphaned} archivos quedaron huérfanos.";
                 }
             } else {
-                throw new Exception($result['message'] ?? 'Error al eliminar usuario');
+                throw new Exception(is_array($result) ? ($result['message'] ?? 'Error al eliminar usuario') : 'Error al eliminar usuario');
             }
             break;
             

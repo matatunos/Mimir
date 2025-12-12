@@ -121,12 +121,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $emailBody .= "<p>Por favor, cambia tu contraseña después del primer inicio de sesión.</p>";
                     $emailBody .= "<hr><p style='color: #666; font-size: 0.875rem;'>Este es un mensaje automático, por favor no responder.</p>";
                     
-                    $headers = "MIME-Version: 1.0\r\n";
-                    $headers .= "Content-type: text/html; charset=utf-8\r\n";
-                    $headers .= "From: " . (SMTP_FROM_EMAIL ?? 'noreply@' . $_SERVER['HTTP_HOST']) . "\r\n";
-                    
-                    if (mail($email, 'Cuenta creada en ' . (SITE_NAME ?? 'Mimir'), $emailBody, $headers)) {
-                        $logger->log($user['id'], 'email_sent', 'user', $userId, "Email de bienvenida enviado a: $email");
+                    require_once __DIR__ . '/../../classes/Email.php';
+                    $fromEmail = defined('SMTP_FROM_EMAIL') ? SMTP_FROM_EMAIL : ('noreply@' . parse_url(BASE_URL, PHP_URL_HOST));
+                    try {
+                        $emailSender = new Email();
+                        $sent = $emailSender->send($email, 'Cuenta creada en ' . (SITE_NAME ?? 'Mimir'), $emailBody, ['from_email' => $fromEmail, 'from_name' => SITE_NAME ?? 'Mimir']);
+                        if ($sent) {
+                            $logger->log($user['id'], 'email_sent', 'user', $userId, "Email de bienvenida enviado a: $email");
+                        }
+                    } catch (Exception $e) {
+                        error_log('Welcome email send error: ' . $e->getMessage());
                     }
                 }
                 

@@ -35,18 +35,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $maxDays = min(intval($_POST['max_days'] ?? $defaultMaxDays), $defaultMaxDays);
             $maxDownloads = intval($_POST['max_downloads'] ?? 0) ?: null;
             $password = !empty($_POST['password']) ? $_POST['password'] : null;
-            
+
+            // Validate recipient email if provided
+            $recipientEmail = null;
+            $recipientMessage = null;
+            if (!empty($_POST['recipient_email'])) {
+                require_once __DIR__ . '/../../classes/SecurityValidator.php';
+                $validator = SecurityValidator::getInstance();
+                $candidate = trim($_POST['recipient_email']);
+                if ($validator->validateEmail($candidate)) {
+                    $recipientEmail = $candidate;
+                } else {
+                    throw new Exception('Email destinatario inválido');
+                }
+            }
+            if (!empty($_POST['recipient_message'])) {
+                $recipientMessage = trim($_POST['recipient_message']);
+            }
+
             $result = $shareClass->create($fileId, $user['id'], [
                 'max_days' => $maxDays,
                 'max_downloads' => $maxDownloads,
-                'password' => $password
+                'password' => $password,
+                'recipient_email' => $recipientEmail,
+                'recipient_message' => $recipientMessage
             ]);
-            
+
             $logger->log($user['id'], 'share_create', 'share', $result['id'], 'Usuario compartió archivo', [
                 'file_id' => $fileId,
                 'max_days' => $maxDays
             ]);
-            
+
             header('Location: ' . BASE_URL . '/user/shares.php?success=' . urlencode('Enlace creado correctamente'));
             exit;
         } catch (Exception $e) {
@@ -103,6 +122,17 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
                     <label>Contraseña (opcional)</label>
                     <input type="password" name="password" class="form-control" placeholder="Proteger con contraseña">
                     <small style="color: var(--text-muted);">Si está vacío, no requerirá contraseña</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Enviar a (email destinatario, opcional)</label>
+                    <input type="email" name="recipient_email" class="form-control" placeholder="correo@ejemplo.com">
+                    <small style="color: var(--text-muted);">Opcional: si indicas un email, se podrá informar al propietario cuando se descargue el archivo.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensaje breve al destinatario (opcional)</label>
+                    <textarea name="recipient_message" class="form-control" rows="3" placeholder="Texto breve que recibirá el destinatario"></textarea>
                 </div>
 
                 <div style="display: flex; gap: 0.75rem;">

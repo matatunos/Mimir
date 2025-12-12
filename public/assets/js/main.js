@@ -14,6 +14,127 @@ const Mimir = {
         document.body.appendChild(alert);
         setTimeout(() => alert.remove(), 5000);
     },
+
+    showAuthBanner: function(message) {
+        // If already present, update message and return
+        let banner = document.getElementById('mimir-auth-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'mimir-auth-banner';
+            banner.style.position = 'fixed';
+            banner.style.top = '0';
+            banner.style.left = '0';
+            banner.style.right = '0';
+            banner.style.zIndex = '2147483647';
+            banner.style.background = '#fff3cd';
+            banner.style.borderBottom = '1px solid #ffeeba';
+            banner.style.color = '#856404';
+            banner.style.padding = '0.75rem 1rem';
+            banner.style.display = 'flex';
+            banner.style.alignItems = 'center';
+            banner.style.justifyContent = 'space-between';
+
+            const msg = document.createElement('div');
+            msg.id = 'mimir-auth-banner-msg';
+            msg.style.flex = '1';
+            msg.style.marginRight = '1rem';
+            banner.appendChild(msg);
+
+            const actions = document.createElement('div');
+            actions.style.display = 'flex';
+            actions.style.gap = '0.5rem';
+
+            const relogin = document.createElement('button');
+            relogin.className = 'btn';
+            relogin.textContent = 'Reautenticar';
+            relogin.style.background = '#007bff';
+            relogin.style.color = 'white';
+            relogin.style.border = 'none';
+            relogin.style.padding = '0.4rem 0.8rem';
+            relogin.style.borderRadius = '4px';
+            relogin.onclick = function() { window.open(window.location.origin + '/login.php', '_blank'); };
+
+            const reload = document.createElement('button');
+            reload.className = 'btn';
+            reload.textContent = 'Recargar';
+            reload.style.background = '#28a745';
+            reload.style.color = 'white';
+            reload.style.border = 'none';
+            reload.style.padding = '0.4rem 0.8rem';
+            reload.style.borderRadius = '4px';
+            reload.onclick = function() { window.location.reload(); };
+
+            actions.appendChild(relogin);
+            actions.appendChild(reload);
+            banner.appendChild(actions);
+
+            document.body.appendChild(banner);
+        }
+        const msgEl = document.getElementById('mimir-auth-banner-msg');
+        if (msgEl) msgEl.textContent = message || 'Sesión expirada o no autorizada. Por favor reautentica.';
+    },
+
+    hideAuthBanner: function() {
+        const banner = document.getElementById('mimir-auth-banner');
+        if (banner) banner.remove();
+    },
+
+    processListIdsInPages: async function(listUrl, action, pageSize = 500, chunkSize = 100, callbacks = {}) {
+        // callbacks: onProgress(processed, total), onLog(text), onError(err), onComplete()
+        const onProgress = callbacks.onProgress || function(){};
+        const onLog = callbacks.onLog || function(){};
+        const onError = callbacks.onError || function(e){ console.error(e); };
+        const onComplete = callbacks.onComplete || function(){};
+
+        let offset = 0;
+        let total = null;
+        let processed = 0;
+
+        try {
+            while (true) {
+                const url = listUrl + (listUrl.includes('?') ? '&' : '?') + 'limit=' + encodeURIComponent(pageSize) + '&offset=' + encodeURIComponent(offset);
+                onLog(`Obteniendo IDs ${offset}..${offset+pageSize}`);
+                const resp = await fetch(url, { credentials: 'same-origin' });
+                const data = await this.parseJsonResponse(resp);
+                if (!data.success) throw new Error(data.message || 'Error obteniendo IDs');
+                const ids = data.ids || [];
+                if (total === null) total = parseInt(data.total) || null;
+                if (!ids.length) break;
+
+                // Process ids in chunks of chunkSize
+                // Determine POST URL: use the base of listUrl (before '?') so we post to the API endpoint
+                const postUrl = listUrl.split('?')[0];
+                for (let i = 0; i < ids.length; i += chunkSize) {
+                    const chunk = ids.slice(i, i + chunkSize);
+                    const fd = new FormData();
+                    fd.append('action', action);
+                    fd.append('file_ids', JSON.stringify(chunk));
+
+                    onLog(`Enviando lote de ${chunk.length} elementos`);
+                    const postResp = await fetch(postUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const postData = await this.parseJsonResponse(postResp);
+                    if (!postData.success) {
+                        onLog(`Lote fallido: ${postData.message || 'sin detalle'}`);
+                    } else {
+                        onLog(`Lote procesado: ${chunk.length}`);
+                    }
+
+                    processed += chunk.length;
+                    onProgress(processed, total);
+                    // small pause to avoid hammering the server
+                    await new Promise(r => setTimeout(r, 120));
+                }
+
+                // advance
+                if (ids.length < pageSize) break;
+                offset += pageSize;
+            }
+
+            onComplete();
+        } catch (err) {
+            onError(err);
+        }
+    },
     
     ajax: function(url, options = {}) {
         const defaults = {
@@ -31,7 +152,45 @@ const Mimir = {
         
         return fetch(url, config).then(response => {
             if (!response.ok) throw new Error('Network response was not ok');
-            return response.json();
+            return this.parseJsonResponse(response);
+        });
+    },
+
+    parseJsonResponse: function(response) {
+        // Read raw text first so we can provide a helpful sample on parse failure,
+        // even if the Content-Type header is present but body is empty or malformed.
+        return response.text().then(text => {
+            const trimmed = (text || '').trim();
+            if (!trimmed) {
+                const err = new Error('Empty response from server');
+                err.serverResponse = '';
+                err.fullResponse = text;
+                throw err;
+            }
+
+            // Detect common signs of an HTML login page or redirect (session expired)
+            const lowered = trimmed.toLowerCase();
+            const looksLikeHtml = lowered.includes('<html') || lowered.includes('<form') || lowered.includes('name="username"') || lowered.includes('login.php') || lowered.includes('iniciar sesi') || lowered.includes('sign in');
+            if (looksLikeHtml || response.status === 401 || response.status === 403) {
+                const sample = trimmed.slice(0, 2000);
+                const err = new Error('Autenticación requerida (sesión expirada o no autorizado)');
+                err.code = 'AUTH_REQUIRED';
+                err.serverResponse = sample;
+                err.fullResponse = text;
+                throw err;
+            }
+
+            // Try to parse JSON regardless of content-type header
+            try {
+                const parsed = JSON.parse(trimmed);
+                return parsed;
+            } catch (e) {
+                const sample = trimmed.slice(0, 2000);
+                const err = new Error('Invalid JSON response from server');
+                err.serverResponse = sample;
+                err.fullResponse = text;
+                throw err;
+            }
         });
     },
     
@@ -178,7 +337,7 @@ function toggleMaintenance(event, enable, csrfToken) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => this.parseJsonResponse(response))
     .then(data => {
         if (data.success) {
             alert(data.message);

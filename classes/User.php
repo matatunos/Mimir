@@ -264,7 +264,7 @@ class User {
         try {
             // Don't allow deleting yourself
             if ($id == ($_SESSION['user_id'] ?? 0)) {
-                return false;
+                return ['success' => false, 'message' => 'No puedes eliminar tu propio usuario'];
             }
             
             $user = $this->getById($id);
@@ -276,16 +276,16 @@ class User {
             $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM files WHERE user_id = ?");
             $stmt->execute([$id]);
             $fileCount = $stmt->fetch()['count'] ?? 0;
-            
+
             // Delete user (files will become orphans with user_id = NULL due to ON DELETE SET NULL)
             $stmt = $this->db->prepare("DELETE FROM users WHERE id = ?");
             $stmt->execute([$id]);
-            
+
             $message = "User deleted: {$user['username']}";
             if ($fileCount > 0) {
                 $message .= " ($fileCount files now orphaned)";
             }
-            
+
             $this->logger->log(
                 $_SESSION['user_id'] ?? null,
                 'user_deleted',
@@ -293,11 +293,11 @@ class User {
                 $id,
                 $message
             );
-            
-            return true;
+
+            return ['success' => true, 'orphaned_files' => intval($fileCount), 'message' => $message];
         } catch (Exception $e) {
             error_log("User delete error: " . $e->getMessage());
-            return false;
+            return ['success' => false, 'message' => 'Error interno al eliminar usuario'];
         }
     }
     
@@ -308,24 +308,31 @@ class User {
         try {
             $this->db->beginTransaction();
             
-            $deleted = 0;
+            $results = ['deleted' => 0, 'errors' => 0, 'details' => []];
             foreach ($ids as $id) {
                 // Skip current user
                 if ($id == ($_SESSION['user_id'] ?? 0)) {
+                    $results['errors']++;
+                    $results['details'][] = ['id' => $id, 'success' => false, 'message' => 'No puedes eliminar tu propio usuario'];
                     continue;
                 }
-                
-                if ($this->delete($id)) {
-                    $deleted++;
+
+                $res = $this->delete($id);
+                if (is_array($res) && !empty($res['success'])) {
+                    $results['deleted']++;
+                    $results['details'][] = ['id' => $id, 'success' => true, 'orphaned_files' => $res['orphaned_files'] ?? 0];
+                } else {
+                    $results['errors']++;
+                    $results['details'][] = ['id' => $id, 'success' => false, 'message' => $res['message'] ?? 'Error al eliminar'];
                 }
             }
-            
+
             $this->db->commit();
-            return $deleted;
+            return $results;
         } catch (Exception $e) {
             $this->db->rollBack();
             error_log("User deleteMultiple error: " . $e->getMessage());
-            return 0;
+            return ['deleted' => 0, 'errors' => 1, 'message' => 'Error interno al eliminar múltiples usuarios'];
         }
     }
     

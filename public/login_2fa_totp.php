@@ -216,16 +216,7 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
                 <button type="submit" class="btn btn-primary btn-block">Verificar</button>
             </form>
             
-            <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
-                <button 
-                    type="button" 
-                    class="btn btn-outline btn-sm" 
-                    onclick="toggleBackupCode()"
-                    style="font-size: 0.875rem;"
-                >
-                    📋 Usar código de respaldo
-                </button>
-            </div>
+            <!-- Backup-code usage UI removed by policy -->
             
             <div style="text-align: center; margin-top: 1rem;">
                 <a href="<?php echo BASE_URL; ?>/logout.php" style="color: var(--text-muted); font-size: 0.875rem;">
@@ -236,35 +227,9 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
     </div>
     
     <script>
-    let useBackup = false;
-    
-    function toggleBackupCode() {
-        useBackup = !useBackup;
-        const form = document.getElementById('totpForm');
-        const codeInput = document.getElementById('code');
-        
-        if (useBackup) {
-            form.insertAdjacentHTML('afterbegin', '<input type="hidden" name="use_backup" value="1">');
-            codeInput.placeholder = 'Código de respaldo';
-            codeInput.maxLength = 16;
-            codeInput.pattern = '[0-9a-f]{8,16}';
-            codeInput.style.letterSpacing = '0.3rem';
-        } else {
-            const backupInput = form.querySelector('input[name="use_backup"]');
-            if (backupInput) backupInput.remove();
-            codeInput.placeholder = '000000';
-            codeInput.maxLength = 8;
-            codeInput.pattern = '[0-9]{6,8}';
-            codeInput.style.letterSpacing = '0.5rem';
-        }
-        
-        codeInput.value = '';
-        codeInput.focus();
-    }
-    
-    // Auto-submit on 6 digits
+    // Auto-submit on 6 digits (keep UX for TOTP apps)
     document.getElementById('code').addEventListener('input', function(e) {
-        if (!useBackup && e.target.value.length === 6) {
+        if (e.target.value.length === 6) {
             // Small delay to show the complete code
             setTimeout(() => {
                 document.getElementById('totpForm').submit();

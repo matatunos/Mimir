@@ -48,21 +48,39 @@ class Share {
             }
             
             // Insert share record
-            $stmt = $this->db->prepare("
-                INSERT INTO shares 
-                (file_id, share_token, share_name, password, max_downloads, expires_at, created_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ");
-            
-            $stmt->execute([
-                $fileId,
-                $shareToken,
-                $options['name'] ?? $file['original_name'],
-                $password,
-                $maxDownloads > 0 ? $maxDownloads : null,
-                $expiresAt,
-                $userId
-            ]);
+            // Some installations may not have the optional notification columns yet (migration not applied).
+            // Detect columns present in the `shares` table and build the INSERT dynamically to be tolerant.
+            $recipientEmail = !empty($options['recipient_email']) ? $options['recipient_email'] : null;
+            $recipientMessage = !empty($options['recipient_message']) ? $options['recipient_message'] : null;
+
+            $neededCols = ['file_id', 'share_token', 'share_name'];
+            $params = [$fileId, $shareToken, $options['name'] ?? $file['original_name']];
+
+            // Check which optional columns exist
+            $checkStmt = $this->db->prepare("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'shares' AND COLUMN_NAME IN ('recipient_email','recipient_message')");
+            $checkStmt->execute();
+            $existingCols = $checkStmt->fetchAll(PDO::FETCH_COLUMN, 0);
+
+            if (in_array('recipient_email', $existingCols)) {
+                $neededCols[] = 'recipient_email';
+                $params[] = $recipientEmail;
+            }
+            if (in_array('recipient_message', $existingCols)) {
+                $neededCols[] = 'recipient_message';
+                $params[] = $recipientMessage;
+            }
+
+            // Add remaining standard columns
+            $neededCols = array_merge($neededCols, ['password', 'max_downloads', 'expires_at', 'created_by']);
+            $params[] = $password;
+            $params[] = $maxDownloads > 0 ? $maxDownloads : null;
+            $params[] = $expiresAt;
+            $params[] = $userId;
+
+            $placeholders = array_fill(0, count($neededCols), '?');
+            $sql = 'INSERT INTO shares (' . implode(', ', $neededCols) . ') VALUES (' . implode(', ', $placeholders) . ')';
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
             
             $shareId = $this->db->lastInsertId();
             
@@ -71,11 +89,99 @@ class Share {
             
             // Log action
             $this->logger->log($userId, 'share_created', 'share', $shareId, "Share created for file: {$file['original_name']}");
-            
+
+            // If a recipient email was provided, send the share link by email
+            if (!empty($recipientEmail)) {
+                try {
+                    require_once __DIR__ . '/Email.php';
+                    $email = new Email();
+                    $shareUrl = BASE_URL . '/s/' . $shareToken;
+
+                    // Fetch owner info
+                    $ownerName = '';
+                    $ownerEmail = '';
+                    try {
+                        $suo = $this->db->prepare('SELECT username, full_name, email FROM users WHERE id = ? LIMIT 1');
+                        $suo->execute([$userId]);
+                        $ou = $suo->fetch();
+                        if ($ou) {
+                            $ownerName = $ou['full_name'] ?: $ou['username'];
+                            $ownerEmail = $ou['email'];
+                        }
+                    } catch (Exception $e) {
+                        // ignore
+                    }
+
+                    // Include site branding and colors if available
+                    require_once __DIR__ . '/Config.php';
+                    $cfg = new Config();
+                    $siteName = $cfg->get('site_name', '');
+                    $siteLogo = $cfg->get('site_logo', '');
+                    $brandPrimary = $cfg->get('brand_primary_color', '#667eea');
+                    $brandAccent = $cfg->get('brand_accent_color', $brandPrimary);
+                    $btnColor = $brandAccent;
+                    $subject = trim($siteName) ? 'Se ha compartido un archivo — ' . $siteName : 'Se ha compartido un archivo';
+                    $siteLogoUrl = '';
+                    if (!empty($siteLogo)) {
+                        if (preg_match('#^https?://#i', $siteLogo)) {
+                            $siteLogoUrl = $siteLogo;
+                        } elseif (strpos($siteLogo, '/') === 0) {
+                            $siteLogoUrl = $siteLogo;
+                        } else {
+                            $siteLogoUrl = '/' . ltrim($siteLogo, '/');
+                        }
+                    }
+
+                    $body = '<div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.06);">';
+                    if ($siteLogoUrl || $siteName) {
+                                $body .= '<div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:12px;">';
+                                if ($siteLogoUrl) $body .= '<img src="' . $siteLogoUrl . '" alt="' . htmlspecialchars($siteName ?: 'Site') . '" style="max-height:48px; margin-bottom:0;">';
+                                if ($siteName) $body .= '<div style="font-size:14px;color:#333;font-weight:700;">' . htmlspecialchars($siteName) . '</div>';
+                                $body .= '</div>';
+                    }
+                    $body .= '<div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">';
+                    $body .= '<div style="width:48px;height:48px;border-radius:24px;background:' . $btnColor . ';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;">' . strtoupper(substr($ownerName ?: 'S',0,1)) . '</div>';
+                    $body .= '<div>';
+                    $body .= '<div style="font-size:16px;font-weight:700;color:#222;">' . htmlspecialchars($ownerName ?: 'Un usuario') . '</div>';
+                    if (!empty($ownerEmail)) $body .= '<div style="font-size:12px;color:#666;">' . htmlspecialchars($ownerEmail) . '</div>';
+                    $body .= '</div></div>';
+
+                    $body .= '<h3 style="margin:0 0 8px 0;color:#222;font-size:18px;">Se ha compartido: ' . htmlspecialchars($file['original_name']) . '</h3>';
+                    if (!empty($recipientMessage)) {
+                        $body .= '<div style="margin:8px 0 12px 0;color:#444;">' . nl2br(htmlspecialchars($recipientMessage)) . '</div>';
+                    }
+                    $body .= '<div style="text-align:center;margin:18px 0;">';
+                    $body .= '<a href="' . $shareUrl . '" target="_blank" style="display:inline-block;padding:12px 22px;background:' . $btnColor . ';color:#000;text-decoration:none;border-radius:6px;font-weight:700;">Abrir enlace de descarga</a>';
+                    $body .= '</div>';
+                    $body .= '<div style="font-size:12px;color:#666;word-break:break-all;">Enlace directo: <a href="' . $shareUrl . '" target="_blank">' . $shareUrl . '</a></div>';
+                    $body .= '<div style="margin-top:18px;font-size:12px;color:#999;">Si no ha solicitado este correo, ignórelo.</div>';
+                    // Append configured email signature if present
+                    try {
+                        $cfg = new Config();
+                        $sig = $cfg->get('email_signature', '');
+                        if (!empty($sig)) {
+                            $body .= '<div style="margin-top:14px;color:#444;">' . $sig . '</div>';
+                        }
+                    } catch (Exception $e) {
+                        // ignore
+                    }
+                    $body .= '</div>';
+
+                    // Attempt send; ensure From uses site-configured sender
+                    $fromEmailCfg = $cfg->get('email_from_address', '');
+                    $fromNameCfg = $cfg->get('email_from_name', '');
+                    $email->send($recipientEmail, $subject, $body, ['from_email' => $fromEmailCfg, 'from_name' => $fromNameCfg]);
+                    $this->logger->log($userId, 'share_notification_sent', 'share', $shareId, "Share notification sent to {$recipientEmail}");
+                } catch (Exception $e) {
+                    error_log('Error sending share notification email: ' . $e->getMessage());
+                    $this->logger->log($userId, 'share_notification_failed', 'share', $shareId, 'Failed to send share notification: ' . $e->getMessage());
+                }
+            }
+
             return [
                 'id' => $shareId,
                 'token' => $shareToken,
-                'url' => BASE_URL . '/share.php?token=' . $shareToken
+                'url' => BASE_URL . '/s/' . $shareToken
             ];
         } catch (Exception $e) {
             error_log("Share create error: " . $e->getMessage());
@@ -88,7 +194,7 @@ class Share {
      */
     public function getByToken($token) {
         try {
-            $stmt = $this->db->prepare("\n                SELECT \n                    s.*,\n                    s.id as share_id,\n                    f.id as file_id,\n                    f.original_name,\n                    f.file_size,\n                    f.mime_type,\n                    f.file_path,\n                    u.username as owner_username,\n                    u.full_name as owner_name\n                FROM shares s\n                JOIN files f ON s.file_id = f.id\n                JOIN users u ON s.created_by = u.id\n                WHERE s.share_token = ?\n            ");
+            $stmt = $this->db->prepare("\n                SELECT \n                    s.*,\n                    s.id as share_id,\n                    f.id as file_id,\n                    f.original_name,\n                    f.file_size,\n                    f.mime_type,\n                    f.file_path,\n                    u.username as owner_username,\n                    u.full_name as owner_name,\n                    u.email as owner_email\n                FROM shares s\n                JOIN files f ON s.file_id = f.id\n                JOIN users u ON s.created_by = u.id\n                WHERE s.share_token = ?\n            ");
             $stmt->execute([$token]);
             return $stmt->fetch();
         } catch (Exception $e) {
@@ -523,7 +629,7 @@ class Share {
     /**
      * Download shared file
      */
-    public function download($token, $password = null) {
+    public function download($token, $password = null, $downloadLogId = null) {
         try {
             $validation = $this->validateAccess($token, $password);
             
@@ -533,31 +639,132 @@ class Share {
             
             $share = $validation['share'];
             
-            // Increment download count
-            $stmt = $this->db->prepare("UPDATE shares SET download_count = download_count + 1, last_accessed = NOW() WHERE id = ?");
-            $stmt->execute([$share['id']]);
-            
-            // Log access
-            $this->logger->logShareAccess($share['id'], 'download');
-            
-            // Check if limit reached after increment
-            if ($share['max_downloads'] && ($share['download_count'] + 1) >= $share['max_downloads']) {
-                // Deactivate share
-                $stmt = $this->db->prepare("UPDATE shares SET is_active = 0 WHERE id = ?");
-                $stmt->execute([$share['id']]);
-                
-                // Update file shared status
-                $this->fileClass->updateSharedStatus($share['file_id']);
+            // Normalize file path: support relative paths stored in DB (e.g., 'uploads/...')
+            $filePath = $share['file_path'];
+            if (!empty($filePath) && !preg_match('#^(\/|[A-Za-z]:\\\\)#', $filePath)) {
+                // prepend UPLOADS_PATH if defined
+                if (defined('UPLOADS_PATH') && UPLOADS_PATH) {
+                    $filePath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($filePath, '/');
+                } else {
+                    // fallback to BASE_PATH/public
+                    $filePath = rtrim(constant('BASE_PATH'), '/') . '/' . ltrim($filePath, '/');
+                }
             }
+
+            // Ensure file exists before incrementing counters
+            if (file_exists($filePath)) {
+                // Increment download count
+                $stmt = $this->db->prepare("UPDATE shares SET download_count = download_count + 1, last_accessed = NOW() WHERE id = ?");
+                $stmt->execute([$share['id']]);
+
+                // Log access
+                $this->logger->logShareAccess($share['id'], 'download');
+
+                // Check if limit reached after increment
+                if ($share['max_downloads'] && ($share['download_count'] + 1) >= $share['max_downloads']) {
+                    // Deactivate share
+                    $stmt = $this->db->prepare("UPDATE shares SET is_active = 0 WHERE id = ?");
+                    $stmt->execute([$share['id']]);
+
+                    // Update file shared status
+                    $this->fileClass->updateSharedStatus($share['file_id']);
+                }
             
-            // Send file
-            if (file_exists($share['file_path'])) {
-                header('Content-Type: ' . $share['mime_type']);
-                header('Content-Disposition: attachment; filename="' . $share['original_name'] . '"');
-                header('Content-Length: ' . $share['file_size']);
-                header('Cache-Control: no-cache');
+                // Send file with chunked streaming so we can track bytes transferred
                 
-                readfile($share['file_path']);
+                $fileSize = filesize($filePath);
+
+                // Headers
+                header('Content-Type: ' . ($share['mime_type'] ?: 'application/octet-stream'));
+                header('Content-Disposition: attachment; filename="' . basename($share['original_name']) . '"');
+                header('Content-Length: ' . $fileSize);
+                header('Cache-Control: no-cache');
+
+                // Avoid PHP aborting the script when client disconnects
+                ignore_user_abort(true);
+                set_time_limit(0);
+
+                $bytesSent = 0;
+                $chunkSize = 8192;
+                $handle = fopen($filePath, 'rb');
+                if ($handle === false) {
+                    return ['valid' => false, 'error' => 'Unable to open file'];
+                }
+
+                while (!feof($handle)) {
+                    $buffer = fread($handle, $chunkSize);
+                    echo $buffer;
+                    flush();
+                    $bytesSent += strlen($buffer);
+                }
+                fclose($handle);
+
+                // Attempt to mark forensic download complete if we have a log id
+                if (!empty($downloadLogId)) {
+                    try {
+                        $forensic = new ForensicLogger();
+                        $forensic->completeDownload($downloadLogId, $bytesSent, 200);
+                    } catch (Exception $e) {
+                        error_log('Error completing forensic download: ' . $e->getMessage());
+                    }
+                }
+
+                // Send notification to owner if recipient email was set on the share
+                if (!empty($share['recipient_email']) && !empty($share['owner_email'])) {
+                    require_once __DIR__ . '/Email.php';
+                    require_once __DIR__ . '/Config.php';
+                    $cfgNotif = new Config();
+                    $siteNameNotif = $cfgNotif->get('site_name', '');
+                    $siteLogoNotif = $cfgNotif->get('site_logo', '');
+                    $brandPrimaryNotif = $cfgNotif->get('brand_primary_color', '#667eea');
+                    $ownerEmail = $share['owner_email'];
+                    $recipient = htmlspecialchars($share['recipient_email']);
+                    $subject = trim($siteNameNotif) ? 'Notificación: archivo descargado desde su enlace compartido — ' . $siteNameNotif : 'Notificación: archivo descargado desde su enlace compartido';
+
+                    $bodyHtml = '<div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto;">';
+                    // header with logo
+                    $siteLogoUrlNotif = '';
+                    if (!empty($siteLogoNotif)) {
+                        if (preg_match('#^https?://#i', $siteLogoNotif)) { $siteLogoUrlNotif = $siteLogoNotif; }
+                        elseif (strpos($siteLogoNotif, '/') === 0) { $siteLogoUrlNotif = $siteLogoNotif; }
+                        else { $siteLogoUrlNotif = '/' . ltrim($siteLogoNotif, '/'); }
+                    }
+                    if ($siteLogoUrlNotif || $siteNameNotif) {
+                        $bodyHtml .= '<div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">';
+                        if ($siteLogoUrlNotif) $bodyHtml .= '<img src="' . $siteLogoUrlNotif . '" alt="' . htmlspecialchars($siteNameNotif ?: 'Site') . '" style="max-height:40px;">';
+                        if ($siteNameNotif) $bodyHtml .= '<div style="font-size:16px;color:' . htmlspecialchars($brandPrimaryNotif) . ';font-weight:700;">' . htmlspecialchars($siteNameNotif) . '</div>';
+                        $bodyHtml .= '</div>';
+                    }
+
+                    $bodyHtml .= '<h2 style="color:' . htmlspecialchars($brandPrimaryNotif) . ';">Notificación de descarga</h2>';
+                    $bodyHtml .= '<p>Estimado/a ' . htmlspecialchars($share['owner_name'] ?? $share['owner_username'] ?? 'Usuario') . ',</p>';
+                    $bodyHtml .= '<p>Su archivo <strong>' . htmlspecialchars($share['original_name']) . '</strong> ha sido descargado desde el enlace compartido.</p>';
+                    $bodyHtml .= '<h4>Detalles</h4><ul>';
+                    $bodyHtml .= '<li><strong>Destinatario previsto:</strong> ' . $recipient . '</li>';
+                    if (!empty($share['recipient_message'])) {
+                        $bodyHtml .= '<li><strong>Mensaje del remitente:</strong> ' . htmlspecialchars(substr($share['recipient_message'], 0, 500)) . '</li>';
+                    }
+                    $bodyHtml .= '<li><strong>Tamaño de archivo:</strong> ' . number_format($fileSize) . ' bytes</li>';
+                    $bodyHtml .= '<li><strong>Bytes transferidos:</strong> ' . number_format($bytesSent) . ' bytes</li>';
+                    $bodyHtml .= '<li><strong>IP del descargador:</strong> ' . htmlspecialchars($_SERVER['REMOTE_ADDR'] ?? 'unknown') . '</li>';
+                    $bodyHtml .= '<li><strong>User-Agent:</strong> ' . htmlspecialchars($_SERVER['HTTP_USER_AGENT'] ?? '') . '</li>';
+                    $bodyHtml .= '</ul>';
+                    $bodyHtml .= '<p>Si no esperaba esta descarga, revise su panel.</p>';
+                    $bodyHtml .= '<p>Atentamente,<br>' . ($siteNameNotif ? htmlspecialchars($siteNameNotif) : 'El sistema') . '</p>';
+                    $bodyHtml .= '</div>';
+
+                    try {
+                        $email = new Email();
+                        // Use configured sender for owner notifications as well
+                        $cfgNotif = new Config();
+                        $fromEmailNotif = $cfgNotif->get('email_from_address', '');
+                        $fromNameNotif = $cfgNotif->get('email_from_name', '');
+                        $email->send($ownerEmail, $subject, $bodyHtml, ['from_email' => $fromEmailNotif, 'from_name' => $fromNameNotif]);
+                    } catch (Exception $e) {
+                        error_log('Error sending share-download notification: ' . $e->getMessage());
+                    }
+                }
+
                 exit;
             }
             
@@ -599,6 +806,100 @@ class Share {
         } catch (Exception $e) {
             error_log("Deactivate expired shares error: " . $e->getMessage());
             return 0;
+        }
+    }
+
+    /**
+     * Resend notification email for a share if recipient_email is set
+     * @param int $shareId
+     * @param string|null $overrideRecipient optionally override recipient
+     * @return bool
+     */
+    public function resendNotification($shareId, $overrideRecipient = null) {
+        try {
+            require_once __DIR__ . '/Config.php';
+            $stmt = $this->db->prepare("SELECT s.*, f.original_name, u.full_name as owner_name, u.email as owner_email FROM shares s JOIN files f ON s.file_id = f.id JOIN users u ON s.created_by = u.id WHERE s.id = ? LIMIT 1");
+            $stmt->execute([$shareId]);
+            $share = $stmt->fetch();
+            if (!$share) return false;
+
+            $recipient = $overrideRecipient ?: ($share['recipient_email'] ?? null);
+            if (empty($recipient)) return false;
+
+            require_once __DIR__ . '/Email.php';
+            $email = new Email();
+            $shareUrl = BASE_URL . '/s/' . ($share['share_token'] ?? '');
+
+            // Branding and colors
+            require_once __DIR__ . '/Config.php';
+            $cfg = new Config();
+            $siteName = $cfg->get('site_name', '');
+            $siteLogo = $cfg->get('site_logo', '');
+            $brandPrimary = $cfg->get('brand_primary_color', '#667eea');
+            $brandAccent = $cfg->get('brand_accent_color', $brandPrimary);
+            $btnColor = $brandAccent;
+            $subject = trim($siteName) ? 'Se ha compartido un archivo — ' . $siteName : 'Se ha compartido un archivo';
+
+            $ownerName = $share['owner_name'] ?? '';
+            $ownerEmail = $share['owner_email'] ?? '';
+
+            $body = '<div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.06);">';
+            // header with logo + site name
+            $siteLogoUrl = '';
+            if (!empty($siteLogo)) {
+                if (preg_match('#^https?://#i', $siteLogo)) { $siteLogoUrl = $siteLogo; }
+                elseif (strpos($siteLogo, '/') === 0) { $siteLogoUrl = $siteLogo; }
+                else { $siteLogoUrl = '/' . ltrim($siteLogo, '/'); }
+            }
+            if ($siteLogoUrl || $siteName) {
+                $body .= '<div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; justify-content:center;">';
+                if ($siteLogoUrl) $body .= '<img src="' . $siteLogoUrl . '" alt="' . htmlspecialchars($siteName ?: 'Site') . '" style="max-height:48px; margin-bottom:0;">';
+                if ($siteName) $body .= '<div style="font-size:14px;color:#333;font-weight:700;">' . htmlspecialchars($siteName) . '</div>';
+                $body .= '</div>';
+            }
+
+            $body .= '<div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">';
+            $body .= '<div style="width:48px;height:48px;border-radius:24px;background:' . $btnColor . ';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;">' . strtoupper(substr($ownerName ?: 'S',0,1)) . '</div>';
+            $body .= '<div>';
+            $body .= '<div style="font-size:16px;font-weight:700;color:#222;">' . htmlspecialchars($ownerName ?: 'Un usuario') . '</div>';
+            if (!empty($ownerEmail)) $body .= '<div style="font-size:12px;color:#666;">' . htmlspecialchars($ownerEmail) . '</div>';
+            $body .= '</div></div>';
+
+            $body .= '<h3 style="margin:0 0 8px 0;color:#222;font-size:18px;">Se ha compartido: ' . htmlspecialchars($share['original_name']) . '</h3>';
+            if (!empty($share['recipient_message'])) {
+                $body .= '<div style="margin:8px 0 12px 0;color:#444;">' . nl2br(htmlspecialchars($share['recipient_message'])) . '</div>';
+            }
+            $body .= '<div style="text-align:center;margin:18px 0;">';
+            $body .= '<a href="' . $shareUrl . '" target="_blank" style="display:inline-block;padding:12px 22px;background:' . $btnColor . ';color:#000;text-decoration:none;border-radius:6px;font-weight:700;">Abrir enlace de descarga</a>';
+            $body .= '</div>';
+            $body .= '<div style="font-size:12px;color:#666;word-break:break-all;">Enlace directo: <a href="' . $shareUrl . '" target="_blank">' . $shareUrl . '</a></div>';
+            $body .= '<div style="margin-top:18px;font-size:12px;color:#999;">Si no ha solicitado este correo, ignórelo.</div>';
+            // Append configured email signature if present
+            try {
+                $cfg = new Config();
+                $sig = $cfg->get('email_signature', '');
+                if (!empty($sig)) {
+                    $body .= '<div style="margin-top:14px;color:#444;">' . $sig . '</div>';
+                }
+            } catch (Exception $e) {
+                // ignore
+            }
+            $body .= '</div>';
+
+            // Ensure resend emails come from the configured sender address
+            $fromEmailCfg = $cfg->get('email_from_address', '');
+            $fromNameCfg = $cfg->get('email_from_name', '');
+            $ok = $email->send($recipient, $subject, $body, ['from_email' => $fromEmailCfg, 'from_name' => $fromNameCfg]);
+            if ($ok) {
+                $this->logger->log($share['created_by'], 'share_notification_sent', 'share', $shareId, "Share notification sent to {$recipient}");
+                return true;
+            } else {
+                $this->logger->log($share['created_by'], 'share_notification_failed', 'share', $shareId, "Failed to send share notification to {$recipient}");
+                return false;
+            }
+        } catch (Exception $e) {
+            error_log('Resend notification error: ' . $e->getMessage());
+            return false;
         }
     }
 }

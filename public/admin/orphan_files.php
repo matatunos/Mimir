@@ -96,6 +96,29 @@ renderHeader('Archivos Huérfanos', $user);
     padding: 1rem;
     color: var(--text-muted);
 }
+
+.floating-action-bar {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 1rem;
+    z-index: 1000;
+    display: none;
+}
+.floating-action-bar .bar {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    color: var(--text);
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    min-width: 320px;
+    justify-content: center;
+}
+.floating-action-bar .bar .btn { font-size: 0.95rem; }
 </style>
 
 <div class="content">
@@ -253,8 +276,55 @@ renderHeader('Archivos Huérfanos', $user);
                     <?php endforeach; ?>
                 </select>
             </div>
+            <div style="margin-top:1rem; display:flex; gap:0.5rem; justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="closeAssignModal()">Cancelar</button>
+                <button class="btn btn-primary" id="assignConfirmBtn" onclick="confirmAssign()">Asignar</button>
+            </div>
         </div>
     </div>
+</div>
+
+<!-- Processing overlay (used for long operations like batch reassign/delete) -->
+<div id="processingOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.66); z-index:2147483647; align-items:center; justify-content:center;">
+    <div style="background:rgba(0,0,0,0.7); color:white; text-align:left; width:720px; max-width:95%; border-radius:8px; padding:1rem;">
+        <div style="display:flex; gap:1rem; align-items:center;">
+            <div style="font-size:2.25rem;">
+                <i class="fas fa-spinner fa-pulse"></i>
+            </div>
+            <div style="flex:1;">
+                <div id="processingMessage" style="font-size:1.05rem; margin-bottom:0.5rem;">Procesando, por favor espere...</div>
+                <div style="background: rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; height:14px; position:relative;">
+                    <div id="processingBarFill" style="background: linear-gradient(90deg,#4a90e2,#50c878); height:100%; width:0%; transition:width 250ms ease;"></div>
+                </div>
+                <div id="processingPercent" style="margin-top:6px; font-size:0.9rem; opacity:0.95;">0%</div>
+            </div>
+            <div style="min-width:120px; text-align:right; font-size:0.95rem; color: #fff; opacity:0.9;">
+                <div id="processingMiniStatus">Iniciado</div>
+            </div>
+        </div>
+
+        <div id="processingLogs" style="margin-top:0.75rem; max-height:180px; overflow:auto; background: rgba(255,255,255,0.04); border-radius:6px; padding:0.5rem; font-size:0.9rem; color:#fff; border:1px solid rgba(255,255,255,0.04);">
+            <!-- logs will be appended here -->
+        </div>
+    </div>
+</div>
+<style>
+    .mimir-spinner { width:40px; height:40px; border:5px solid rgba(255,255,255,0.12); border-top-color:#fff; border-radius:50%; animation:mimir-spin 1s linear infinite; margin-right:0.75rem; }
+    @keyframes mimir-spin { to { transform: rotate(360deg); } }
+</style>
+<div style="display:flex; gap:1rem; align-items:center;">
+    <div><div class="mimir-spinner" aria-hidden="true"></div></div>
+    <div style="flex:1;">
+        <div id="processingMessage" style="font-size:1.05rem; margin-bottom:0.5rem;">Procesando, por favor espere...</div>
+        <div style="background: rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; height:14px; position:relative;">
+            <div id="processingBarFill" style="background: linear-gradient(90deg,#4a90e2,#50c878); height:100%; width:0%; transition:width 250ms ease;"></div>
+        </div>
+        <div id="processingPercent" style="margin-top:6px; font-size:0.9rem; opacity:0.95;">0%</div>
+    </div>
+    <div style="min-width:120px; text-align:right; font-size:0.95rem; color: #fff; opacity:0.9;">
+        <div id="processingMiniStatus">Iniciado</div>
+    </div>
+</div>
 </div>
 
 <script>
@@ -275,24 +345,31 @@ let totalOrphans = <?php echo $totalOrphans; ?>;
 
 function updateBulkActions() {
     const selected = document.querySelectorAll('.file-select:checked').length;
+    console.log('[orphan_files] updateBulkActions selected=', selected, 'allFilesSelected=', allFilesSelected);
+
     const deleteBtn = document.getElementById('bulkDeleteBtn');
     const assignBtn = document.getElementById('bulkAssignBtn');
-    
-    deleteBtn.disabled = selected === 0 && !allFilesSelected;
-    assignBtn.disabled = selected === 0 && !allFilesSelected;
-    
-    deleteBtn.innerHTML = (selected > 0 || allFilesSelected) ? `🗑️ Eliminar ${(allFilesSelected ? totalOrphans : selected)} archivo(s)` : '🗑️ Eliminar seleccionados';
-    assignBtn.innerHTML = (selected > 0 || allFilesSelected) ? `👤 Asignar ${(allFilesSelected ? totalOrphans : selected)} archivo(s)` : '👤 Asignar seleccionados';
 
-    // Mostrar aviso para seleccionar todos
+    if (deleteBtn) deleteBtn.disabled = selected === 0 && !allFilesSelected;
+    if (assignBtn) assignBtn.disabled = selected === 0 && !allFilesSelected;
+
+    if (deleteBtn) deleteBtn.innerHTML = (selected > 0 || allFilesSelected) ? `🗑️ Eliminar ${(allFilesSelected ? totalOrphans : selected)} archivo(s)` : '🗑️ Eliminar seleccionados';
+    if (assignBtn) assignBtn.innerHTML = (selected > 0 || allFilesSelected) ? `👤 Asignar ${(allFilesSelected ? totalOrphans : selected)} archivo(s)` : '👤 Asignar seleccionados';
+
+    // Mostrar aviso para seleccionar todos (si existe)
     const selectAllNotice = document.getElementById('selectAllNotice');
     const selectedVisibleCount = document.getElementById('selectedVisibleCount');
-    if (selected === allFileIds.length && totalOrphans > allFileIds.length && !allFilesSelected) {
-        selectAllNotice.style.display = 'block';
-        selectedVisibleCount.textContent = selected;
-    } else {
-        selectAllNotice.style.display = 'none';
+    if (selectAllNotice && selectedVisibleCount) {
+        if (selected === allFileIds.length && totalOrphans > allFileIds.length && !allFilesSelected) {
+            selectAllNotice.style.display = 'block';
+            selectedVisibleCount.textContent = selected;
+        } else {
+            selectAllNotice.style.display = 'none';
+        }
     }
+
+    // Mostrar u ocultar barra flotante
+    toggleFloatingBar(selected);
 }
 
 function selectAllFiles() {
@@ -306,26 +383,47 @@ function showAssignModal(fileId, fileName) {
     document.getElementById('modalFileInfo').style.display = 'block';
     document.getElementById('modalFileName').textContent = fileName;
     document.getElementById('assignModal').style.display = 'block';
-    document.getElementById('userSearch').value = '';
-    document.getElementById('userSearchResults').style.display = 'none';
 }
 
 function bulkAssign() {
     let ids;
     if (allFilesSelected) {
-        ids = Array.from({length: totalOrphans}, (_, i) => i + 1); // Asume IDs secuenciales, ajustar si no
+        ids = []; // server will handle 'all' flag
     } else {
         const selected = document.querySelectorAll('.file-select:checked');
         ids = Array.from(selected).map(cb => parseInt(cb.value));
     }
-    if (ids.length === 0) return;
+    if (ids.length === 0 && !allFilesSelected) return;
     currentFileId = null;
     currentFileIds = ids;
     document.getElementById('modalFileInfo').style.display = 'block';
     document.getElementById('modalFileName').textContent = `${ids.length} archivo(s) seleccionado(s)`;
     document.getElementById('assignModal').style.display = 'block';
-    document.getElementById('userSearch').value = '';
-    document.getElementById('userSearchResults').style.display = 'none';
+}
+
+function confirmAssign() {
+    const sel = document.getElementById('userSelect');
+    const userId = parseInt(sel.value);
+    if (!userId) { alert('Selecciona un usuario'); return; }
+    if (allFilesSelected) {
+        const formData = new FormData();
+        formData.append('action', 'assign');
+        formData.append('all', '1');
+        formData.append('search', <?php echo json_encode($search); ?>);
+        formData.append('user_id', userId);
+
+        fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', { method: 'POST', body: formData })
+            .then(Mimir.parseJsonResponse)
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '?success=' + encodeURIComponent((data.count || 0) + ' archivos asignados correctamente');
+                } else {
+                    alert('Error: ' + (data.message || 'No se pudo asignar'));
+                }
+            }).catch(e => { alert('Error al asignar'); console.error(e); });
+    } else {
+        assignToUser(userId);
+    }
 }
 
 function closeAssignModal() {
@@ -335,8 +433,10 @@ function closeAssignModal() {
 }
 
 function searchUsers() {
-    const query = document.getElementById('userSearch').value.trim();
+    const searchInput = document.getElementById('userSearch');
     const resultsDiv = document.getElementById('userSearchResults');
+    if (!searchInput || !resultsDiv) return; // search UI not present in this modal (we use select)
+    const query = searchInput.value.trim();
     
     if (searchTimeout) clearTimeout(searchTimeout);
     
@@ -350,7 +450,7 @@ function searchUsers() {
     
     searchTimeout = setTimeout(() => {
         fetch(`<?php echo BASE_URL; ?>/admin/orphan_files_api.php?action=search_users&q=${encodeURIComponent(query)}`)
-            .then(response => response.json())
+            .then(Mimir.parseJsonResponse)
             .then(data => {
                 if (data.success && data.users.length > 0) {
                     resultsDiv.innerHTML = data.users.map(user => `
@@ -375,87 +475,153 @@ function assignToUser(userId) {
     if (!currentFileId && currentFileIds.length === 0) return;
     
     const fileIds = currentFileIds.length > 0 ? currentFileIds : [currentFileId];
-    const formData = new FormData();
-    formData.append('action', 'assign');
-    formData.append('file_ids', JSON.stringify(fileIds));
-    formData.append('user_id', userId);
-    
-    fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const count = fileIds.length;
-            const message = count > 1 ? `${count} archivos asignados correctamente` : 'Archivo asignado correctamente';
-            window.location.href = '?success=' + encodeURIComponent(message);
-        } else {
-            alert('Error: ' + (data.message || 'No se pudo asignar el archivo'));
-        }
-    })
-    .catch(error => {
-        alert('Error al asignar el archivo');
-        console.error('Assign error:', error);
-    });
+    // Always process in batches for consistent UX
+    const BATCH_SIZE = 50;
+    showProcessing('Procesando asignación por lotes...', { clearLogs: true, percent: 0, status: 'Iniciando' });
+    let processed = 0;
+    let successTotal = 0;
+    let failedList = [];
+
+    function processChunk(start) {
+        const chunk = fileIds.slice(start, start + BATCH_SIZE);
+        updateProcessingProgress((processed / fileIds.length) * 100, `Procesando ${Math.min(start + BATCH_SIZE, fileIds.length)} / ${fileIds.length}`);
+        const fd = new FormData();
+        fd.append('action', 'assign');
+        fd.append('user_id', userId);
+        fd.append('file_ids', JSON.stringify(chunk));
+
+        fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(Mimir.parseJsonResponse)
+            .then(resp => {
+                if (resp && resp.success) {
+                    successTotal += (resp.count || chunk.length);
+                    appendProcessingLog(`Lote: asignados ${resp.count || chunk.length}` + (resp.message ? ` — ${resp.message}` : ''));
+                } else {
+                    failedList.push(resp ? (resp.message || 'Lote fallido') : 'Lote fallido');
+                    appendProcessingLog(`Lote: error — ${resp && resp.message ? resp.message : 'Desconocido'}`);
+                }
+                processed += chunk.length;
+                updateProcessingProgress((processed / fileIds.length) * 100, `Procesado ${processed} / ${fileIds.length}`);
+                if (start + BATCH_SIZE < fileIds.length) {
+                    setTimeout(() => processChunk(start + BATCH_SIZE), 150);
+                } else {
+                    updateProcessingProgress(100, 'Finalizado');
+                    appendProcessingLog(`Operación finalizada. ${successTotal} asignados.` + (failedList.length ? ` Errores: ${failedList.join('; ')}` : ''));
+                    setTimeout(() => { hideProcessing(); window.location.reload(); }, 700);
+                }
+            })
+            .catch(err => {
+                appendProcessingLog('Error de red: ' + err.message);
+                hideProcessing();
+                alert('Error de red durante la asignación: ' + err.message);
+            });
+    }
+
+    processChunk(0);
 }
 
 function deleteOrphan(fileId, fileName) {
-    if (!confirm(`¿Seguro que quieres eliminar "${fileName}"? Esta acción no se puede deshacer.`)) {
-        return;
+    if (!confirm(`¿Seguro que quieres eliminar "${fileName}"? Esta acción no se puede deshacer.`)) return;
+
+    // Always process via batch pipeline for consistent UX (single id becomes single-chunk)
+    const ids = [parseInt(fileId)];
+    const BATCH_SIZE = 50;
+    showProcessing('Eliminando archivo...', { clearLogs: true, percent: 0, status: 'Iniciando' });
+    let processed = 0;
+    let deletedTotal = 0;
+
+    function processChunk(start) {
+        const chunk = ids.slice(start, start + BATCH_SIZE);
+        updateProcessingProgress((processed / ids.length) * 100, `Eliminando ${Math.min(start + BATCH_SIZE, ids.length)} / ${ids.length}`);
+        const fd = new FormData();
+        fd.append('action', 'bulk_delete');
+        fd.append('file_ids', JSON.stringify(chunk));
+
+        fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(Mimir.parseJsonResponse)
+            .then(resp => {
+                if (resp && resp.success) {
+                    deletedTotal += (resp.deleted || chunk.length);
+                    appendProcessingLog(`Lote eliminado: ${resp.deleted || chunk.length}`);
+                } else {
+                    appendProcessingLog('Lote con error: ' + (resp && resp.message ? resp.message : 'Desconocido'));
+                }
+                processed += chunk.length;
+                updateProcessingProgress((processed / ids.length) * 100, `Procesado ${processed} / ${ids.length}`);
+                if (start + BATCH_SIZE < ids.length) {
+                    setTimeout(() => processChunk(start + BATCH_SIZE), 150);
+                } else {
+                    updateProcessingProgress(100, 'Finalizado');
+                    appendProcessingLog(`Eliminación finalizada. ${deletedTotal} eliminados.`);
+                    setTimeout(()=> { hideProcessing(); window.location.reload(); }, 700);
+                }
+            }).catch(err => { hideProcessing(); appendProcessingLog('Error de red: ' + err.message); alert('Error de red: ' + err.message); });
     }
-    
-    const formData = new FormData();
-    formData.append('action', 'delete');
-    formData.append('file_id', fileId);
-    
-    fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            window.location.href = '?success=' + encodeURIComponent('Archivo eliminado correctamente');
-        } else {
-            alert('Error: ' + (data.message || 'No se pudo eliminar el archivo'));
-        }
-    })
-    .catch(error => {
-        alert('Error al eliminar el archivo');
-        console.error('Delete error:', error);
-    });
+
+    processChunk(0);
 }
 
 function bulkDelete() {
-    const selected = Array.from(document.querySelectorAll('.file-select:checked')).map(cb => cb.value);
-    
-    if (selected.length === 0) return;
-    
-    if (!confirm(`¿Seguro que quieres eliminar ${selected.length} archivo(s)? Esta acción no se puede deshacer.`)) {
+    let selected = Array.from(document.querySelectorAll('.file-select:checked')).map(cb => parseInt(cb.value));
+
+    if (!allFilesSelected && selected.length === 0) return;
+
+    const count = allFilesSelected ? totalOrphans : selected.length;
+    if (!confirm(`¿Seguro que quieres eliminar ${count} archivo(s)? Esta acción no se puede deshacer.`)) return;
+    // Always process via batching pipeline (for select-all fetch list, otherwise use selected ids)
+    const BATCH_SIZE = 50;
+    if (allFilesSelected) {
+        showProcessing('Obteniendo lista de archivos para eliminar...', { clearLogs: true, percent: 0, status: 'Obteniendo lista' });
+        const filters = <?php echo json_encode($search); ?> ? ('search=' + encodeURIComponent(<?php echo json_encode($search); ?>)) : '';
+        // Use paginated processing for large lists
+        const filters = <?php echo json_encode($search); ?> ? ('search=' + encodeURIComponent(<?php echo json_encode($search); ?>)) : '';
+        const listUrl = '<?php echo BASE_URL; ?>/admin/orphan_files_api.php?action=list_ids&' + filters;
+        showProcessing('Obteniendo y procesando archivos por páginas...', { clearLogs: true, percent: 0, status: 'Iniciando' });
+        Mimir.processListIdsInPages(listUrl, 'bulk_delete', 500, 100, {
+            onProgress: function(processed, total) { updateProcessingProgress(total ? Math.round((processed/total)*100) : 0, `Procesados ${processed} / ${total||'?'} `); },
+            onLog: function(txt) { appendProcessingLog(txt); },
+            onError: function(err) { hideProcessing(); console.error('Error obteniendo lista (orphan_files paginado):', err); if (err && (err.code === 'AUTH_REQUIRED')) { Mimir.showAuthBanner('Sesión expirada o no autorizada. Reautentica en otra pestaña y recarga.'); return; } alert('Error obteniendo lista: ' + (err.message || '')); },
+            onComplete: function() { hideProcessing(); window.location.reload(); }
+        });
         return;
     }
-    
-    const formData = new FormData();
-    formData.append('action', 'bulk_delete');
-    formData.append('file_ids', JSON.stringify(selected));
-    
-    fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            window.location.href = '?success=' + encodeURIComponent(`${data.deleted} archivo(s) eliminado(s) correctamente`);
-        } else {
-            alert('Error: ' + (data.message || 'No se pudieron eliminar los archivos'));
-        }
-    })
-    .catch(error => {
-        alert('Error al eliminar los archivos');
-        console.error('Bulk delete error:', error);
-    });
+
+    // Non-select-all path: process selected ids in batches
+    if (!selected || selected.length === 0) return;
+    showProcessing('Eliminando archivos seleccionados...', { clearLogs: true, percent: 0, status: 'Enviando' });
+    processIdsInBatches(selected, 'bulk_delete', BATCH_SIZE, function(){ hideProcessing(); window.location.reload(); });
+}
+
+// Helper: process an array of IDs in client-side batches, calling the given action on each chunk
+function processIdsInBatches(ids, action, batchSize, onComplete) {
+    let processed = 0;
+    let successTotal = 0;
+    const failedList = [];
+
+    function chunkProcess(start) {
+        const chunk = ids.slice(start, start + batchSize);
+        updateProcessingProgress((processed / ids.length) * 100, `Procesando ${Math.min(start + batchSize, ids.length)} / ${ids.length}`);
+        const fd = new FormData();
+        fd.append('action', action);
+        fd.append('file_ids', JSON.stringify(chunk));
+
+        fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(Mimir.parseJsonResponse)
+            .then(resp => {
+                if (resp && resp.success) {
+                    successTotal += (resp.deleted || resp.count || chunk.length);
+                    appendProcessingLog(`Lote procesado: ${chunk.length} elementos` + (resp.message ? ` — ${resp.message}` : ''));
+                } else {
+                    appendProcessingLog('Lote con error: ' + (resp && resp.message ? resp.message : 'Desconocido'));
+                }
+                processed += chunk.length;
+                updateProcessingProgress((processed / ids.length) * 100, `Procesado ${processed} / ${ids.length}`);
+                if (start + batchSize < ids.length) setTimeout(() => chunkProcess(start + batchSize), 150);
+                else { updateProcessingProgress(100, 'Finalizado'); appendProcessingLog(`Operación finalizada. Procesados: ${processed}. Éxitos estimados: ${successTotal}`); if (typeof onComplete === 'function') setTimeout(onComplete, 600); }
+            }).catch(err => { hideProcessing(); appendProcessingLog('Error de red: ' + err.message); alert('Error de red: ' + err.message); });
+    }
+
+    chunkProcess(0);
 }
 
 // Cerrar modal al hacer clic fuera
@@ -464,6 +630,79 @@ window.onclick = function(event) {
     if (event.target === modal) {
         closeAssignModal();
     }
+}
+
+// Mostrar u ocultar barra flotante según selección
+function toggleFloatingBar(selectedCount) {
+    const bar = document.getElementById('floatingBar');
+    if (!bar) return;
+    console.log('[orphan_files] toggleFloatingBar selectedCount=', selectedCount, 'allFilesSelected=', allFilesSelected);
+    if ((selectedCount > 0) || allFilesSelected) {
+        document.getElementById('floatingCount').textContent = (allFilesSelected ? totalOrphans : selectedCount) + ' seleccionado(s)';
+        // force visibility and strong styles in case theme overwrote CSS
+        try {
+            bar.style.setProperty('display', 'block', 'important');
+            bar.style.setProperty('left', '50%', 'important');
+            bar.style.setProperty('transform', 'translateX(-50%)', 'important');
+            bar.style.setProperty('bottom', '1rem', 'important');
+            bar.style.setProperty('z-index', '2147483647', 'important');
+            const inner = bar.querySelector('.bar');
+            if (inner) {
+                inner.style.setProperty('display', 'flex', 'important');
+                inner.style.setProperty('background', '#fff', 'important');
+                inner.style.setProperty('border', '2px solid #d0d0d0', 'important');
+                inner.style.setProperty('box-shadow', '0 8px 30px rgba(0,0,0,0.2)', 'important');
+                inner.style.setProperty('color', '#111', 'important');
+                inner.style.setProperty('padding', '0.6rem 1rem', 'important');
+                inner.style.setProperty('border-radius', '8px', 'important');
+            }
+        } catch (e) {
+            // fallback
+            bar.style.display = 'block';
+        }
+    } else {
+        try { bar.style.setProperty('display', 'none', 'important'); } catch(e) { bar.style.display = 'none'; }
+    }
+}
+
+// Inicializar estado cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function(){
+    try { updateBulkActions(); } catch(e) { console.warn('[orphan_files] init updateBulkActions failed', e); }
+});
+
+// Simple spinner: show/hide overlay and update message. Keep minimal progress/log support.
+function showProcessing(msg, options = {}) {
+    const overlay = document.getElementById('processingOverlay');
+    const msgEl = document.getElementById('processingMessage');
+    const logs = document.getElementById('processingLogs');
+    if (!overlay) return;
+    if (msgEl && msg) msgEl.textContent = msg;
+    if (typeof options.clearLogs !== 'undefined' && options.clearLogs && logs) logs.innerHTML = '';
+    overlay.style.display = 'flex';
+}
+
+function hideProcessing() {
+    const overlay = document.getElementById('processingOverlay');
+    if (!overlay) return;
+    overlay.style.display = 'none';
+}
+
+function updateProcessingProgress(percent, statusMessage) {
+    const bar = document.getElementById('processingBarFill');
+    const percentEl = document.getElementById('processingPercent');
+    const mini = document.getElementById('processingMiniStatus');
+    if (bar) bar.style.width = Math.max(0, Math.min(100, Math.round(percent))) + '%';
+    if (percentEl) percentEl.textContent = Math.max(0, Math.min(100, Math.round(percent))) + '%';
+    if (mini && statusMessage) mini.textContent = statusMessage;
+}
+
+function appendProcessingLog(text) {
+    const logs = document.getElementById('processingLogs');
+    if (!logs) { console.log('[orphan_files log]', text); return; }
+    const div = document.createElement('div');
+    div.textContent = text;
+    logs.appendChild(div);
+    logs.scrollTop = logs.scrollHeight;
 }
 </script>
 

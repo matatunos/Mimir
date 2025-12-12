@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/Config.php';
 
 use OTPHP\TOTP;
 use Endroid\QrCode\QrCode;
@@ -32,6 +33,7 @@ class TwoFactor {
     public function getTOTP($username, $secret) {
         $issuer = $this->getIssuerName();
         $totp = TOTP::create($secret, 30, 'sha1', 6, 0);
+        // Set account label (username) and issuer explicitly so authenticator apps show "ISSUER (account)"
         $totp->setLabel($username);
         $totp->setIssuer($issuer);
         return $totp;
@@ -54,28 +56,31 @@ class TwoFactor {
         
         $writer = new PngWriter();
         
-        // Check if site logo exists
-        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'site_logo'");
-        $stmt->execute();
-        $logoPath = $stmt->fetchColumn();
-        
-        if ($logoPath) {
-            $fullLogoPath = BASE_PATH . '/public/' . $logoPath;
-            
-            // Check if logo file exists and is an image
-            if (file_exists($fullLogoPath) && @getimagesize($fullLogoPath)) {
-                try {
-                    $logo = \Endroid\QrCode\Logo\Logo::create($fullLogoPath)
-                        ->setResizeToWidth(60)
-                        ->setPunchoutBackground(true);
-                    
-                    $result = $writer->write($qrCode, $logo);
-                } catch (Exception $e) {
-                    // If logo fails, generate without it
+        // Try to read configured site logo via Config; only overlay if the file actually exists
+        $cfg = new Config();
+        $logoPath = $cfg->get('site_logo', '');
+        $result = null;
+
+        if (!empty($logoPath)) {
+            // If the configured logo is a URL, skip overlay (logo must be a local file under public)
+            if (preg_match('#^https?://#i', $logoPath)) {
+                $result = $writer->write($qrCode);
+            } else {
+                $fullLogoPath = rtrim(BASE_PATH, '/') . '/public/' . ltrim($logoPath, '/');
+                if (file_exists($fullLogoPath) && @getimagesize($fullLogoPath)) {
+                    try {
+                        $logo = \Endroid\QrCode\Logo\Logo::create($fullLogoPath)
+                            ->setResizeToWidth(60)
+                            ->setPunchoutBackground(true);
+                        $result = $writer->write($qrCode, $logo);
+                    } catch (Exception $e) {
+                        // If logo fails, generate without it
+                        $result = $writer->write($qrCode);
+                    }
+                } else {
+                    // Logo path configured but file missing — do not overlay a broken logo
                     $result = $writer->write($qrCode);
                 }
-            } else {
-                $result = $writer->write($qrCode);
             }
         } else {
             $result = $writer->write($qrCode);
@@ -322,21 +327,13 @@ class TwoFactor {
      * @return string
      */
     private function getIssuerName() {
-        // Try to get from config
-        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'totp_issuer_name'");
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($result && !empty($result['config_value'])) {
-            return $result['config_value'];
-        }
-        
-        // Fallback to site name
-        $stmt = $this->db->prepare("SELECT config_value FROM config WHERE config_key = 'site_name'");
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        return $result['config_value'] ?? 'Mimir';
+        // Prefer configuration values via Config class (reads DB/cache). Fallback to 'Mimir'.
+        $cfg = new Config();
+        $issuer = $cfg->get('totp_issuer_name');
+        if (!empty($issuer)) return $issuer;
+        $siteName = $cfg->get('site_name');
+        if (!empty($siteName)) return $siteName;
+        return 'Mimir';
     }
     
     /**

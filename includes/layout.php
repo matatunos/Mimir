@@ -123,6 +123,9 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     <a href="<?php echo BASE_URL; ?>/admin/shares.php" class="menu-item <?php echo $currentPage === 'shares' ? 'active' : ''; ?>">
                         <i class="fas fa-share-alt"></i> Comparticiones
                     </a>
+                    <a href="<?php echo BASE_URL; ?>/admin/invitations.php" class="menu-item <?php echo $currentPage === 'invitations' ? 'active' : ''; ?>">
+                        <i class="fas fa-envelope-open-text"></i> Invitaciones
+                    </a>
                     <a href="<?php echo BASE_URL; ?>/admin/logs.php" class="menu-item <?php echo $currentPage === 'logs' ? 'active' : ''; ?>">
                         <i class="fas fa-clipboard-list"></i> Registros
                     </a>
@@ -140,10 +143,10 @@ function renderSidebar($currentPage, $isAdmin = false) {
                 
                 <div class="menu-section">
                     <div class="menu-section-title">Mis Archivos</div>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
+                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo (!$isAdmin && $currentPage === 'files') ? 'active' : ''; ?>">
                         <i class="fas fa-folder-open"></i> Ver mis archivos
                     </a>
-                    <a href="<?php echo BASE_URL; ?>/user/upload.php" class="menu-item <?php echo $currentPage === 'upload' ? 'active' : ''; ?>">
+                    <a href="<?php echo BASE_URL; ?>/user/upload.php" class="menu-item <?php echo (!$isAdmin && $currentPage === 'upload') ? 'active' : ''; ?>">
                         <i class="fas fa-upload"></i> Subir archivo
                     </a>
                 </div>
@@ -255,6 +258,18 @@ function renderPageStart($title, $currentPage, $isAdmin = false) {
             color: <?php echo htmlspecialchars($accentTextColor); ?> !important;
         }
         </style>
+        <style>
+        /* Compact-mode transition and global compact styles (applies when user enables compact view) */
+        .compact-mode .users-table-compact th,
+        .compact-mode .users-table-compact td {
+            transition: padding 220ms ease, font-size 220ms ease, max-width 220ms ease;
+        }
+        .compact-mode .users-table-compact .truncate {
+            transition: max-width 220ms ease;
+        }
+        /* Smooth transition for buttons area */
+        .compact-mode .btn { transition: padding 180ms ease, font-size 180ms ease; }
+        </style>
     </head>
     <body>
         <div class="app-container">
@@ -328,6 +343,39 @@ function renderPageEnd() {
     ?>
             </div>
         </div>
+        <script>
+        // Global compact-mode initializer and toggle handler
+        (function(){
+            const KEY = 'users_compact_view_v1';
+            function applyCompact(enabled){
+                if (enabled) document.body.classList.add('compact-mode');
+                else document.body.classList.remove('compact-mode');
+                // Update all toggle buttons if present
+                const btns = document.querySelectorAll('#compactToggle');
+                btns.forEach(b => {
+                    try { b.innerHTML = '<i class="fas fa-compress"></i> Compacto: ' + (enabled ? 'On' : 'Off'); b.title = 'Alternar vista compacta (reduce padding y oculta columnas menos importantes)'; } catch(e){}
+                });
+            }
+            try {
+                const v = localStorage.getItem(KEY);
+                applyCompact(v === '1');
+            } catch(e){}
+
+            document.addEventListener('click', function(e){
+                const t = e.target.closest('#compactToggle');
+                if (!t) return;
+                try {
+                    const current = document.body.classList.contains('compact-mode');
+                    const next = !current;
+                    localStorage.setItem(KEY, next ? '1' : '0');
+                    applyCompact(next);
+                } catch(e){
+                    console.error('Compact toggle error', e);
+                    alert('No se pudo cambiar la vista compacta.');
+                }
+            });
+        })();
+        </script>
         <script src="<?php echo BASE_URL; ?>/assets/js/main.js"></script>
     </body>
     </html>
