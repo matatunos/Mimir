@@ -167,6 +167,10 @@ $defaults = [
     'email_from_address' => ['value' => '', 'type' => 'string'],
     'email_from_name' => ['value' => 'Mimir', 'type' => 'string'],
     'email_signature' => ['value' => '', 'type' => 'string'],
+    // User-creation notification settings
+    'notify_user_creation_enabled' => ['value' => '0', 'type' => 'boolean'],
+    'notify_user_creation_emails' => ['value' => '', 'type' => 'string'],
+    'notify_user_creation_to_admins' => ['value' => '1', 'type' => 'boolean'],
     // LDAP / AD
     'enable_ldap' => ['value' => '0', 'type' => 'boolean'],
     'ldap_host' => ['value' => '', 'type' => 'string'],
@@ -213,6 +217,9 @@ $defaults = [
 
 // Description for global config protection toggle
 $descs['enable_config_protection'] = 'Si está activado, las claves marcadas como sistema (is_system) no serán editables desde la UI. Por defecto está desactivado.';
+$descs['notify_user_creation_enabled'] = 'Si está activado, el sistema enviará notificaciones cuando se cree un usuario vía invitación.';
+$descs['notify_user_creation_emails'] = 'Lista separada por comas de direcciones de correo que recibirán notificaciones cuando se cree un usuario (por ejemplo: ops@example.com, infra@example.com). Déjalo vacío para ningún correo adicional.';
+$descs['notify_user_creation_to_admins'] = 'Si está marcado, además se enviarán notificaciones a todos los usuarios con rol administrador que tengan email configurado.';
 // Persist any default descriptions if DB connection available
 $db = null;
 try {
