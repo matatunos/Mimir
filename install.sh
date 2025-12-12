@@ -1,6 +1,10 @@
 #!/bin/bash
 #####################################################################
 # Mimir File Management System - Complete Installer
+#####################################################################
+#!/bin/bash
+#####################################################################
+# Mimir File Management System - Complete Installer
 # Installs LAMP stack, configures database, sets up forensic logging
 # Supports Debian/Ubuntu systems
 # Version: 2.0
@@ -130,13 +134,24 @@ install_php() {
 configure_database() {
     print_info "Configuring MySQL database..."
     
-    # Create database and user
-    sudo mysql -u root -p${DB_ROOT_PASS} <<EOF 2>/dev/null || sudo mysql -u root <<EOF
-CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
-GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
-FLUSH PRIVILEGES;
-EOF
+    # Create database and user using a safe SQL command (avoid multiple here-docs on one line)
+    # Write SQL to a temporary file to avoid quoting/word-splitting issues
+    TMP_SQL_FILE=$(mktemp)
+    printf '%s\n' "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" \
+        "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';" \
+        "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';" \
+        "FLUSH PRIVILEGES;" > "${TMP_SQL_FILE}"
+
+    # Debug: report temp SQL file
+    print_info "Debug: temp SQL file -> ${TMP_SQL_FILE} (size: $(wc -c < "${TMP_SQL_FILE}" 2>/dev/null) bytes)"
+
+    # Try with root password first, fall back to passwordless root if needed
+    if sudo mysql -u root -p"${DB_ROOT_PASS}" < "${TMP_SQL_FILE}" 2>/dev/null; then
+        true
+    else
+        sudo mysql -u root < "${TMP_SQL_FILE}"
+    fi
+    rm -f "${TMP_SQL_FILE}"
     
     print_status "Database '${DB_NAME}' created"
     print_status "Database user '${DB_USER}' created"
@@ -146,6 +161,23 @@ EOF
 configure_apache() {
     print_info "Configuring Apache virtual host..."
     
+    # If proxy integration requested, prepare values
+    if [ "${PROXY_ENABLED:-0}" -eq 1 ]; then
+        PROXY_IPS_SPACE="${PROXY_IPS//,/ }"
+        EXTRA_VHOST_BLOCK=$(cat <<PROXY
+    # Reverse proxy / remote IP settings
+    RemoteIPHeader X-Forwarded-For
+    RemoteIPTrustedProxy ${PROXY_IPS_SPACE}
+    # Treat forwarded proto header to set HTTPS environment
+    SetEnvIf X-Forwarded-Proto "https" HTTPS=on
+PROXY
+)
+        # Ensure remoteip module is enabled
+        sudo a2enmod remoteip || true
+    else
+        EXTRA_VHOST_BLOCK=""
+    fi
+
     # Create virtual host configuration
     sudo tee /etc/apache2/sites-available/${APACHE_VHOST}.conf > /dev/null <<EOF
 <VirtualHost *:80>
@@ -172,6 +204,7 @@ configure_apache() {
     php_value post_max_size 512M
     php_value max_execution_time 300
     php_value max_input_time 300
+${EXTRA_VHOST_BLOCK}
 </VirtualHost>
 EOF
     
@@ -230,6 +263,13 @@ set_permissions() {
 create_config() {
     print_info "Creating configuration file..."
     
+    # Determine BASE_URL protocol based on proxy TLS setting
+    if [ "${PROXY_HTTPS:-0}" -eq 1 ]; then
+        PROTO="https"
+    else
+        PROTO="http"
+    fi
+
     sudo tee ${INSTALL_DIR}/includes/config.php > /dev/null <<EOF
 <?php
 /**
@@ -252,7 +292,7 @@ define('TEMP_PATH', '${TEMP_DIR}');
 define('LOGS_PATH', STORAGE_PATH . '/logs');
 
 // URL configuration
-define('BASE_URL', 'http://${APACHE_VHOST}');
+define('BASE_URL', '${PROTO}://${APACHE_VHOST}');
 
 // Security
 define('SESSION_NAME', 'MIMIR_SESSION');
@@ -283,38 +323,64 @@ EOF
 
 # Function to import database schema
 import_schema() {
-    # Use the complete schema that includes all tables and migrations
-    if [ -f "${INSTALL_DIR}/database/complete_schema.sql" ]; then
-        print_info "Importing complete database schema (includes all migrations)..."
-        sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/complete_schema.sql 2>/dev/null
-        print_status "Complete database schema imported successfully"
-        print_info "Schema includes: users, files, shares, sessions, config, 2FA tables, forensic logging, and security events"
-    elif [ -f "${INSTALL_DIR}/database/schema.sql" ]; then
-        # Fallback to old schema if complete_schema.sql doesn't exist
-        print_info "Importing base database schema..."
-        sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/schema.sql 2>/dev/null
-        print_status "Base database schema imported"
-        
-        # Apply migrations if using old schema
-        print_info "Applying migrations..."
-        
-        # 2FA migration
-        if [ -f "${INSTALL_DIR}/database/migration_2fa.sql" ]; then
-            print_info "Applying 2FA migration..."
-            sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migration_2fa.sql 2>/dev/null
-            print_status "2FA migration applied"
-        fi
-        
-        # Forensic logging migration
-        if [ -f "${INSTALL_DIR}/database/migrations/add_forensic_fields.sql" ]; then
-            print_info "Applying forensic logging migration..."
-            sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migrations/add_forensic_fields.sql 2>/dev/null
-            print_status "Forensic logging migration applied"
-        fi
+    # Require a single schema file `database/schema.sql` to be present.
+    if [ -f "${INSTALL_DIR}/database/schema.sql" ]; then
+        SCHEMA_FILE="${INSTALL_DIR}/database/schema.sql"
     else
-        print_error "No database schema file found!"
+        print_error "No database schema file found! Please provide database/schema.sql"
         exit 1
     fi
+
+    print_info "Importing database schema from ${SCHEMA_FILE}..."
+    sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${SCHEMA_FILE} 2>/dev/null
+    print_status "Database schema imported successfully"
+
+    # Apply any known migrations (kept for backward compatibility)
+    if [ -f "${INSTALL_DIR}/database/migration_2fa.sql" ]; then
+        print_info "Applying 2FA migration..."
+        sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migration_2fa.sql 2>/dev/null
+        print_status "2FA migration applied"
+    fi
+    if [ -f "${INSTALL_DIR}/database/migrations/add_forensic_fields.sql" ]; then
+        print_info "Applying forensic logging migration..."
+        sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migrations/add_forensic_fields.sql 2>/dev/null
+        print_status "Forensic logging migration applied"
+    fi
+
+    # All schema migrations are consolidated into the single schema file.
+}
+
+# Function to ensure an admin user exists (username: admin, password: admin123)
+create_admin_user() {
+    ADMIN_EMAIL="${ADMIN_USER}@${APACHE_VHOST}"
+
+    print_info "Ensuring admin user '${ADMIN_USER}' exists..."
+
+    # Generate bcrypt hash using PHP (requires php-cli)
+    if ! command -v php &> /dev/null; then
+        print_error "php-cli is required to hash the admin password. Skipping admin creation."
+        return
+    fi
+
+    ADMIN_HASH=$(php -r "echo password_hash('${ADMIN_PASS}', PASSWORD_BCRYPT);")
+
+    # Insert admin if not exists
+    # Use INSERT ... ON DUPLICATE KEY UPDATE to ensure password is set and force_password_change enabled
+    sudo mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} <<EOF 2>/dev/null
+INSERT INTO users (username, email, password, full_name, role, is_active, is_ldap, created_at, updated_at)
+VALUES ('${ADMIN_USER}', '${ADMIN_EMAIL}', '${ADMIN_HASH}', 'Administrator', 'admin', 1, 0, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+  password = VALUES(password),
+  email = VALUES(email),
+  full_name = VALUES(full_name),
+  role = VALUES(role),
+  is_active = VALUES(is_active),
+  is_ldap = VALUES(is_ldap),
+  updated_at = NOW(),
+  force_password_change = 1;
+EOF
+
+    print_status "Admin user ensured/updated (username: ${ADMIN_USER}) and force_password_change enabled"
 }
 
 # Function to install Composer
@@ -334,9 +400,31 @@ install_composer() {
 # Function to install PHP dependencies
 install_dependencies() {
     if [ -f "${INSTALL_DIR}/composer.json" ]; then
+        # If vendor/autoload.php exists, assume deps installed
+        if [ -f "${INSTALL_DIR}/vendor/autoload.php" ]; then
+            print_info "PHP dependencies already present (vendor/autoload.php found). Skipping install."
+            return
+        fi
+
         print_info "Installing PHP dependencies via Composer..."
+
+        # Ensure composer binary is available
+        if ! command -v composer &> /dev/null; then
+            print_info "Composer not found - attempting to install Composer..."
+            install_composer
+        fi
+
         cd ${INSTALL_DIR}
-        sudo -u www-data composer install --no-dev --optimize-autoloader
+        # Run composer as the web user to ensure correct ownership of vendor files
+        if ! sudo -u www-data composer install --no-dev --optimize-autoloader; then
+            print_error "Composer install failed. Retrying once..."
+            sleep 1
+            if ! sudo -u www-data composer install --no-dev --optimize-autoloader; then
+                print_error "Composer install failed again. Please run 'composer install' manually in ${INSTALL_DIR} as www-data."
+                return 1
+            fi
+        fi
+
         print_status "PHP dependencies installed"
     else
         print_info "composer.json not found - skipping dependency installation"
@@ -413,6 +501,66 @@ main() {
     fi
     
     echo
+    # Prompt for domain and proxy settings before starting installation
+    read -p "Enter domain for the site (default: ${APACHE_VHOST}): " DOMAIN_INPUT
+    if [ -n "${DOMAIN_INPUT}" ]; then
+        APACHE_VHOST="${DOMAIN_INPUT}"
+    fi
+
+    # Ask about reverse proxy
+    read -p "Is the application behind an Nginx reverse proxy? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        PROXY_ENABLED=1
+        read -p "Enter proxy trusted IPs/CIDRs (comma-separated, default: 127.0.0.1,192.168.0.0/16,10.0.0.0/8): " PROXY_IPS_INPUT
+        PROXY_IPS="${PROXY_IPS_INPUT:-127.0.0.1,192.168.0.0/16,10.0.0.0/8}"
+        read -p "Does the proxy terminate TLS (serve HTTPS)? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            PROXY_HTTPS=1
+        else
+            PROXY_HTTPS=0
+        fi
+    else
+        PROXY_ENABLED=0
+        PROXY_IPS=""
+        PROXY_HTTPS=0
+    fi
+
+    # Database and application credentials
+    read -p "Database root user (default: root): " DB_ROOT_USER_INPUT
+    DB_ROOT_USER="${DB_ROOT_USER_INPUT:-root}"
+    read -s -p "Database root password (will be used to create DB/user) : " DB_ROOT_PASS_INPUT
+    echo
+    if [ -n "${DB_ROOT_PASS_INPUT}" ]; then
+        DB_ROOT_PASS="${DB_ROOT_PASS_INPUT}"
+    fi
+
+    read -p "Database name to create (default: ${DB_NAME}): " DB_NAME_INPUT
+    DB_NAME="${DB_NAME_INPUT:-${DB_NAME}}"
+    read -p "Database app user (default: ${DB_USER}): " DB_USER_INPUT
+    DB_USER="${DB_USER_INPUT:-${DB_USER}}"
+    read -s -p "Password for database app user (leave empty to generate): " DB_PASS_INPUT
+    echo
+    if [ -n "${DB_PASS_INPUT}" ]; then
+        DB_PASS="${DB_PASS_INPUT}"
+    else
+        DB_PASS=$(openssl rand -base64 16)
+        print_info "Generated DB user password"
+    fi
+
+    # Admin web user
+    read -p "Admin web username (default: admin): " ADMIN_USER_INPUT
+    ADMIN_USER="${ADMIN_USER_INPUT:-admin}"
+    read -s -p "Admin web password (leave empty to generate): " ADMIN_PASS_INPUT
+    echo
+    if [ -n "${ADMIN_PASS_INPUT}" ]; then
+        ADMIN_PASS="${ADMIN_PASS_INPUT}"
+    else
+        ADMIN_PASS=$(openssl rand -base64 12)
+        print_info "Generated admin web password"
+    fi
+
     print_info "Starting installation..."
     echo
     
@@ -427,6 +575,7 @@ main() {
     set_permissions
     create_config
     import_schema
+    create_admin_user
     install_dependencies
     restart_apache
     
