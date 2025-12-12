@@ -105,33 +105,16 @@ renderHeader('Subir Archivos', $user);
         </div>
         <div class="card-body">
             
-            <!-- Breadcrumb Navigation -->
+            <!-- Primary breadcrumb (home icon + path) -->
             <?php if ($currentFolderId): ?>
-            <div style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--bg-secondary); border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-home" style="color: var(--text-muted);"></i>
-                <a href="<?php echo BASE_URL; ?>/user/files.php" style="color: var(--text-main); text-decoration: none; font-weight: 500;">
+            <div style="margin-bottom: 1.5rem; padding: 0.9rem 1rem; background: var(--bg-secondary); border-radius: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-home" style="color: var(--text-muted); font-size: 1.4rem;"></i>
+                <a href="<?php echo BASE_URL; ?>/user/files.php" style="color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 1.06rem;">
                     Inicio
                 </a>
                 <?php foreach ($breadcrumbs as $folder): ?>
-                    <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $folder['id']; ?>" style="color: var(--text-main); text-decoration: none; font-weight: 500;">
-                        <?php echo htmlspecialchars($folder['name']); ?>
-                    </a>
-                <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
-            
-            <!-- Breadcrumb Navigation -->
-            <?php if ($currentFolderId): ?>
-            <div style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--bg-secondary); border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-info-circle" style="color: var(--primary);"></i>
-                <span style="color: var(--text-main); font-weight: 500;">Subiendo a:</span>
-                <a href="<?php echo BASE_URL; ?>/user/files.php" style="color: var(--text-main); text-decoration: none;">
-                    Inicio
-                </a>
-                <?php foreach ($breadcrumbs as $folder): ?>
-                    <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $folder['id']; ?>" style="color: var(--text-main); text-decoration: none;">
+                    <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 0.9rem;"></i>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $folder['id']; ?>" style="color: var(--text-main); text-decoration: none; font-weight: 600; font-size: 1.02rem;">
                         <?php echo htmlspecialchars($folder['name']); ?>
                     </a>
                 <?php endforeach; ?>

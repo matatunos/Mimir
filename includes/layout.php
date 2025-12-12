@@ -143,12 +143,19 @@ function renderSidebar($currentPage, $isAdmin = false) {
                 
                 <div class="menu-section">
                     <div class="menu-section-title">Mis Archivos</div>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo (!$isAdmin && $currentPage === 'files') ? 'active' : ''; ?>">
-                        <i class="fas fa-folder-open"></i> Ver mis archivos
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>/user/upload.php" class="menu-item <?php echo (!$isAdmin && $currentPage === 'upload') ? 'active' : ''; ?>">
-                        <i class="fas fa-upload"></i> Subir archivo
-                    </a>
+                    <?php
+                    // Preserve folder context in sidebar links when viewing a folder
+                    $folderParam = '';
+                    if (isset($_GET['folder']) && is_numeric($_GET['folder'])) {
+                        $folderParam = '?folder=' . intval($_GET['folder']);
+                    }
+                    ?>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php<?php echo $folderParam; ?>" class="menu-item <?php echo (!$isAdmin && $currentPage === 'files') ? 'active' : ''; ?>" style="font-size:1.03rem;">
+                            <i class="fas fa-folder-open" style="font-size:1.25rem; vertical-align:middle; margin-right:0.5rem;"></i> Ver mis archivos
+                        </a>
+                        <a href="<?php echo BASE_URL; ?>/user/upload.php<?php echo $folderParam; ?>" class="menu-item <?php echo (!$isAdmin && $currentPage === 'upload') ? 'active' : ''; ?>">
+                            <i class="fas fa-upload"></i> Subir archivo
+                        </a>
                 </div>
             <?php else: ?>
                 <!-- User Menu -->

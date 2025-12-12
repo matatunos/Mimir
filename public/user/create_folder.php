@@ -7,12 +7,21 @@
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
+// Ensure opcode cache loads latest class definition
+if (function_exists('opcache_invalidate')) {
+    @opcache_invalidate(__DIR__ . '/../../classes/File.php', true);
+}
 require_once __DIR__ . '/../../classes/File.php';
 
 header('Content-Type: application/json');
 
 $auth = new Auth();
-$auth->requireLogin();
+// For AJAX endpoints return JSON 401 instead of redirecting to login page
+if (!$auth->isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'No autenticado']);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

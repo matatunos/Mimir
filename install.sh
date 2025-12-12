@@ -565,7 +565,12 @@ main() {
     print_info "Starting installation..."
     echo
     
-    update_system
+    # Allow skipping the system update (useful when retrying installer after package fixes)
+    if [ "${SKIP_UPDATE:-0}" -ne 1 ]; then
+        update_system
+    else
+        print_info "Skipping system update (SKIP_UPDATE=1)"
+    fi
     install_apache
     install_mysql
     install_php
