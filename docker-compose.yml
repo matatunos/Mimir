@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: mimir
+      MYSQL_USER: mimir_user
+      MYSQL_PASSWORD: mimir_pass
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/complete_schema.sql:/docker-entrypoint-initdb.d/complete_schema.sql:ro
+    ports:
+      - "3306:3306"
+
+  web:
+    build: .
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: db
+      DB_NAME: mimir
+      DB_USER: mimir_user
+      DB_PASS: mimir_pass
+      BASE_URL: http://localhost:8080
+    volumes:
+      - ./:/var/www/html:cached
+    restart: unless-stopped
+
+volumes:
+  db_data:
