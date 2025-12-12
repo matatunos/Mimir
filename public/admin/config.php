@@ -731,6 +731,10 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                     'ldap_required_group_dn' => 'LDAP: Grupo permitido (DN)',
                                     'ldap_admin_group_dn' => 'LDAP: Grupo administradores (DN)'
                                 ];
+                                // Friendly labels for notification settings
+                                $friendlyLabels['notify_user_creation_enabled'] = 'Notificar creación de usuario (invites)';
+                                $friendlyLabels['notify_user_creation_emails'] = 'Emails adicionales para notificaciones de usuario';
+                                $friendlyLabels['notify_user_creation_to_admins'] = 'Notificar también a administradores';
                                 $label = $friendlyLabels[$cfg['config_key']] ?? $cfg['config_key'];
                                 echo htmlspecialchars($label);
                             ?>
