@@ -452,7 +452,8 @@ class User {
      */
     public function changePassword($userId, $newPassword) {
         try {
-            $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE id = ? AND is_ldap = 0");
+            // Update password and clear any forced-password-change flag
+            $stmt = $this->db->prepare("UPDATE users SET password = ?, force_password_change = 0 WHERE id = ? AND is_ldap = 0");
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
             $stmt->execute([$hashedPassword, $userId]);
             

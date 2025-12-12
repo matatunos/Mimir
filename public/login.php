@@ -71,6 +71,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Local password verification
             if ($user && !empty($user['password']) && password_verify($password, $user['password'])) {
+                // Credentials valid, check if user must change password on first login
+                if (!empty($user['force_password_change'])) {
+                    // Mark forced-change in session and redirect to change password flow
+                    $_SESSION['force_password_change_user_id'] = $user['id'];
+                    $_SESSION['force_password_change_username'] = $user['username'];
+                    header('Location: ' . BASE_URL . '/change_password.php?forced=1');
+                    exit;
+                }
+
                 // Credentials valid, check for 2FA
                 $twoFactor = new TwoFactor();
 
