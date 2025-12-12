@@ -16,8 +16,22 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 # If composer.json exists, try to install vendors (mounts in dev will override)
-COPY composer.json composer.lock* /var/www/html/ 2>/dev/null || true
-RUN if [ -f composer.json ]; then composer install --no-interaction --no-dev --optimize-autoloader || true; fi
+COPY composer.json composer.lock* /var/www/html/
+RUN if [ -f /var/www/html/composer.json ]; then composer install --no-interaction --no-dev --optimize-autoloader || true; fi
+
+# Configure Apache DocumentRoot to point to the public directory
+RUN sed -ri "s!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/000-default.conf \
+ && grep -q "ServerName" /etc/apache2/sites-available/000-default.conf || sed -i "/DocumentRoot/a\
+    ServerName localhost" /etc/apache2/sites-available/000-default.conf
+
+# Add a directory config for the public directory to allow overrides and indexes
+RUN printf '%s\n' "<Directory ${APACHE_DOCUMENT_ROOT}>" \
+ "    Options Indexes FollowSymLinks" \
+ "    AllowOverride All" \
+ "    Require all granted" \
+ "    DirectoryIndex index.php index.html" \
+ "</Directory>" > /etc/apache2/conf-available/mimir.conf \
+ && a2enconf mimir
 
 # Ensure permissions for storage and uploads
 RUN mkdir -p /var/www/html/storage /var/www/html/storage/uploads \
