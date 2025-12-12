@@ -171,6 +171,9 @@ $defaults = [
     'notify_user_creation_enabled' => ['value' => '0', 'type' => 'boolean'],
     'notify_user_creation_emails' => ['value' => '', 'type' => 'string'],
     'notify_user_creation_to_admins' => ['value' => '1', 'type' => 'boolean'],
+    'notify_user_creation_retry_attempts' => ['value' => '3', 'type' => 'number'],
+    'notify_user_creation_retry_delay_seconds' => ['value' => '2', 'type' => 'number'],
+    'notify_user_creation_use_background_worker' => ['value' => '0', 'type' => 'boolean'],
     // LDAP / AD
     'enable_ldap' => ['value' => '0', 'type' => 'boolean'],
     'ldap_host' => ['value' => '', 'type' => 'string'],
@@ -220,6 +223,9 @@ $descs['enable_config_protection'] = 'Si está activado, las claves marcadas com
 $descs['notify_user_creation_enabled'] = 'Si está activado, el sistema enviará notificaciones cuando se cree un usuario vía invitación.';
 $descs['notify_user_creation_emails'] = 'Lista separada por comas de direcciones de correo que recibirán notificaciones cuando se cree un usuario (por ejemplo: ops@example.com, infra@example.com). Déjalo vacío para ningún correo adicional.';
 $descs['notify_user_creation_to_admins'] = 'Si está marcado, además se enviarán notificaciones a todos los usuarios con rol administrador que tengan email configurado.';
+$descs['notify_user_creation_retry_attempts'] = 'Número máximo de reintentos para enviar notificaciones de creación de usuario antes de registrar un evento forense.';
+$descs['notify_user_creation_retry_delay_seconds'] = 'Retraso inicial en segundos entre reintentos; se aplica backoff exponencial.';
+$descs['notify_user_creation_use_background_worker'] = 'Si está activado, las notificaciones se encolarán y un worker en background las procesará (recomendado para alta latencia de SMTP).';
 // Persist any default descriptions if DB connection available
 $db = null;
 try {
@@ -735,6 +741,9 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 $friendlyLabels['notify_user_creation_enabled'] = 'Notificar creación de usuario (invites)';
                                 $friendlyLabels['notify_user_creation_emails'] = 'Emails adicionales para notificaciones de usuario';
                                 $friendlyLabels['notify_user_creation_to_admins'] = 'Notificar también a administradores';
+                                $friendlyLabels['notify_user_creation_retry_attempts'] = 'Reintentos de notificación';
+                                $friendlyLabels['notify_user_creation_retry_delay_seconds'] = 'Retraso inicial entre intentos (s)';
+                                $friendlyLabels['notify_user_creation_use_background_worker'] = 'Usar worker en background para notificaciones';
                                 $label = $friendlyLabels[$cfg['config_key']] ?? $cfg['config_key'];
                                 echo htmlspecialchars($label);
                             ?>
@@ -830,6 +839,18 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="toggleSignaturePreview()" style="padding:0.25rem 0.5rem;">Mostrar / Ocultar</button>
                             </div>
                             <div id="email_signature_preview" style="margin-top:0.75rem; padding:0.75rem; background:#fff; border:1px solid var(--border-color); border-radius:0.5rem; display:none; max-height:220px; overflow:auto;"></div>
+
+                        <?php elseif ($cfg['config_key'] === 'notify_user_creation_emails'): ?>
+                            <label style="display:block; font-weight:600; margin-bottom:0.25rem;">Direcciones de notificación (comas separadas)</label>
+                            <textarea
+                                name="<?php echo htmlspecialchars($cfg['config_key']); ?>"
+                                id="notify_user_creation_emails"
+                                class="form-control"
+                                rows="3"
+                                placeholder="ops@example.com, infra@example.com"
+                                <?php echo (bool)$globalConfigProtection ? 'readonly style="color:#6b6b6b;"' : ''; ?>
+                            ><?php echo htmlspecialchars($cfg['config_value']); ?></textarea>
+                            <small style="color: var(--text-muted); display:block; margin-top:0.25rem;">Introduce direcciones separadas por comas. Si también está activada la opción "Notificar a administradores", se les añadirá automáticamente.</small>
 
                         <?php elseif (strlen($cfg['config_value']) > 100 || strpos($cfg['config_key'], 'footer') !== false): ?>
                             <?php
@@ -950,6 +971,40 @@ renderHeader('Configuración del Sistema', $user, $auth);
         </div>
     </form>
 </div>
+
+<script>
+// Validate notification emails before submitting config form
+(function(){
+    var form = document.querySelector('form');
+    if (!form) return;
+    form.addEventListener('submit', function(e){
+        try {
+            // Presence marker is used for boolean controls; check the actual checkbox
+            var enabledEl = document.querySelector('input[name="notify_user_creation_enabled"]');
+            var enabledOn = enabledEl ? enabledEl.checked : false;
+            if (!enabledOn) return;
+            var emailsField = document.getElementById('notify_user_creation_emails');
+            var notifyAdminsEl = document.querySelector('input[name="notify_user_creation_to_admins"]');
+            var notifyAdmins = notifyAdminsEl ? notifyAdminsEl.checked : false;
+
+            var hasEmails = false;
+            if (emailsField) {
+                var val = emailsField.value.trim();
+                if (val !== '') {
+                    var parts = val.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+                    var emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+                    for (var i=0;i<parts.length;i++) if (emailRegex.test(parts[i])) { hasEmails = true; break; }
+                }
+            }
+            if (!hasEmails && !notifyAdmins) {
+                e.preventDefault();
+                alert('La notificación de creación de usuario está activada pero no hay destinatarios válidos. Añade al menos un email válido o marca "Notificar también a administradores".');
+            }
+        } catch (err) {
+            // ignore any JS errors in validation
+        }
+    });
+})();
 
 <script>
 function previewLogo(input) {

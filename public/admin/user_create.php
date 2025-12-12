@@ -223,12 +223,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $body .= '</ul>';
                             $body .= '</div>';
 
-                            foreach ($recipients as $r) {
-                                try {
-                                    sendNotificationWithRetries($r, $subject, $body, ['from_email' => $fromEmailCfg, 'from_name' => $fromNameCfg], ['emailSender' => $emailSender, 'logger' => $logger, 'forensic' => new ForensicLogger(), 'actor_id' => $user['id'], 'target_id' => $userId]);
-                                } catch (Exception $e) {
-                                    error_log('Notification helper error: ' . $e->getMessage());
-                                    try { $logger->log($user['id'], 'notif_user_created_failed', 'notification', $userId, 'Notification helper exception: ' . $e->getMessage()); } catch (Exception $ee) {}
+                            $useWorker = (bool)$cfg->get('notify_user_creation_use_background_worker', '0');
+                            if ($useWorker) {
+                                $db = Database::getInstance()->getConnection();
+                                $stmtIns = $db->prepare("INSERT INTO notification_jobs (recipient, subject, body, options, actor_id, target_id, max_attempts, created_at, next_run_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+                                foreach ($recipients as $r) {
+                                    try {
+                                        $optionsJson = json_encode(['from_email' => $fromEmailCfg, 'from_name' => $fromNameCfg]);
+                                        $maxAttempts = intval($cfg->get('notify_user_creation_retry_attempts', 3));
+                                        $stmtIns->execute([$r, $subject, $body, $optionsJson, $user['id'], $userId, $maxAttempts]);
+                                        $logger->log($user['id'], 'notif_user_created_enqueued', 'notification', $userId, "Enqueued notification to {$r}");
+                                    } catch (Exception $e) {
+                                        error_log('Failed to enqueue notification: ' . $e->getMessage());
+                                        try { $logger->log($user['id'], 'notif_user_created_failed', 'notification', $userId, 'Enqueue failed: ' . $e->getMessage()); } catch (Exception $ee) {}
+                                    }
+                                }
+                            } else {
+                                foreach ($recipients as $r) {
+                                    try {
+                                        sendNotificationWithRetries($r, $subject, $body, ['from_email' => $fromEmailCfg, 'from_name' => $fromNameCfg], ['emailSender' => $emailSender, 'logger' => $logger, 'forensic' => new ForensicLogger(), 'actor_id' => $user['id'], 'target_id' => $userId]);
+                                    } catch (Exception $e) {
+                                        error_log('Notification helper error: ' . $e->getMessage());
+                                        try { $logger->log($user['id'], 'notif_user_created_failed', 'notification', $userId, 'Notification helper exception: ' . $e->getMessage()); } catch (Exception $ee) {}
+                                    }
                                 }
                             }
                         }
