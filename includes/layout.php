@@ -271,6 +271,48 @@ function renderPageStart($title, $currentPage, $isAdmin = false) {
         }
         </style>
         <style>
+        /* When configuration protection is active, make readonly form controls appear in medium-gray */
+        .config-protected input[readonly],
+        .config-protected textarea[readonly],
+        .config-protected select[disabled],
+        .config-protected input[disabled] {
+            color: #6b6b6b !important;
+            opacity: 1 !important;
+        }
+        /* Also dim placeholder text slightly for readonly fields */
+        .config-protected input[readonly]::placeholder,
+        .config-protected textarea[readonly]::placeholder {
+            color: #8a8a8a !important;
+        }
+        /* Floating, centered protection banner */
+        .config-protection-floating {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2200;
+            background: rgba(255,255,255,0.98);
+            color: #dc2626;
+            border: 1px solid rgba(220,38,38,0.15);
+            padding: 1rem 1.25rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 18px 48px rgba(0,0,0,0.28);
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-align: center;
+            min-width: 320px;
+            max-width: 90vw;
+        }
+        .config-protection-floating i { font-size: 1.6rem; color: #dc2626; }
+        @media (max-width: 540px) {
+            .config-protection-floating { font-size: 1rem; padding: 0.75rem 1rem; }
+            .config-protection-floating i { font-size: 1.2rem; }
+        }
+        </style>
+        <style>
         /* Compact-mode transition and global compact styles (applies when user enables compact view) */
         .compact-mode .users-table-compact th,
         .compact-mode .users-table-compact td {
@@ -283,7 +325,7 @@ function renderPageStart($title, $currentPage, $isAdmin = false) {
         .compact-mode .btn { transition: padding 180ms ease, font-size 180ms ease; }
         </style>
     </head>
-    <body>
+    <body <?php echo (bool)$config->get('enable_config_protection', '0') ? 'class="config-protected"' : ''; ?>>
         <div class="app-container">
             <?php renderSidebar($currentPage, $isAdmin); ?>
             <div class="main-content">
