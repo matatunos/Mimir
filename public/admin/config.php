@@ -811,9 +811,9 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 id="email_signature_field"
                                 class="form-control" 
                                 rows="6"
-                                placeholder="Puedes pegar HTML aquí (imágenes en data-URI o URLs absolutas)">
-                                <?php echo htmlspecialchars($cfg['config_value']); ?>
-                            </textarea>
+                                placeholder="Puedes pegar HTML aquí (imágenes en data-URI o URLs absolutas)"
+                                <?php echo (bool)$globalConfigProtection ? 'readonly style="color:#6b6b6b;"' : ''; ?>
+                            ><?php echo htmlspecialchars($cfg['config_value']); ?></textarea>
                             <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
                                 <label style="margin:0; font-weight:600;">Vista previa:</label>
                                 <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="toggleSignaturePreview()" style="padding:0.25rem 0.5rem;">Mostrar / Ocultar</button>
@@ -834,7 +834,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 class="form-control" 
                                 rows="3"
                                 <?php if ($placeholder): ?>placeholder="<?php echo htmlspecialchars($placeholder); ?>"<?php endif; ?>
-                                <?php echo $cfg['is_system'] ? 'readonly' : ''; ?>
+                                <?php echo (bool)$globalConfigProtection ? 'readonly style="color:#6b6b6b;"' : ''; ?>
                             ><?php echo htmlspecialchars($cfg['config_value']); ?></textarea>
                         <?php else: ?>
                             <?php
@@ -914,7 +914,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 class="form-control" 
                                 value="<?php echo $valueAttr; ?>"
                                 <?php if ($placeholder): ?>placeholder="<?php echo htmlspecialchars($placeholder); ?>"<?php endif; ?>
-                                <?php echo $isReadonly ? 'readonly' : ''; ?>
+                                <?php echo $isReadonly ? 'readonly' : ''; ?><?php echo $isReadonly ? ' style="color:#6b6b6b;"' : ''; ?>
                             >
                             <?php if (substr($cfg['config_key'], -9) === '_password'): ?>
                                 <small class="form-text text-muted">Dejar vacío para no cambiar la contraseña existente.</small>
