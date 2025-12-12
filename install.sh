@@ -332,7 +332,8 @@ import_schema() {
     fi
 
     print_info "Importing database schema from ${SCHEMA_FILE}..."
-    sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${SCHEMA_FILE} 2>/dev/null
+    # Run import as current user (avoid sudo which can change environment and cause auth issues)
+    mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} < ${SCHEMA_FILE}
     print_status "Database schema imported successfully"
 
     # Apply any known migrations (kept for backward compatibility)
