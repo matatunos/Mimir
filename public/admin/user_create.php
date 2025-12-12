@@ -5,6 +5,8 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/User.php';
 require_once __DIR__ . '/../../classes/Logger.php';
+require_once __DIR__ . '/../../classes/ForensicLogger.php';
+require_once __DIR__ . '/../../classes/Notification.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use OTPHP\TOTP;
@@ -16,6 +18,52 @@ $auth->requireAdmin();
 $user = $auth->getUser();
 $userClass = new User();
 $logger = new Logger();
+
+// Local helper: send notification with retries and forensic escalation.
+function sendNotificationWithRetries($recipient, $subject, $body, $options = [], $context = []) {
+    require_once __DIR__ . '/../../classes/Config.php';
+    require_once __DIR__ . '/../../classes/Logger.php';
+    require_once __DIR__ . '/../../classes/ForensicLogger.php';
+    require_once __DIR__ . '/../../classes/Email.php';
+
+    $cfg = new Config();
+    $maxAttempts = max(1, intval($cfg->get('notify_user_creation_retry_attempts', 3)));
+    $initialDelay = max(1, intval($cfg->get('notify_user_creation_retry_delay_seconds', 2)));
+
+    $logger = $context['logger'] ?? new Logger();
+    $forensic = $context['forensic'] ?? new ForensicLogger();
+    $emailSender = $context['emailSender'] ?? new Email();
+    $actorId = $context['actor_id'] ?? null;
+    $targetId = $context['target_id'] ?? null;
+
+    $lastExceptionMessage = null;
+    for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+        try {
+            $sent = $emailSender->send($recipient, $subject, $body, $options);
+        } catch (Exception $e) {
+            $sent = false;
+            $lastExceptionMessage = $e->getMessage();
+        }
+
+        if ($sent) {
+            try { $logger->log($actorId, 'notif_user_created_sent', 'notification', $targetId, "Notification sent to {$recipient} (attempt {$attempt})"); } catch (Exception $e) {}
+            return true;
+        }
+
+        try { $logger->log($actorId, 'notif_user_created_attempt_failed', 'notification', $targetId, "Attempt {$attempt} failed to send to {$recipient}"); } catch (Exception $e) {}
+
+        if ($attempt < $maxAttempts) {
+            $delay = $initialDelay * (2 ** ($attempt - 1));
+            try { sleep($delay); } catch (Exception $e) {}
+        }
+    }
+
+    try {
+        $forensic->logSecurityEvent('notification_failed_exhausted', 'high', 'Notification retries exhausted', ['recipient' => $recipient, 'attempts' => $maxAttempts, 'last_exception' => $lastExceptionMessage], $targetId);
+    } catch (Exception $e) { error_log('Forensic log error: ' . $e->getMessage()); }
+    try { $logger->log($actorId, 'notif_user_created_failed', 'notification', $targetId, "All {$maxAttempts} attempts failed for {$recipient}"); } catch (Exception $e) {}
+    return false;
+}
 
 $error = '';
 $success = '';
@@ -132,6 +180,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } catch (Exception $e) {
                         error_log('Welcome email send error: ' . $e->getMessage());
                     }
+                }
+
+                // Enviar notificaciones configuradas sobre la creación del usuario
+                try {
+                    require_once __DIR__ . '/../../classes/Config.php';
+                    require_once __DIR__ . '/../../classes/Email.php';
+                    $cfg = new Config();
+                    if ((bool)$cfg->get('notify_user_creation_enabled', '0')) {
+                        $emailsRaw = $cfg->get('notify_user_creation_emails', '');
+                        $notifyAdmins = $cfg->get('notify_user_creation_to_admins', '1');
+                        $recipients = [];
+                        if (!empty($emailsRaw)) {
+                            foreach (explode(',', $emailsRaw) as $p) {
+                                $e = trim($p);
+                                if ($e && filter_var($e, FILTER_VALIDATE_EMAIL)) $recipients[] = $e;
+                            }
+                        }
+                        if ((bool)$notifyAdmins) {
+                            $db = Database::getInstance()->getConnection();
+                            $stmtA = $db->prepare("SELECT email FROM users WHERE role = 'admin' AND email IS NOT NULL AND email != ''");
+                            $stmtA->execute();
+                            $admins = $stmtA->fetchAll(PDO::FETCH_COLUMN, 0);
+                            foreach ($admins as $ae) {
+                                if ($ae && filter_var($ae, FILTER_VALIDATE_EMAIL)) $recipients[] = $ae;
+                            }
+                        }
+                        $recipients = array_values(array_unique($recipients));
+                        if (!empty($recipients)) {
+                            $emailSender = new Email();
+                            $siteName = $cfg->get('site_name', SITE_NAME ?? 'Mimir');
+                            $fromEmailCfg = $cfg->get('email_from_address', '');
+                            $fromNameCfg = $cfg->get('email_from_name', $siteName);
+                            $subject = "Nuevo usuario creado — " . $siteName;
+                            $body = '<div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto;">';
+                            $body .= '<h3>Nuevo usuario creado</h3>';
+                            $body .= '<ul>';
+                            $body .= '<li><strong>Usuario:</strong> ' . htmlspecialchars($username) . '</li>';
+                            $body .= '<li><strong>Email:</strong> ' . htmlspecialchars($email) . '</li>';
+                            if (!empty($fullName)) $body .= '<li><strong>Nombre completo:</strong> ' . htmlspecialchars($fullName) . '</li>';
+                            $body .= '<li><strong>Rol:</strong> ' . htmlspecialchars($role) . '</li>';
+                            $body .= '</ul>';
+                            $body .= '</div>';
+
+                            foreach ($recipients as $r) {
+                                try {
+                                    sendNotificationWithRetries($r, $subject, $body, ['from_email' => $fromEmailCfg, 'from_name' => $fromNameCfg], ['emailSender' => $emailSender, 'logger' => $logger, 'forensic' => new ForensicLogger(), 'actor_id' => $user['id'], 'target_id' => $userId]);
+                                } catch (Exception $e) {
+                                    error_log('Notification helper error: ' . $e->getMessage());
+                                    try { $logger->log($user['id'], 'notif_user_created_failed', 'notification', $userId, 'Notification helper exception: ' . $e->getMessage()); } catch (Exception $ee) {}
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log('User creation notification (admin) error: ' . $e->getMessage());
                 }
                 
                 $successMsg = 'Usuario creado correctamente';
