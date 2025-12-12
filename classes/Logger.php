@@ -14,6 +14,32 @@ class Logger {
     /**
      * Log an activity
      */
+
+    /**
+     * Return distinct actions present in activity_log and security_events
+     * Used to populate dynamic filters in the admin UI.
+     */
+    public function getDistinctActions() {
+        try {
+            $sql = "(
+                SELECT DISTINCT action as a FROM activity_log
+            ) UNION (
+                SELECT DISTINCT event_type as a FROM security_events
+            ) ORDER BY a ASC";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute();
+            $rows = $stmt->fetchAll();
+            $actions = [];
+            foreach ($rows as $r) {
+                if (!empty($r['a'])) $actions[] = $r['a'];
+            }
+            return $actions;
+        } catch (Exception $e) {
+            error_log("Get distinct actions error: " . $e->getMessage());
+            return [];
+        }
+    }
     public function log($userId, $action, $entityType = null, $entityId = null, $description = null, $metadata = null) {
         try {
             $stmt = $this->db->prepare("

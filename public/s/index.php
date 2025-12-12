@@ -93,11 +93,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fileSize = $share['file_size'] ?? null;
             if ($shareId !== null) {
                 $forensicLogger->logShareAccess($shareId, 'download', $fileSize);
-                $forensicLogger->logDownload($share['file_id'], $shareId, null);
+                $downloadLogId = $forensicLogger->logDownload($share['file_id'], $shareId, null);
+            } else {
+                $downloadLogId = null;
             }
         }
-        $shareClass->download($token, $password);
-        exit;
+        $dlRes = $shareClass->download($token, $password, $downloadLogId);
+        if (is_array($dlRes) && !empty($dlRes['error'])) {
+            // Preserve error and allow page render (so user sees message)
+            $error = $dlRes['error'];
+            $needsPassword = false;
+            $share = $shareClass->getByToken($token);
+        } else {
+            // download either handled (streaming + exit) or returned ok; ensure exit
+            exit;
+        }
     } else {
         $error = is_array($validation) ? ($validation['error'] ?? 'Error de acceso') : 'Error de acceso';
         $needsPassword = true;
@@ -115,11 +125,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fileSize = $share['file_size'] ?? null;
             if ($shareId !== null) {
                 $forensicLogger->logShareAccess($shareId, 'download', $fileSize);
-                $forensicLogger->logDownload($share['file_id'], $shareId, null);
+                $downloadLogId = $forensicLogger->logDownload($share['file_id'], $shareId, null);
+            } else {
+                $downloadLogId = null;
             }
         }
-        $shareClass->download($token);
-        exit;
+        $dlRes = $shareClass->download($token, null, $downloadLogId);
+        if (is_array($dlRes) && !empty($dlRes['error'])) {
+            $error = $dlRes['error'];
+            $needsPassword = false;
+            $share = $shareClass->getByToken($token);
+        } else {
+            exit;
+        }
     } elseif (is_array($validation) && ($validation['error'] ?? '') === 'Password required') {
         $needsPassword = true;
         $share = $shareClass->getByToken($token);

@@ -2,7 +2,6 @@
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/File.php';
 require_once __DIR__ . '/../../classes/Logger.php';
 
@@ -13,11 +12,65 @@ $fileClass = new File();
 $logger = new Logger();
 $db = Database::getInstance()->getConnection();
 
+// AJAX endpoint: return list of IDs matching current filters (used for client-side batching)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'list_ids') {
+    // Ensure PHP warnings/notices are not emitted into the response
+    ini_set('display_errors', '0');
+    error_reporting(E_ALL);
+
+    try {
+        $q_get = trim((string)($_GET['q'] ?? ''));
+    $filter_get = $_GET['filter'] ?? 'expired';
+    $expiredFrom_get = trim((string)($_GET['expired_from'] ?? ''));
+    $expiredTo_get = trim((string)($_GET['expired_to'] ?? ''));
+
+    $where = [];
+    $params = [];
+    if ($filter_get === 'expired') {
+        $where[] = 'f.is_expired = 1';
+    } elseif ($filter_get === 'not') {
+        $where[] = 'f.is_expired = 0';
+    } elseif ($filter_get === 'never') {
+        $where[] = 'f.never_expire = 1';
+    }
+    if ($q_get !== '') {
+        $where[] = '(f.original_name LIKE ? OR u.username LIKE ?)';
+        $params[] = "%$q_get%";
+        $params[] = "%$q_get%";
+    }
+    if ($expiredFrom_get !== '') { $where[] = 'f.expired_at >= ?'; $params[] = $expiredFrom_get . ' 00:00:00'; }
+    if ($expiredTo_get !== '') { $where[] = 'f.expired_at <= ?'; $params[] = $expiredTo_get . ' 23:59:59'; }
+
+    $whereSql = '';
+    if (!empty($where)) $whereSql = 'WHERE ' . implode(' AND ', $where);
+
+        $stmtIds = $db->prepare("SELECT f.id FROM files f LEFT JOIN users u ON f.user_id = u.id $whereSql ORDER BY f.id ASC");
+        $stmtIds->execute($params);
+        $ids = $stmtIds->fetchAll(PDO::FETCH_COLUMN);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'ids' => array_map('intval', $ids)]);
+        exit;
+    } catch (Exception $e) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+        exit;
+    }
+}
+
+// Handle bulk admin actions
 // Handle bulk admin actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
+    // Ensure PHP warnings/notices are not emitted into AJAX responses
+    ini_set('display_errors', '0');
+    error_reporting(E_ALL);
+
     $action = $_POST['action'];
     $success = 0;
     $errors = 0;
+
+    $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+        || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
 
     // Determine target file IDs. Support select_all (apply to all results matching current filters)
     $fileIds = [];
@@ -59,16 +112,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
         $fileIds = array_map('intval', $stmtIds->fetchAll(PDO::FETCH_COLUMN));
     } else {
         if (!empty($_POST['file_ids'])) {
-            $fileIds = array_map('intval', $_POST['file_ids']);
+            $raw = $_POST['file_ids'];
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $fileIds = array_map('intval', $decoded);
+                } else {
+                    // fallback: if string but not JSON, treat as CSV of ints
+                    $parts = preg_split('/[^0-9]+/', $raw, -1, PREG_SPLIT_NO_EMPTY);
+                    if (!empty($parts)) $fileIds = array_map('intval', $parts);
+                }
+            } elseif (is_array($raw)) {
+                $fileIds = array_map('intval', $raw);
+            }
         }
     }
 
     if (empty($fileIds)) {
+        if ($isAjax) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'No hay archivos seleccionados']);
+            exit;
+        }
         header('Location: ' . BASE_URL . '/admin/expired_files.php?error=' . urlencode('No hay archivos seleccionados'));
         exit;
     }
 
     try {
+        // If select_all was used, $fileIds may contain many items; process server-side in pages
+        $isSelectAll = !empty($_POST['select_all']) && $_POST['select_all'] === '1';
+
+        if ($isSelectAll) {
+            // Rebuild filters from GET as above
+            $where = [];
+            $params = [];
+            $q_post = trim((string)($_GET['q'] ?? ''));
+            $filter_post = $_GET['filter'] ?? 'expired';
+            $expiredFrom_post = trim((string)($_GET['expired_from'] ?? ''));
+            $expiredTo_post = trim((string)($_GET['expired_to'] ?? ''));
+
+            if ($filter_post === 'expired') {
+                $where[] = 'f.is_expired = 1';
+            } elseif ($filter_post === 'not') {
+                $where[] = 'f.is_expired = 0';
+            } elseif ($filter_post === 'never') {
+                $where[] = 'f.never_expire = 1';
+            }
+            if ($q_post !== '') {
+                $where[] = '(f.original_name LIKE ? OR u.username LIKE ?)';
+                $params[] = "%$q_post%";
+                $params[] = "%$q_post%";
+            }
+            if ($expiredFrom_post !== '') { $where[] = 'f.expired_at >= ?'; $params[] = $expiredFrom_post . ' 00:00:00'; }
+            if ($expiredTo_post !== '') { $where[] = 'f.expired_at <= ?'; $params[] = $expiredTo_post . ' 23:59:59'; }
+
+            $whereSql = '';
+            if (!empty($where)) $whereSql = 'WHERE ' . implode(' AND ', $where);
+
+            // Process in pages to avoid large memory use and huge JSON payloads
+            $pageSize = 500;
+            $offset = 0;
+            $deleted = 0;
+            $errors = 0;
+
+            while (true) {
+                $stmt = $db->prepare("SELECT f.id, f.original_name, f.file_path FROM files f LEFT JOIN users u ON f.user_id = u.id $whereSql ORDER BY f.id ASC LIMIT ? OFFSET ?");
+                $execParams = array_merge($params, [$pageSize, $offset]);
+                $stmt->execute($execParams);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                if (empty($rows)) break;
+
+                foreach ($rows as $f) {
+                    try {
+                        // Delete physical file
+                        $fullPath = UPLOADS_PATH . '/' . $f['file_path'];
+                        if (file_exists($fullPath)) {
+                            @unlink($fullPath);
+                        }
+
+                        // Delete database record
+                        $delStmt = $db->prepare("DELETE FROM files WHERE id = ?");
+                        if ($delStmt->execute([$f['id']])) {
+                            $deleted++;
+                            $logger->log($user['id'], 'orphan_deleted', 'file', $f['id'], "Archivo huérfano '{$f['original_name']}' eliminado (bulk paged)");
+                        } else {
+                            $errors++;
+                        }
+                    } catch (Exception $e) {
+                        $errors++;
+                        continue;
+                    }
+                }
+
+                // advance offset
+                if (count($rows) < $pageSize) break;
+                $offset += $pageSize;
+            }
+
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'deleted' => $deleted, 'errors' => $errors]);
+                exit;
+            }
+
+            // Non-AJAX response
+            $msg = "Acción completada: $deleted eliminados";
+            if ($errors > 0) $msg .= ", $errors errores";
+            header('Location: ' . BASE_URL . '/admin/expired_files.php?success=' . urlencode($msg));
+            exit;
+        }
+
+        // Non-select_all path: existing behavior (process provided $fileIds array)
         $db->beginTransaction();
         foreach ($fileIds as $fid) {
             $f = $fileClass->getById($fid);
@@ -126,20 +280,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
             $logger->log($user['id'], 'file_bulk_action_all', 'files', null, $details);
         }
 
+        if ($isAjax) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'deleted' => $success, 'errors' => $errors]);
+            exit;
+        }
+
         $msg = "Acción completada: $success exitosos";
         if ($errors > 0) $msg .= ", $errors errores";
         header('Location: ' . BASE_URL . '/admin/expired_files.php?success=' . urlencode($msg));
         exit;
     } catch (Exception $e) {
         $db->rollBack();
+        if ($isAjax) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
+        }
         header('Location: ' . BASE_URL . '/admin/expired_files.php?error=' . urlencode($e->getMessage()));
         exit;
     }
 }
 
 // Pagination
-require_once __DIR__ . '/../../classes/Config.php';
-$config = new Config();
+$layoutIncluded = false;
+$config = (function(){
+    require_once __DIR__ . '/../../classes/Config.php';
+    return new Config();
+})();
 $perPage = isset($_GET['per_page']) ? max(10, min(200, intval($_GET['per_page']))) : (int)$config->get('items_per_page', 25);
 $page = max(1, intval($_GET['page'] ?? 1));
 $offset = ($page - 1) * $perPage;
@@ -210,6 +378,9 @@ $stmt = $db->prepare($dataSql);
 $stmt->execute($paramsWithLimit);
 $files = $stmt->fetchAll();
 
+// Include layout just before rendering the HTML page to avoid any accidental
+// output before AJAX handlers above. This prevents HTML from polluting JSON.
+require_once __DIR__ . '/../../includes/layout.php';
 renderPageStart('Archivos Expirados', 'expired_files', true);
 renderHeader('Archivos Expirados', $user);
 // helper to build links preserving query
@@ -291,6 +462,31 @@ function buildQuery(array $overrides = []) {
                     <button class="btn btn-danger" onclick="expiredDoAction('delete')">Eliminar seleccionados</button>
                 </div>
 
+                <!-- Processing overlay (progress bar + logs) -->
+                <div id="processingOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.66); z-index:2147483647; align-items:center; justify-content:center;">
+                    <div style="background:rgba(0,0,0,0.7); color:white; text-align:left; width:720px; max-width:95%; border-radius:8px; padding:1rem;">
+                        <div style="display:flex; gap:1rem; align-items:center;">
+                            <style>
+                                .mimir-spinner { width:40px; height:40px; border:5px solid rgba(255,255,255,0.12); border-top-color:#fff; border-radius:50%; animation:mimir-spin 1s linear infinite; margin-right:0.75rem; }
+                                @keyframes mimir-spin { to { transform: rotate(360deg); } }
+                            </style>
+                            <div><div class="mimir-spinner" aria-hidden="true"></div></div>
+                            <div style="flex:1;">
+                                <div id="processingMessage" style="font-size:1.05rem; margin-bottom:0.5rem;">Procesando, por favor espere...</div>
+                                <div style="background: rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; height:14px; position:relative;">
+                                    <div id="processingBarFill" style="background: linear-gradient(90deg,#4a90e2,#50c878); height:100%; width:0%; transition:width 250ms ease;"></div>
+                                </div>
+                                <div id="processingPercent" style="margin-top:6px; font-size:0.9rem; opacity:0.95;">0%</div>
+                            </div>
+                            <div style="min-width:120px; text-align:right; font-size:0.95rem; color: #fff; opacity:0.9;">
+                                <div id="processingMiniStatus">Iniciado</div>
+                            </div>
+                        </div>
+                        <div id="processingLogs" style="margin-top:0.75rem; max-height:180px; overflow:auto; background: rgba(255,255,255,0.04); border-radius:6px; padding:0.5rem; font-size:0.9rem; color:#fff; border:1px solid rgba(255,255,255,0.04);">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Floating actions (centered) -->
                 <div id="floatingActions" style="position:fixed; left:50%; transform:translateX(-50%); bottom:1rem; z-index:1000; display:none;">
                     <div style="background:#fff; border:1px solid #ddd; padding:0.6rem 1rem; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.12); display:flex; gap:1rem; align-items:center; min-width:320px; justify-content:center;">
@@ -328,9 +524,9 @@ function buildQuery(array $overrides = []) {
                 <?php endif; ?>
 
                 <!-- Load jQuery + DataTables (client-side enhancements) -->
-                <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-                <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-                <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@1.13.6/css/jquery.dataTables.min.css">
+                <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/datatables.net@1.13.6/js/jquery.dataTables.min.js"></script>
 
                 <script>
                 // Provide a minimal jQuery-like fallback if CDN is blocked
@@ -430,9 +626,97 @@ function buildQuery(array $overrides = []) {
                     const form = document.getElementById('expiredForm');
                     const fd = new FormData(form);
                     fd.set('action', action);
-                    fetch(location.pathname + location.search, { method: 'POST', body: fd, credentials: 'same-origin' })
-                        .then(resp => { window.location.reload(); })
-                        .catch(err => { alert('Error performing action'); });
+
+                    // If select_all is set, fetch full ID list and process in batches with progress
+                    const selectAll = document.getElementById('selectAllFlag').value === '1';
+                    const BATCH_SIZE = 50;
+                    if (selectAll) {
+                        showProcessing('Obteniendo lista de archivos...', { clearLogs: true, percent: 0, status: 'Obteniendo lista' });
+                        // build query string from current filters
+                        const qs = window.location.search ? window.location.search.substring(1) : '';
+                        const listUrl = location.pathname + '?action=list_ids&' + qs;
+                        showProcessing('Obteniendo y procesando archivos por páginas...', { clearLogs: true, percent: 0, status: 'Iniciando' });
+                        Mimir.processListIdsInPages(listUrl, action, 500, 100, {
+                            onProgress: function(processed, total) { updateProcessingProgress(total ? Math.round((processed/total)*100) : 0, `Procesados ${processed} / ${total||'?'} `); },
+                            onLog: function(txt) { appendProcessingLog(txt); },
+                            onError: function(err) { hideProcessing(); console.error('Error obteniendo lista (expired_files paginado):', err); if (err && (err.code === 'AUTH_REQUIRED')) { Mimir.showAuthBanner('Sesión expirada o no autorizada. Reautentica en otra pestaña y recarga.'); return; } alert('Error obteniendo lista: ' + (err.message || '')); },
+                            onComplete: function() { hideProcessing(); window.location.reload(); }
+                        });
+                        return;
+                    }
+
+                    // fallback: process selected ids in batches (even small selections)
+                    const selectedInputs = Array.from(document.querySelectorAll('input[name="file_ids[]"]')).map(n => parseInt(n.value));
+                    if (!selectedInputs || selectedInputs.length === 0) { alert('No hay archivos seleccionados'); return; }
+                    showProcessing('Procesando selección...', { clearLogs: true, percent: 0, status: 'Enviando' });
+                    processIdsInBatches(selectedInputs, action, 50, function(){ hideProcessing(); window.location.reload(); });
+                }
+
+                // Processing overlay helpers (progress + logs)
+                // Simple spinner: show/hide overlay and update message. Keep minimal progress/log support.
+                function showProcessing(msg, options = {}) {
+                    const overlay = document.getElementById('processingOverlay');
+                    const msgEl = document.getElementById('processingMessage');
+                    const logs = document.getElementById('processingLogs');
+                    if (!overlay) return;
+                    if (msgEl && msg) msgEl.textContent = msg;
+                    if (options.clearLogs && logs) logs.innerHTML = '';
+                    overlay.style.display = 'flex';
+                }
+
+                function hideProcessing() {
+                    const overlay = document.getElementById('processingOverlay');
+                    if (!overlay) return;
+                    overlay.style.display = 'none';
+                }
+
+                function updateProcessingProgress(percent, statusMessage) {
+                    const bar = document.getElementById('processingBarFill');
+                    const percentEl = document.getElementById('processingPercent');
+                    const mini = document.getElementById('processingMiniStatus');
+                    if (bar) bar.style.width = Math.max(0, Math.min(100, Math.round(percent))) + '%';
+                    if (percentEl) percentEl.textContent = Math.max(0, Math.min(100, Math.round(percent))) + '%';
+                    if (mini && statusMessage) mini.textContent = statusMessage;
+                }
+
+                function appendProcessingLog(text) {
+                    const logs = document.getElementById('processingLogs');
+                    if (!logs) { console.log('[processing log]', text); return; }
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    logs.appendChild(div);
+                    logs.scrollTop = logs.scrollHeight;
+                }
+
+                // Generic batching helper for expired files page
+                function processIdsInBatches(ids, action, batchSize, onComplete) {
+                    let processed = 0;
+                    let successTotal = 0;
+
+                    function chunkProcess(start) {
+                        const chunk = ids.slice(start, start + batchSize);
+                        updateProcessingProgress((processed / ids.length) * 100, `Procesando ${Math.min(start + batchSize, ids.length)} / ${ids.length}`);
+                        const chunkFd = new FormData();
+                        chunkFd.append('action', action);
+                        chunkFd.append('file_ids', JSON.stringify(chunk));
+
+                        fetch(location.pathname + location.search, { method: 'POST', body: chunkFd, credentials: 'same-origin' })
+                            .then(Mimir.parseJsonResponse)
+                            .then(resp => {
+                                if (resp && resp.success) {
+                                    successTotal += (resp.deleted || resp.count || chunk.length);
+                                    appendProcessingLog(`Lote procesado: ${chunk.length} elementos` + (resp.message ? ` — ${resp.message}` : ''));
+                                } else {
+                                    appendProcessingLog('Lote con error: ' + (resp && resp.message ? resp.message : 'Desconocido'));
+                                }
+                                processed += chunk.length;
+                                updateProcessingProgress((processed / ids.length) * 100, `Procesado ${processed} / ${ids.length}`);
+                                if (start + batchSize < ids.length) setTimeout(() => chunkProcess(start + batchSize), 150);
+                                else { updateProcessingProgress(100, 'Finalizado'); appendProcessingLog(`Operación finalizada. Procesados: ${processed}. Éxitos estimados: ${successTotal}`); if (typeof onComplete === 'function') setTimeout(onComplete, 600); }
+                            }).catch(err => { hideProcessing(); appendProcessingLog('Error de red: ' + err.message); alert('Error de red: ' + err.message); });
+                    }
+
+                    chunkProcess(0);
                 }
 
                 function promptBulkAction(action){
@@ -452,14 +736,9 @@ function buildQuery(array $overrides = []) {
 
                 function expiredDoActionSingle(action, id){
                     if(!confirm('Confirmar acción?')) return;
-                    const form = document.getElementById('expiredForm');
-                    // clear existing file_ids
-                    form.querySelectorAll('input[name="file_ids[]"]').forEach(n=>n.remove());
-                    const input = document.createElement('input'); input.type='hidden'; input.name='file_ids[]'; input.value=id; form.appendChild(input);
-                    const fd = new FormData(form); fd.set('action', action);
-                    fetch(location.pathname + location.search, { method: 'POST', body: fd, credentials: 'same-origin' })
-                        .then(resp => { window.location.reload(); })
-                        .catch(err => { alert('Error performing action'); });
+                    const ids = [parseInt(id)];
+                    showProcessing('Ejecutando acción...', { clearLogs: true, percent: 0, status: 'Enviando' });
+                    processIdsInBatches(ids, action, 50, function(){ hideProcessing(); window.location.reload(); });
                 }
                 </script>
             <?php endif; ?>

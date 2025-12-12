@@ -29,6 +29,18 @@ $totalShares = $db->query("SELECT COUNT(*) FROM shares WHERE is_active = 1")->fe
 $totalStorage = $db->query("SELECT COALESCE(SUM(file_size), 0) FROM files")->fetchColumn();
 $storageGB = $totalStorage / 1024 / 1024 / 1024;
 
+// Invitations stats (last 48 hours)
+$invitesSent48 = 0;
+$invitesAccepted48 = 0;
+try {
+    $invitesSent48 = (int)$db->query("SELECT COUNT(*) FROM invitations WHERE created_at >= (NOW() - INTERVAL 48 HOUR)")->fetchColumn();
+    $invitesAccepted48 = (int)$db->query("SELECT COUNT(*) FROM invitations WHERE used_at IS NOT NULL AND used_at >= (NOW() - INTERVAL 48 HOUR)")->fetchColumn();
+} catch (Exception $e) {
+    // invitations table may not exist yet on older installs
+    $invitesSent48 = 0;
+    $invitesAccepted48 = 0;
+}
+
 // Advanced statistics
 // Get period from query parameter (default 30 days)
 $period = isset($_GET['period']) ? (int)$_GET['period'] : 30;
@@ -283,6 +295,15 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
                 <div class="admin-stat-sublabel">de <?php echo $activeUsers; ?> activos</div>
             </div>
             <div class="admin-stat-icon"><i class="fas fa-user-friends"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Invitaciones (48h)</div>
+                <div class="admin-stat-value"><?php echo (int)$invitesSent48; ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-envelope-open-text"></i> <?php echo (int)$invitesAccepted48; ?> aceptadas</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-user-plus"></i></div>
         </div>
     </div>
     

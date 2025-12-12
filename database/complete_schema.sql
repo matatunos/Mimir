@@ -110,6 +110,8 @@ CREATE TABLE IF NOT EXISTS `shares` (
   `file_id` int(11) NOT NULL,
   `share_token` varchar(64) NOT NULL,
   `share_name` varchar(255) DEFAULT NULL,
+  `recipient_email` varchar(255) DEFAULT NULL,
+  `recipient_message` text DEFAULT NULL,
   `password` varchar(255) DEFAULT NULL COMMENT 'Optional password protection',
   `max_downloads` int(11) DEFAULT NULL COMMENT 'Maximum number of downloads, NULL = unlimited',
   `download_count` int(11) NOT NULL DEFAULT 0,

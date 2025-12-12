@@ -5,58 +5,11 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/File.php';
 require_once __DIR__ . '/../../classes/Logger.php';
-
-$auth = new Auth();
-$auth->requireAdmin();
-$user = $auth->getUser();
-$fileClass = new File();
-$logger = new Logger();
-$db = Database::getInstance()->getConnection();
-
+require_once __DIR__ . '/../../classes/ForensicLogger.php';
 // Handle bulk actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && (!empty($_POST['file_ids']) || (isset($_POST['select_all']) && $_POST['select_all'] == '1'))) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && !empty($_POST['file_ids'])) {
     $action = $_POST['action'];
-    $fileIds = is_array($_POST['file_ids'] ?? null) ? array_map('intval', $_POST['file_ids']) : [];
-
-    // If select_all flag is present, build the file ID list according to provided filters
-    if (isset($_POST['select_all']) && $_POST['select_all'] == '1') {
-        $filters = $_POST['filters'] ?? '';
-        $farr = [];
-        if ($filters !== '') parse_str($filters, $farr);
-
-        $search_f = $farr['search'] ?? '';
-        $filterUser_f = $farr['user'] ?? '';
-        $filterShared_f = $farr['shared'] ?? '';
-        $filterType_f = $farr['type'] ?? '';
-
-        $whereA = ["1=1"];
-        $paramsA = [];
-        if ($search_f) {
-            $whereA[] = "(f.original_name LIKE ? OR f.description LIKE ?)";
-            $paramsA[] = "%$search_f%";
-            $paramsA[] = "%$search_f%";
-        }
-        if ($filterUser_f) {
-            $whereA[] = "u.username LIKE ?";
-            $paramsA[] = "%$filterUser_f%";
-        }
-        if ($filterShared_f === 'yes') {
-            $whereA[] = "f.is_shared = 1";
-        } elseif ($filterShared_f === 'no') {
-            $whereA[] = "f.is_shared = 0";
-        }
-        if ($filterType_f) {
-            $whereA[] = "f.mime_type LIKE ?";
-            $paramsA[] = "$filterType_f%";
-        }
-
-        $whereClauseA = implode(' AND ', $whereA);
-        $stmtA = $db->prepare("SELECT f.id FROM files f LEFT JOIN users u ON f.user_id = u.id WHERE $whereClauseA");
-        $stmtA->execute($paramsA);
-        $rows = $stmtA->fetchAll(PDO::FETCH_ASSOC);
-        $fileIds = array_map(function($r){ return intval($r['id']); }, $rows);
-    }
-
+    $fileIds = array_map('intval', $_POST['file_ids']);
     $success = 0;
     $errors = 0;
     
@@ -157,20 +110,10 @@ if ($filterType) {
 
 $whereClause = implode(' AND ', $where);
 
-// Valid sort columns (include shared indicators)
-$validSort = ['original_name', 'file_size', 'created_at', 'username', 'mime_type', 'is_shared', 'share_count'];
+// Valid sort columns
+$validSort = ['original_name', 'file_size', 'created_at', 'username', 'mime_type'];
 if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
 $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'ASC' : 'DESC';
-
-// Map sort key to actual ORDER BY expression
-if ($sortBy === 'username') {
-    $orderColumn = 'u.username';
-} elseif ($sortBy === 'share_count') {
-    // share_count is an alias in the SELECT, ordering by alias is supported
-    $orderColumn = 'share_count';
-} else {
-    $orderColumn = 'f.' . $sortBy;
-}
 
 // Get files
 $stmt = $db->prepare("
@@ -182,7 +125,7 @@ $stmt = $db->prepare("
     FROM files f
     LEFT JOIN users u ON f.user_id = u.id
     WHERE $whereClause
-    ORDER BY " . $orderColumn . " $sortOrder
+    ORDER BY " . ($sortBy === 'username' ? 'u.username' : 'f.' . $sortBy) . " $sortOrder
     LIMIT ? OFFSET ?
 ");
 $params[] = $perPage;
@@ -277,6 +220,7 @@ renderHeader('Gestión de Archivos', $user);
     height: 18px;
     cursor: pointer;
 }
+
 </style>
 
 <div class="content">
@@ -341,6 +285,10 @@ renderHeader('Gestión de Archivos', $user);
                             <option value="50" <?php echo $perPage === 50 ? 'selected' : ''; ?>>50</option>
                             <option value="100" <?php echo $perPage === 100 ? 'selected' : ''; ?>>100</option>
                         </select>
+                        <button type="button" id="compactToggle" class="btn btn-outline btn-icon" title="Alternar vista compacta (reduce padding y oculta columnas menos importantes)" aria-pressed="false" aria-label="Alternar vista compacta">
+                            <i class="fas fa-compress"></i>
+                            <span class="visually-hidden">Alternar vista compacta</span>
+                        </button>
                     </div>
                 </div>
             </form>
@@ -372,9 +320,6 @@ renderHeader('Gestión de Archivos', $user);
                 <button type="button" class="btn btn-primary" onclick="toggleSelectAll()">
                     <i class="fas fa-check-square"></i> Seleccionar Todo
                 </button>
-                <button type="button" class="btn btn-outline" onclick="selectAllFiltered()" title="Seleccionar todos los archivos que coinciden con los filtros">
-                    <i class="fas fa-check"></i> Seleccionar todos (filtro)
-                </button>
             </div>
         </div>
         <div class="card-body">
@@ -387,8 +332,6 @@ renderHeader('Gestión de Archivos', $user);
             <?php else: ?>
                 <form method="POST" id="bulkForm">
                     <input type="hidden" name="action" id="bulkAction">
-                    <input type="hidden" name="select_all" id="selectAllFlag" value="0">
-                    <input type="hidden" name="filters" id="bulkFilters" value="">
                     
                     <div style="overflow-x: auto;">
                         <table class="table">
@@ -433,15 +376,7 @@ renderHeader('Gestión de Archivos', $user);
                                             <?php endif; ?>
                                         </a>
                                     </th>
-                                    <th>
-                                        <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'is_shared', 'order' => $sortBy === 'is_shared' && $sortOrder === 'ASC' ? 'DESC' : 'ASC'])); ?>" 
-                                           class="sort-link <?php echo $sortBy === 'is_shared' ? 'active' : ''; ?>">
-                                            Compartido
-                                            <?php if ($sortBy === 'is_shared'): ?>
-                                                <i class="fas fa-sort-<?php echo $sortOrder === 'ASC' ? 'up' : 'down'; ?>"></i>
-                                            <?php endif; ?>
-                                        </a>
-                                    </th>
+                                    <th>Compartido</th>
                                     <th>
                                         <a href="?<?php echo http_build_query(array_merge($_GET, ['sort' => 'created_at', 'order' => $sortBy === 'created_at' && $sortOrder === 'ASC' ? 'DESC' : 'ASC'])); ?>" 
                                            class="sort-link <?php echo $sortBy === 'created_at' ? 'active' : ''; ?>">
@@ -485,11 +420,14 @@ renderHeader('Gestión de Archivos', $user);
                                         <?php endif; ?>
                                     </td>
                                     <td style="white-space: nowrap;"><?php echo date('d/m/Y H:i', strtotime($file['created_at'])); ?></td>
+                                    <td style="text-align: center; white-space: nowrap;">
+                                        <?php
+                                            $stats = $forensic->getDownloadStats($file['id'], 30);
+                                            echo intval($stats['total_downloads'] ?? 0);
+                                        ?>
+                                    </td>
                                     <td style="text-align: right; white-space: nowrap;">
                                         <div style="display:flex; gap:0.35rem; justify-content:flex-end;">
-                                            <a href="<?php echo BASE_URL; ?>/admin/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-outline" title="Descargar" target="_blank" rel="noopener">
-                                                <i class="fas fa-download"></i>
-                                            </a>
                                             <button type="button" class="btn btn-sm btn-outline" onclick="adminToggleShare(<?php echo $file['id']; ?>, <?php echo $file['is_shared'] ? 'false' : 'true'; ?>)" title="<?php echo $file['is_shared'] ? 'Desactivar compartido' : 'Marcar como compartido'; ?>">
                                                 <?php echo $file['is_shared'] ? '<i class="fas fa-ban"></i>' : '<i class="fas fa-share"></i>'; ?>
                                             </button>
@@ -536,40 +474,17 @@ renderHeader('Gestión de Archivos', $user);
     <button type="button" class="btn btn-success" onclick="confirmBulkAction('share')">
         <i class="fas fa-share"></i> Marcar como Compartido
     </button>
-    <button type="button" class="btn btn-info" onclick="openReassignModal()">
-        <i class="fas fa-user-edit"></i> Reasignar
-    </button>
     <button type="button" class="btn btn-secondary" onclick="clearSelection()">
         <i class="fas fa-times"></i> Cancelar
     </button>
 </div>
 
-<!-- Processing overlay -->
-<div id="processingOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:2147483647; align-items:center; justify-content:center;">
-    <style>
-        .mimir-spinner { width:48px; height:48px; border:6px solid rgba(255,255,255,0.16); border-top-color: #fff; border-radius:50%; animation: mimir-spin 1s linear infinite; margin:0 auto 0.5rem; }
-        @keyframes mimir-spin { to { transform: rotate(360deg); } }
-    </style>
-    <div style="background:transparent; color:white; text-align:center;">
-        <div class="mimir-spinner" aria-hidden="true"></div>
-        <div id="processingMessage" style="font-size:1.125rem;">Procesando, por favor espere...</div>
-    </div>
-</div>
-
 <script>
-// Ensure globals exist early to avoid race conditions if buttons are clicked
-var totalFilteredFiles = <?php echo intval($totalFiles); ?>;
-if (!window._selectAllFilteredActive) window._selectAllFilteredActive = function(){ return false; };
-if (!window._setSelectAllFilteredActive) window._setSelectAllFilteredActive = function(v){};
-
 document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const fileCheckboxes = document.querySelectorAll('.file-item');
     const bulkActionsBar = document.getElementById('bulkActionsBar');
     const selectedCountSpan = document.getElementById('selectedCount');
-    // total number of files matching current filters (populated server-side)
-    // (declared earlier to avoid races)
-    let selectAllFilteredActive = false;
     
     function updateBulkActionsBar() {
         const checkedCount = document.querySelectorAll('.file-item:checked').length;
@@ -589,8 +504,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     fileCheckboxes.forEach(cb => {
         cb.addEventListener('change', function() {
-            // any manual change cancels the 'select all filtered' mode
-            if (window._setSelectAllFilteredActive) window._setSelectAllFilteredActive(false);
             updateBulkActionsBar();
             
             // Update select all checkbox state
@@ -600,37 +513,7 @@ document.addEventListener('DOMContentLoaded', function() {
             selectAllCheckbox.indeterminate = someChecked && !allChecked;
         });
     });
-    // expose selectAllFilteredActive to global scope
-    window._selectAllFilteredActive = function() { return selectAllFilteredActive; };
-    window._setSelectAllFilteredActive = function(v) { selectAllFilteredActive = !!v; };
 });
-
-// Simple spinner: show/hide overlay and update message. Keep minimal progress/log support.
-function showProcessing(msg, options = {}) {
-    const overlay = document.getElementById('processingOverlay');
-    const msgEl = document.getElementById('processingMessage');
-    if (!overlay) return;
-    if (msgEl && msg) msgEl.textContent = msg;
-    // clear logs if present
-    const logs = document.getElementById('processingLogs');
-    if (options.clearLogs && logs) logs.innerHTML = '';
-    overlay.style.display = 'flex';
-}
-
-function hideProcessing() {
-    const overlay = document.getElementById('processingOverlay');
-    if (!overlay) return;
-    overlay.style.display = 'none';
-}
-
-function updateProcessingProgress(percent, statusMessage) {
-    const bar = document.getElementById('processingBarFill');
-    const percentEl = document.getElementById('processingPercent');
-    if (bar) bar.style.width = Math.max(0, Math.min(100, Math.round(percent))) + '%';
-    if (percentEl) percentEl.textContent = Math.max(0, Math.min(100, Math.round(percent))) + '%';
-}
-
-function appendProcessingLog(text) { const logs = document.getElementById('processingLogs'); if (!logs) { console.log('[files log]', text); return; } const div = document.createElement('div'); div.textContent = text; logs.appendChild(div); logs.scrollTop = logs.scrollHeight; }
 
 function toggleSelectAll() {
     const selectAllCheckbox = document.getElementById('selectAll');
@@ -638,27 +521,14 @@ function toggleSelectAll() {
     selectAllCheckbox.dispatchEvent(new Event('change'));
 }
 
-function selectAllFiltered() {
-    // mark that user wants to select all files matching filters
-    // check the visible checkboxes too for visual feedback
-    document.querySelectorAll('.file-item').forEach(cb => cb.checked = true);
-    document.getElementById('selectAll').checked = true;
-    window._setSelectAllFilteredActive(true);
-    document.getElementById('selectedCount').textContent = totalFilteredFiles;
-    document.getElementById('bulkActionsBar').classList.add('show');
-}
-
 function clearSelection() {
     document.querySelectorAll('.file-item').forEach(cb => cb.checked = false);
     document.getElementById('selectAll').checked = false;
     document.getElementById('bulkActionsBar').classList.remove('show');
-    if (window._setSelectAllFilteredActive) window._setSelectAllFilteredActive(false);
-    document.getElementById('selectedCount').textContent = '0';
 }
 
 function confirmBulkAction(action) {
-    const pageCheckedCount = document.querySelectorAll('.file-item:checked').length;
-    const count = (window._selectAllFilteredActive && window._selectAllFilteredActive()) ? totalFilteredFiles : pageCheckedCount;
+    const count = document.querySelectorAll('.file-item:checked').length;
     let message = '';
     
     switch(action) {
@@ -674,212 +544,37 @@ function confirmBulkAction(action) {
     }
     
     if (confirm(message)) {
-        // show processing overlay while the form posts and server works
-        showProcessing('Ejecutando acción, por favor espere...');
-        // If selecting all filtered, set hidden input with filters
-        const bulkForm = document.getElementById('bulkForm');
-        const selectAllFlag = document.getElementById('selectAllFlag');
-        const filtersInput = document.getElementById('bulkFilters');
-        if (window._selectAllFilteredActive && window._selectAllFilteredActive()) {
-            selectAllFlag.value = '1';
-            // include current query string (without leading ?)
-            filtersInput.value = window.location.search.length ? window.location.search.substring(1) : '';
-            // remove per-page file_ids inputs to avoid confusion
-            const existing = bulkForm.querySelectorAll('input[name="file_ids[]"]');
-            existing.forEach(e => e.remove());
-        } else {
-            selectAllFlag.value = '0';
-            filtersInput.value = '';
-        }
         document.getElementById('bulkAction').value = action;
         document.getElementById('bulkForm').submit();
     }
 }
-
-// Admin single-file actions using the existing bulk form
-function adminToggleShare(fileId, makeShared) {
-    if (!confirm(makeShared ? '¿Marcar este archivo como compartido?' : '¿Quitar compartición de este archivo?')) return;
-    const form = document.getElementById('bulkForm');
-    const input = document.getElementById('bulkAction');
-    // Clear existing file_ids inputs
-    const existing = form.querySelectorAll('input[name="file_ids[]"]');
-    existing.forEach(e => e.remove());
-    const hid = document.createElement('input');
-    hid.type = 'hidden'; hid.name = 'file_ids[]'; hid.value = fileId; form.appendChild(hid);
-    // ensure select_all flag is cleared
-    const selectAllFlag = document.getElementById('selectAllFlag'); if (selectAllFlag) selectAllFlag.value = '0';
-    const filtersInput = document.getElementById('bulkFilters'); if (filtersInput) filtersInput.value = '';
-    input.value = makeShared ? 'share' : 'unshare';
-    form.submit();
-}
-
-function adminDeleteFile(fileId, fileName) {
-    if (!confirm(`¿Eliminar "${fileName}"? Esta acción no se puede deshacer.`)) return;
-    const form = document.getElementById('bulkForm');
-    const input = document.getElementById('bulkAction');
-    const existing = form.querySelectorAll('input[name="file_ids[]"]');
-    existing.forEach(e => e.remove());
-    const hid = document.createElement('input');
-    hid.type = 'hidden'; hid.name = 'file_ids[]'; hid.value = fileId; form.appendChild(hid);
-    // ensure select_all flag is cleared
-    const selectAllFlag = document.getElementById('selectAllFlag'); if (selectAllFlag) selectAllFlag.value = '0';
-    const filtersInput = document.getElementById('bulkFilters'); if (filtersInput) filtersInput.value = '';
-    input.value = 'delete';
-    form.submit();
-}
 </script>
 
-<!-- Reassign Modal -->
-<div id="reassignModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div id="reassignModalContent" style="background:white; width:520px; max-width:95%; border-radius:8px; padding:1rem; box-shadow:0 8px 32px rgba(0,0,0,0.3); position:relative; z-index:2147483647; pointer-events:auto;">
-        <h3 style="margin-top:0;">Reasignar archivos</h3>
-        <p id="reassignCount">0 archivos seleccionados</p>
-        <div style="margin-bottom:0.5rem;">
-            <label>Buscar usuario destino</label>
-            <input type="search" id="reassignUserSearch" class="form-control" placeholder="Escribe nombre de usuario o correo..." autocomplete="off">
-            <div id="reassignUserResults" style="max-height:200px; overflow:auto; margin-top:0.5rem;"></div>
-        </div>
-        <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
-            <button type="button" class="btn btn-secondary" onclick="closeReassignModal()">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="reassignConfirmBtn" onclick="confirmReassign()" disabled>Reasignar</button>
-        </div>
-    </div>
-</div>
-
 <script>
-let reassignSelectedFiles = [];
-let reassignSelectedUserId = 0;
-let reassignUseSelectAll = false;
-
-function openReassignModal() {
-    const checked = Array.from(document.querySelectorAll('.file-item:checked')).map(cb => cb.value);
-    // If select-all-filtered mode active, use that
-    if (window._selectAllFilteredActive && window._selectAllFilteredActive()) {
-        reassignUseSelectAll = true;
-        reassignSelectedFiles = [];
-        document.getElementById('reassignCount').textContent = `${totalFilteredFiles} archivos seleccionados`;
-    } else {
-        reassignUseSelectAll = false;
-        if (checked.length === 0) {
-            alert('Selecciona al menos un archivo para reasignar.');
-            return;
-        }
-        reassignSelectedFiles = checked.map(id => parseInt(id));
-        document.getElementById('reassignCount').textContent = `${reassignSelectedFiles.length} archivos seleccionados`;
-    }
-    document.getElementById('reassignUserSearch').value = '';
-    document.getElementById('reassignUserResults').innerHTML = '';
-    reassignSelectedUserId = 0;
-    document.getElementById('reassignConfirmBtn').disabled = true;
-    const modal = document.getElementById('reassignModal');
-    modal.style.display = 'flex';
-    document.getElementById('reassignUserSearch').focus();
-    // prevent clicks inside modal from closing or being intercepted by page-level handlers
-    const modalContent = document.getElementById('reassignModalContent');
-    if (modalContent) {
-        modalContent.addEventListener('click', function(e) { e.stopPropagation(); });
-    }
+function adminDeleteFile(id, name) {
+    if (!confirm('¿Eliminar "' + name + '"? Esta acción no se puede deshacer.')) return;
+    // submit single-file delete via bulkForm
+    const form = document.getElementById('bulkForm');
+    const actionInput = document.getElementById('bulkAction');
+    // remove existing file_ids inputs
+    document.querySelectorAll('#bulkForm input[name="file_ids[]"]').forEach(n => n.remove());
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = 'file_ids[]'; input.value = id;
+    form.appendChild(input);
+    actionInput.value = 'delete';
+    form.submit();
 }
 
-function closeReassignModal() {
-    document.getElementById('reassignModal').style.display = 'none';
-}
-
-let reassignSearchTimeout = null;
-document.getElementById('reassignUserSearch').addEventListener('input', function(e) {
-    const q = this.value.trim();
-    const results = document.getElementById('reassignUserResults');
-    results.innerHTML = '';
-    reassignSelectedUserId = 0;
-    document.getElementById('reassignConfirmBtn').disabled = true;
-    if (reassignSearchTimeout) clearTimeout(reassignSearchTimeout);
-    if (q.length < 2) return;
-    reassignSearchTimeout = setTimeout(() => {
-        fetch('/admin/orphan_files_api.php?action=search_users&q=' + encodeURIComponent(q), { credentials: 'same-origin' })
-            .then(Mimir.parseJsonResponse)
-            .then(data => {
-                if (!data.success) { results.innerHTML = '<div class="text-danger">Error buscando usuarios</div>'; return; }
-                results.innerHTML = '';
-                (data.users || []).forEach(u => {
-                    const div = document.createElement('div');
-                    div.style.padding = '0.4rem';
-                    div.style.borderBottom = '1px solid #eee';
-                    div.style.cursor = 'pointer';
-                    div.textContent = u.username + (u.full_name ? ' (' + u.full_name + ')' : '') + ' — ' + (u.email || '');
-                    div.addEventListener('click', function() {
-                        // select user
-                        reassignSelectedUserId = u.id;
-                        Array.from(results.children).forEach(c => c.style.background = '');
-                        div.style.background = '#eef';
-                        document.getElementById('reassignConfirmBtn').disabled = false;
-                    });
-                    results.appendChild(div);
-                });
-            }).catch(err => { results.innerHTML = '<div class="text-danger">Error de red</div>'; });
-    }, 300);
-});
-
-function confirmReassign() {
-    if (!reassignSelectedUserId) { alert('Selecciona un usuario destino'); return; }
-    const count = reassignUseSelectAll ? totalFilteredFiles : reassignSelectedFiles.length;
-    if (!confirm(`¿Reasignar ${count} archivo(s) al usuario seleccionado?`)) return;
-    const fd = new FormData();
-    // action name expected by orphan_files_api.php handler
-    fd.append('action', 'reassign_any');
-    fd.append('user_id', reassignSelectedUserId);
-    if (reassignUseSelectAll) {
-        fd.append('select_all', '1');
-        fd.append('filters', window.location.search.length ? window.location.search.substring(1) : '');
-    } else {
-        fd.append('file_ids', JSON.stringify(reassignSelectedFiles));
-    }
-
-    // Disable confirm button and show processing overlay
-    const confirmBtn = document.getElementById('reassignConfirmBtn');
-    if (confirmBtn) { confirmBtn.disabled = true; }
-
-    if (reassignUseSelectAll) {
-        // Fetch full ID list from server then process in batches
-        showProcessing('Obteniendo lista de archivos...');
-        const filters = window.location.search.length ? window.location.search.substring(1) : '';
-        const listUrl = '/admin/orphan_files_api.php?action=list_ids&' + filters;
-        const pageSize = 500;
-        const chunkSize = 50;
-        let succeeded = 0;
-        let failed = 0;
-        showProcessing('Reasignando archivos por páginas...', { clearLogs: true, percent: 0, status: 'Iniciando' });
-        Mimir.processListIdsInPages(listUrl, 'reassign_any', pageSize, 100, {
-            onProgress: function(processed, total) {
-                const pct = total ? Math.round((processed / total) * 100) : 0;
-                updateProcessingProgress(pct, `Procesados ${processed}`);
-            },
-            onLog: function(txt) { appendProcessingLog(txt); },
-            onError: function(err) {
-                hideProcessing(); if (confirmBtn) confirmBtn.disabled = false; console.error('Error paginando lista:', err); alert('Error durante la reasignación: ' + (err.message || err));
-            },
-            onComplete: function() { hideProcessing(); if (confirmBtn) confirmBtn.disabled = false; alert('Reasignación completada.'); closeReassignModal(); window.location.reload(); }
-        });
-    } else {
-        showProcessing('Reasignando archivos, esto puede tardar varios segundos...');
-            fetch('/admin/orphan_files_api.php?action=reassign_any', { method: 'POST', body: fd, credentials: 'same-origin' })
-                .then(Mimir.parseJsonResponse)
-            .then(resp => {
-                hideProcessing();
-                if (confirmBtn) { confirmBtn.disabled = false; }
-                if (resp.success) {
-                    alert((resp.count || 0) + ' archivos reasignados. ' + (resp.message ? '\n' + resp.message : ''));
-                    closeReassignModal();
-                    // reload page to reflect ownership changes
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + (resp.message || 'No se pudo reasignar'));
-                }
-            }).catch(err => {
-                hideProcessing();
-                if (confirmBtn) { confirmBtn.disabled = false; }
-                alert('Error de red: ' + err.message);
-            });
-    }
+function adminToggleShare(id, makeShared) {
+    // submit single-file share/unshare via bulkForm
+    const form = document.getElementById('bulkForm');
+    const actionInput = document.getElementById('bulkAction');
+    document.querySelectorAll('#bulkForm input[name="file_ids[]"]').forEach(n => n.remove());
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = 'file_ids[]'; input.value = id;
+    form.appendChild(input);
+    actionInput.value = makeShared ? 'share' : 'unshare';
+    form.submit();
 }
 </script>
 

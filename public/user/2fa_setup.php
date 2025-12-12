@@ -32,18 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
         
         if ($action === 'disable') {
-            if ($isRequired) {
-                $error = 'No puedes desactivar 2FA porque es obligatorio para tu cuenta';
-            } else {
-                if ($twoFactor->disable($user['id'])) {
-                    $logger->log($user['id'], '2fa_disabled', 'user', $user['id'], "2FA desactivado");
-                    $success = '2FA desactivado correctamente';
-                    $isEnabled = false;
-                    $currentConfig = null;
-                } else {
-                    $error = 'Error al desactivar 2FA';
-                }
-            }
+            // User-side disabling of 2FA is not allowed by policy. Admins may reset 2FA for users.
+            $error = 'La desactivación de 2FA por parte del usuario no está permitida. Contacta con el administrador.';
         } elseif ($action === 'setup_totp_generate') {
             // Generate new secret and show QR
             $secret = $twoFactor->generateSecret();
@@ -64,14 +54,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Código incorrecto. Verifica la hora de tu dispositivo.';
                 $step = 'setup_totp_verify';
             } else {
-                // Generate backup codes
+                // Generate backup codes (stored server-side) and enable 2FA
                 $backupCodes = $twoFactor->generateBackupCodes(10);
-                
-                // Enable 2FA
+
                 if ($twoFactor->enable($user['id'], 'totp', [
                     'secret' => $secret,
                     'backup_codes' => $backupCodes
                 ])) {
+                    // Store backup codes in session so they can be shown once to the user
                     $_SESSION['2fa_backup_codes'] = $backupCodes;
                     unset($_SESSION['2fa_temp_secret']);
                     $logger->log($user['id'], '2fa_enabled', 'user', $user['id'], "2FA TOTP activado");
@@ -213,11 +203,7 @@ renderHeader('Autenticación 2FA', $user);
                 </div>
                 
                 <?php if ($isEnabled && !$isRequired): ?>
-                    <form method="POST" style="margin-left: auto;" onsubmit="return confirm('¿Seguro que quieres desactivar 2FA? Tu cuenta será menos segura.')">
-                        <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
-                        <input type="hidden" name="action" value="disable">
-                        <button type="submit" class="btn btn-danger">Desactivar 2FA</button>
-                    </form>
+                    <!-- User-side disabling of 2FA removed by policy. Admins may reset 2FA for users. -->
                 <?php endif; ?>
             </div>
         </div>
