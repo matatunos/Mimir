@@ -70,17 +70,7 @@ class LdapAuth {
             $useTls = !empty($this->config['use_tls']);
             $scheme = ($port == 636 || $useSsl) ? 'ldaps://' : 'ldap://';
             $ldapUri = $scheme . $this->config['host'] . ':' . $port;
-            // For environments where certificate trust or URI-based connections fail,
-            // allow a pragmatic fallback for initial connectivity tests.
-            // WARNING: setting LDAP_OPT_X_TLS_REQUIRE_CERT to NEVER disables cert checks;
-            // this is acceptable for debugging but should be reviewed for production.
-            @ldap_set_option(NULL, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
-
-            $this->conn = @ldap_connect($ldapUri);
-            if (!$this->conn) {
-                // Try alternative form: host + port
-                $this->conn = @ldap_connect($this->config['host'], $port);
-            }
+            $this->conn = ldap_connect($ldapUri);
             if (!$this->conn) {
                 error_log("LDAP: Could not connect to server");
                 return false;
@@ -182,12 +172,7 @@ class LdapAuth {
             $useTls = !empty($this->config['use_tls']);
             $scheme = ($port == 636 || $useSsl) ? 'ldaps://' : 'ldap://';
             $ldapUri = $scheme . ($this->config['host'] ?? '') . ':' . $port;
-            @ldap_set_option(NULL, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
-            $this->conn = @ldap_connect($ldapUri);
-            if (!$this->conn) {
-                $this->conn = @ldap_connect($this->config['host'], $port);
-            }
-            
+            $this->conn = ldap_connect($ldapUri);
             if (!$this->conn) {
                 return null;
             }
@@ -382,9 +367,7 @@ class LdapAuth {
             $useTls = !empty($this->config['use_tls']);
             $scheme = ($port == 636 || $useSsl) ? 'ldaps://' : 'ldap://';
             $ldapUri = $scheme . $this->config['host'] . ':' . $port;
-            @ldap_set_option(NULL, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
-            $conn = @ldap_connect($ldapUri);
-            if (!$conn) $conn = @ldap_connect($this->config['host'], $port);
+            $conn = ldap_connect($ldapUri);
             if (!$conn) return false;
             ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3);
             ldap_set_option($conn, LDAP_OPT_REFERRALS, 0);

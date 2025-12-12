@@ -471,7 +471,7 @@ renderHeader('Gestión de Archivos', $user);
                                     <td><?php echo htmlspecialchars($file['username']); ?></td>
                                     <td>
                                         <span style="font-size: 0.875rem; padding: 0.25rem 0.5rem; background: var(--bg-secondary); border-radius: 0.25rem;">
-                                            <?php echo explode('/', $file['mime_type'])[0]; ?>
+                                            <?php echo htmlspecialchars(explode('/', (string)($file['mime_type'] ?? ''))[0]); ?>
                                         </span>
                                     </td>
                                     <td><?php echo number_format($file['file_size'] / 1024 / 1024, 2); ?> MB</td>
