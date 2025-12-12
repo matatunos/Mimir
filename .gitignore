@@ -33,3 +33,4 @@ ESTADO_FINAL.md
 *.sql
 *.bak
 backup_*
+.env
