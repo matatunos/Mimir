@@ -671,6 +671,19 @@ renderHeader('Configuración del Sistema', $user, $auth);
     <?php if ($error): ?>
         <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
+    <!-- Global config protection indicator -->
+    <div style="margin-bottom:1rem;">
+        <span style="font-weight:700;">Protección de configuración:</span>
+        <span id="configProtectionIndicator" style="margin-left:0.75rem; display:inline-flex; align-items:center; gap:0.5rem;">
+            <?php if ((bool)$globalConfigProtection): ?>
+                <i class="fas fa-lock" style="color:#dc2626; font-size:1.05rem;"></i>
+                <span style="color:#dc2626; font-weight:600;">Activada</span>
+            <?php else: ?>
+                <i class="fas fa-lock-open" style="color:#16a34a; font-size:1.05rem;"></i>
+                <span style="color:#16a34a; font-weight:600;">Desactivada</span>
+            <?php endif; ?>
+        </span>
+    </div>
     
     <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
