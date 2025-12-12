@@ -471,7 +471,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($configs as $cfg) {
                 if ($cfg['config_type'] === 'boolean') {
                     $key = $cfg['config_key'];
-                    $isReadonly = ($globalConfigProtection === '1' && $cfg['is_system']) && !in_array($key, $editableSystemKeys);
+                    $isReadonly = ((bool)$globalConfigProtection && $cfg['is_system']) && !in_array($key, $editableSystemKeys);
                     // Only process booleans if the form included the presence marker (i.e., the control was editable)
                     if (isset($_POST[$key . '_present']) && !$isReadonly) {
                         $updates[$key] = isset($_POST[$key]) ? '1' : '0';
@@ -879,7 +879,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
                             <?php
                             // Only treat configs as readonly if global protection is enabled and the key is marked system,
                             // unless the key is explicitly listed in `$editableSystemKeys`.
-                            $isReadonly = ($globalConfigProtection === '1' && $cfg['is_system']) && !in_array($cfg['config_key'], $editableSystemKeys);
+                            $isReadonly = ((bool)$globalConfigProtection && $cfg['is_system']) && !in_array($cfg['config_key'], $editableSystemKeys);
                             $inputType = 'text';
                             $valueAttr = htmlspecialchars($cfg['config_value'], ENT_QUOTES);
                             // For password fields, render a password input and leave value empty (admin can fill to change)
