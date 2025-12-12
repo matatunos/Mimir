@@ -326,11 +326,39 @@ function renderPageStart($title, $currentPage, $isAdmin = false) {
         </style>
     </head>
     <body <?php echo (bool)$config->get('enable_config_protection', '0') ? 'class="config-protected"' : ''; ?>>
-        <?php if ((bool)$config->get('enable_config_protection', '0')): ?>
+        <?php if ((bool)$config->get('enable_config_protection', '0') && $isAdmin): ?>
             <div id="configProtectionFloating" class="config-protection-floating" role="status" aria-live="polite">
                 <i class="fas fa-lock" aria-hidden="true"></i>
                 <div>Protección de configuración: <span style="font-weight:800;">Activada</span></div>
+                <button id="configProtectionClose" aria-label="Cerrar" title="Cerrar (ocultar 24h)" style="margin-left:auto; background:transparent; border:0; color:inherit; font-size:1.15rem; cursor:pointer; padding:0.25rem 0.5rem;">&times;</button>
             </div>
+            <script>
+                (function(){
+                    var key = 'configProtectionDismissedAt';
+                    function isDismissed() {
+                        try {
+                            var v = localStorage.getItem(key);
+                            if (!v) return false;
+                            var ts = parseInt(v,10);
+                            if (isNaN(ts)) return false;
+                            return Date.now() < ts;
+                        } catch (e) { return false; }
+                    }
+                    function hideBanner() {
+                        var el = document.getElementById('configProtectionFloating');
+                        if (el) el.style.display = 'none';
+                    }
+                    document.addEventListener('DOMContentLoaded', function(){
+                        if (isDismissed()) { hideBanner(); }
+                        var btn = document.getElementById('configProtectionClose');
+                        if (btn) btn.addEventListener('click', function(e){
+                            // Hide for 24 hours
+                            try { localStorage.setItem(key, String(Date.now() + 24*60*60*1000)); } catch (err) {}
+                            hideBanner();
+                        });
+                    });
+                })();
+            </script>
         <?php endif; ?>
         <div class="app-container">
             <?php renderSidebar($currentPage, $isAdmin); ?>
