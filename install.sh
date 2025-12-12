@@ -351,6 +351,57 @@ import_schema() {
     # All schema migrations are consolidated into the single schema file.
 }
 
+# Apply additional SQL migrations from database/migrations
+apply_migrations() {
+    print_info "Applying SQL migrations from ${INSTALL_DIR}/database/migrations (if any)..."
+    if [ -d "${INSTALL_DIR}/database/migrations" ]; then
+        for f in "${INSTALL_DIR}/database/migrations"/*.sql; do
+            [ -e "$f" ] || continue
+            print_info "Applying migration: $(basename "$f")"
+            mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} < "$f" || {
+                print_error "Failed applying migration: $f"
+            }
+        done
+    else
+        print_info "No migrations directory found; skipping."
+    fi
+}
+
+# Install systemd unit for notification worker and enable it
+install_notification_worker() {
+    # Only proceed if the worker script exists
+    WORKER_SCRIPT="${INSTALL_DIR}/tools/notification_worker.php"
+    if [ ! -f "$WORKER_SCRIPT" ]; then
+        print_info "No notification worker script found at $WORKER_SCRIPT; skipping service installation."
+        return
+    fi
+
+    print_info "Installing notification worker systemd service..."
+    SERVICE_FILE="/etc/systemd/system/mimir-notification-worker.service"
+    sudo tee "$SERVICE_FILE" > /dev/null <<'EOF'
+[Unit]
+Description=Mimir Notification Worker
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/Mimir
+ExecStart=/usr/bin/php /opt/Mimir/tools/notification_worker.php
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable mimir-notification-worker.service || true
+    sudo systemctl start mimir-notification-worker.service || true
+    print_status "Notification worker service installed and started (if supported)"
+}
+
 # Function to ensure an admin user exists (username: admin, password: admin123)
 create_admin_user() {
     ADMIN_EMAIL="${ADMIN_USER}@${APACHE_VHOST}"
@@ -581,6 +632,11 @@ main() {
     set_permissions
     create_config
     import_schema
+        # Apply any additional migrations found in database/migrations
+        apply_migrations
+    
+        # Install background worker service for notifications (if available)
+        install_notification_worker
     create_admin_user
     install_dependencies
     restart_apache
