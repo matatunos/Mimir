@@ -352,3 +352,39 @@ function toggleMaintenance(event, enable, csrfToken) {
     });
 }
 
+// Toggle global config protection (enable/disable editing of system configs)
+function toggleConfigProtection(event, enable, csrfToken) {
+    event.preventDefault();
+
+    const action = enable ? 'activar' : 'desactivar';
+    const message = enable 
+        ? '¿Activar la protección global de configuración? Las claves marcadas como sistema no se podrán editar desde la UI.'
+        : '¿Desactivar la protección global de configuración? Las claves marcadas como sistema podrán editarse desde la UI.';
+
+    if (!confirm(message)) return;
+
+    const formData = new FormData();
+    formData.append('csrf_token', csrfToken);
+    formData.append('enabled', enable ? 'true' : 'false');
+
+    // Reuse toggle endpoint; inform server this is a config_protection action
+    formData.append('type', 'config_protection');
+    fetch(Mimir.apiUrl + '/admin/toggle_maintenance.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => Mimir.parseJsonResponse(response))
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('Error al cambiar la protección de configuración');
+    });
+}
+

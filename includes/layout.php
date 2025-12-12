@@ -63,11 +63,16 @@ function renderHeader($title, $user, $auth = null) {
             $config = new Config();
             $maintenanceMode = $config->get('maintenance_mode', '0');
             $isInMaintenance = $maintenanceMode === '1';
+            $globalProtection = $config->get('enable_config_protection', '0');
             ?>
             <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
             <a href="#" onclick="toggleMaintenance(event, <?php echo $isInMaintenance ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
                 <i class="fas fa-tools"></i> 
                 <?php echo $isInMaintenance ? 'Desactivar Mantenimiento' : 'Activar Mantenimiento'; ?>
+            </a>
+            <a href="#" onclick="toggleConfigProtection(event, <?php echo $globalProtection === '1' ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
+                <i class="fas fa-shield-alt"></i>
+                <?php echo $globalProtection === '1' ? 'Desactivar protección de configuración' : 'Activar protección de configuración'; ?>
             </a>
         <?php endif; ?>
         <a href="<?php echo BASE_URL; ?>/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color); text-decoration: none;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>

@@ -25,24 +25,29 @@ if (!isset($_POST['csrf_token']) || !$auth->validateCsrfToken($_POST['csrf_token
     exit;
 }
 
+
+// Determine action type: default is maintenance, but can accept other toggles (e.g., config_protection)
+$type = isset($_POST['type']) ? trim($_POST['type']) : 'maintenance';
 $enabled = isset($_POST['enabled']) && $_POST['enabled'] === 'true';
 
 try {
     $configClass = new Config();
     $logger = new Logger();
     
-    // Update maintenance mode
-    $configClass->set('maintenance_mode', $enabled ? '1' : '0', 'boolean');
-    
-    // Log the action
-    $action = $enabled ? 'Modo mantenimiento activado' : 'Modo mantenimiento desactivado';
-    $logger->log($user['id'], 'maintenance_toggle', 'system', null, $action);
-    
-    echo json_encode([
-        'success' => true,
-        'enabled' => $enabled,
-        'message' => $action
-    ]);
+    if ($type === 'config_protection') {
+        // Toggle global config protection
+        $configClass->set('enable_config_protection', $enabled ? '1' : '0', 'boolean');
+        $action = $enabled ? 'Protección de configuración activada' : 'Protección de configuración desactivada';
+        $logger->log($user['id'], 'config_protection_toggle', 'system', null, $action);
+        echo json_encode(['success' => true, 'enabled' => $enabled, 'message' => $action]);
+    } else {
+        // Update maintenance mode
+        $configClass->set('maintenance_mode', $enabled ? '1' : '0', 'boolean');
+        // Log the action
+        $action = $enabled ? 'Modo mantenimiento activado' : 'Modo mantenimiento desactivado';
+        $logger->log($user['id'], 'maintenance_toggle', 'system', null, $action);
+        echo json_encode(['success' => true, 'enabled' => $enabled, 'message' => $action]);
+    }
     
 } catch (Exception $e) {
     http_response_code(500);
