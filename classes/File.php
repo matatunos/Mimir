@@ -384,6 +384,25 @@ class File {
             return [];
         }
     }
+
+    /**
+     * Build breadcrumb path for a folder (array of ['id'=>..., 'name'=>...])
+     */
+    public function getFolderPath($folderId) {
+        try {
+            $path = [];
+            $current = $this->getById($folderId);
+            while ($current) {
+                $path[] = ['id' => $current['id'], 'name' => $current['original_name']];
+                if (empty($current['parent_folder_id'])) break;
+                $current = $this->getById($current['parent_folder_id']);
+            }
+            return array_reverse($path);
+        } catch (Exception $e) {
+            error_log('getFolderPath error: ' . $e->getMessage());
+            return [];
+        }
+    }
     
     /**
      * Update file
@@ -482,6 +501,56 @@ class File {
             $this->db->rollBack();
             error_log("File deleteMultiple error: " . $e->getMessage());
             return 0;
+        }
+    }
+
+    /**
+     * Create a folder record for a user
+     */
+    public function createFolder($userId, $name, $parentFolderId = null) {
+        try {
+            $stmt = $this->db->prepare("INSERT INTO files (user_id, original_name, stored_name, file_path, file_size, mime_type, file_hash, description, is_shared, is_folder, parent_folder_id, is_expired) VALUES (?, ?, '', '', 0, NULL, NULL, NULL, 0, 1, ?, 0)");
+            $stmt->execute([$userId, $name, $parentFolderId]);
+            $folderId = $this->db->lastInsertId();
+            $this->logger->log($userId, 'folder_created', 'folder', $folderId, "Folder created: $name");
+            return $folderId;
+        } catch (Exception $e) {
+            error_log('createFolder error: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Delete a folder and its contents recursively
+     */
+    public function deleteFolder($folderId, $userId = null) {
+        try {
+            // Ensure folder exists and belongs to user if provided
+            $folder = $this->getById($folderId, $userId);
+            if (!$folder || !$folder['is_folder']) {
+                throw new Exception('Carpeta no encontrada');
+            }
+
+            // Get child items
+            $children = $this->getFolderContents($folder['user_id'], $folderId);
+
+            foreach ($children as $child) {
+                if ($child['is_folder']) {
+                    $this->deleteFolder($child['id'], $userId);
+                } else {
+                    $this->delete($child['id'], $userId);
+                }
+            }
+
+            // Delete the folder record itself
+            $stmt = $this->db->prepare("DELETE FROM files WHERE id = ?");
+            $stmt->execute([$folderId]);
+
+            $this->logger->log($userId ?? $folder['user_id'], 'folder_deleted', 'folder', $folderId, "Folder deleted: {$folder['original_name']}");
+            return true;
+        } catch (Exception $e) {
+            error_log('deleteFolder error: ' . $e->getMessage());
+            return false;
         }
     }
     

@@ -4,6 +4,10 @@ require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/User.php';
+// Invalidate opcode cache for File class to pick up recent changes
+if (function_exists('opcache_invalidate')) {
+    @opcache_invalidate(__DIR__ . '/../../classes/File.php', true);
+}
 require_once __DIR__ . '/../../classes/File.php';
 require_once __DIR__ . '/../../classes/Logger.php';
 require_once __DIR__ . '/../../classes/Config.php';
@@ -330,9 +334,33 @@ async function createFolder(event) {
                 parent_folder_id: currentFolderId
             })
         });
-        
-        const data = await response.json();
-        
+
+        // Handle non-OK responses gracefully
+        if (!response.ok) {
+            let text = await response.text();
+            // Try to parse JSON fallback
+            try {
+                const maybeJson = JSON.parse(text);
+                alert('Error: ' + (maybeJson.message || JSON.stringify(maybeJson)));
+            } catch (e) {
+                // Strip HTML tags for a cleaner message
+                const stripped = text.replace(/<[^>]*>/g, '').trim();
+                alert('Error: ' + (stripped || response.status + ' ' + response.statusText));
+            }
+            return;
+        }
+
+        // Clone the response so we can safely attempt to parse JSON
+        const responseClone = response.clone();
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            const text = await responseClone.text();
+            alert('Error parsing server response: ' + text);
+            return;
+        }
+
         if (data.success) {
             hideCreateFolderModal();
             location.reload();
@@ -465,8 +493,17 @@ async function deleteFolder(folderId, folderName) {
             })
         });
         
-        const data = await response.json();
-        
+        // Safely parse JSON, falling back to text if needed
+        const deleteClone = response.clone();
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            const text = await deleteClone.text();
+            alert('Error parsing server response: ' + text);
+            return;
+        }
+
         if (data.success) {
             location.reload();
         } else {
