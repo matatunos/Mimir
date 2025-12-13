@@ -11,6 +11,8 @@ $auth->requireAdmin();
 $user = $auth->getUser();
 $configClass = new Config();
 $logger = new Logger();
+// Expose this Config instance globally so layout/header reuse the same cache
+$GLOBALS['config_instance'] = $configClass;
 
 // Inline SMTP test handler to avoid requiring a separate file on some deployments.
 if ((isset($_REQUEST['action']) && $_REQUEST['action'] === 'test_smtp')) {
@@ -583,7 +585,7 @@ $categories = [
     $category = 'other';
     
     // General settings
-    if (in_array($key, ['admin_email', 'timezone', 'base_url', 'maintenance_mode', 'maintenance_message', 'session_lifetime', 'session_name']) 
+    if (in_array($key, ['admin_email', 'timezone', 'base_url', 'maintenance_mode', 'maintenance_message', 'session_lifetime', 'session_name', 'enable_config_protection']) 
         || (strpos($key, 'default_') === 0)) {
         $category = 'general';
     } 

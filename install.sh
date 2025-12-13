@@ -45,10 +45,40 @@ print_info() {
 # Function to check if running as root
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        # Check if user has sudo privileges
-        if ! sudo -n true 2>/dev/null; then
-            print_error "This script requires sudo privileges. Please run with sudo or as root."
+        # If sudo is available, ensure current user can run it without password prompts
+        if command -v sudo >/dev/null 2>&1; then
+            if ! sudo -n true 2>/dev/null; then
+                print_error "This script requires sudo privileges. Please run with sudo or as root."
+                exit 1
+            fi
+        else
+            print_error "This script requires sudo but 'sudo' is not installed. Please run this script as root."
             exit 1
+        fi
+    fi
+}
+
+# Helper to run commands as root (uses sudo when not running as root)
+run() {
+    if [[ $EUID -ne 0 ]]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
+# Helper to run a command as the www-data user (Composer steps)
+run_as_www() {
+    # Usage: run_as_www <command...>
+    if command -v sudo >/dev/null 2>&1 && [[ $EUID -ne 0 ]]; then
+        sudo -u www-data "$@"
+    else
+        # If running as root and sudo may not be available, use su
+        if [[ $EUID -eq 0 ]]; then
+            su -s /bin/sh -c "${*//"/\"}" www-data
+        else
+            # Fallback: try to run command directly
+            "$@"
         fi
     fi
 }
@@ -78,7 +108,7 @@ detect_os() {
 # Function to update system
 update_system() {
     print_info "Updating system packages..."
-    sudo apt update && sudo apt upgrade -y
+    run apt update && run apt upgrade -y
     print_status "System updated"
 }
 
@@ -86,9 +116,9 @@ update_system() {
 install_apache() {
     print_info "Installing Apache web server..."
     if ! command -v apache2 &> /dev/null; then
-        sudo apt install apache2 -y
-        sudo systemctl start apache2
-        sudo systemctl enable apache2
+        run apt install apache2 -y
+        run systemctl start apache2
+        run systemctl enable apache2
         print_status "Apache installed and started"
     else
         print_status "Apache already installed"
@@ -99,10 +129,16 @@ install_apache() {
 install_mysql() {
     print_info "Installing MySQL server..."
     if ! command -v mysql &> /dev/null; then
-        sudo DEBIAN_FRONTEND=noninteractive apt install mysql-server -y
-        sudo systemctl start mysql
-        sudo systemctl enable mysql
-        print_status "MySQL installed and started"
+        # Prefer MariaDB on newer Debian releases where available
+        PKG="mysql-server"
+        if apt-cache show mariadb-server >/dev/null 2>&1; then
+            PKG="mariadb-server"
+        fi
+        run DEBIAN_FRONTEND=noninteractive apt install -y "$PKG"
+        # Try both service names (mariadb/mysql)
+        run systemctl start mariadb || run systemctl start mysql || true
+        run systemctl enable mariadb || run systemctl enable mysql || true
+        print_status "${PKG} installed and started"
     else
         print_status "MySQL already installed"
     fi
@@ -111,7 +147,7 @@ install_mysql() {
 # Function to install PHP and extensions
 install_php() {
     print_info "Installing PHP and required extensions..."
-    sudo apt install -y \
+    run apt install -y \
         php \
         php-mysql \
         php-cli \
@@ -146,10 +182,10 @@ configure_database() {
     print_info "Debug: temp SQL file -> ${TMP_SQL_FILE} (size: $(wc -c < "${TMP_SQL_FILE}" 2>/dev/null) bytes)"
 
     # Try with root password first, fall back to passwordless root if needed
-    if sudo mysql -u root -p"${DB_ROOT_PASS}" < "${TMP_SQL_FILE}" 2>/dev/null; then
+    if run mysql -u root -p"${DB_ROOT_PASS}" < "${TMP_SQL_FILE}" 2>/dev/null; then
         true
     else
-        sudo mysql -u root < "${TMP_SQL_FILE}"
+        run mysql -u root < "${TMP_SQL_FILE}"
     fi
     rm -f "${TMP_SQL_FILE}"
     
@@ -173,13 +209,13 @@ configure_apache() {
 PROXY
 )
         # Ensure remoteip module is enabled
-        sudo a2enmod remoteip || true
+        run a2enmod remoteip || true
     else
         EXTRA_VHOST_BLOCK=""
     fi
 
     # Create virtual host configuration
-    sudo tee /etc/apache2/sites-available/${APACHE_VHOST}.conf > /dev/null <<EOF
+    run tee /etc/apache2/sites-available/${APACHE_VHOST}.conf > /dev/null <<EOF
 <VirtualHost *:80>
     ServerName ${APACHE_VHOST}
     ServerAlias www.${APACHE_VHOST}
@@ -209,15 +245,15 @@ ${EXTRA_VHOST_BLOCK}
 EOF
     
     # Enable required Apache modules
-    sudo a2enmod rewrite
-    sudo a2enmod headers
-    
+    run a2enmod rewrite
+    run a2enmod headers
+
     # Enable site
-    sudo a2ensite ${APACHE_VHOST}.conf
+    run a2ensite ${APACHE_VHOST}.conf
     
     # Add to hosts file if not already there
     if ! grep -q "${APACHE_VHOST}" /etc/hosts; then
-        echo "127.0.0.1    ${APACHE_VHOST} www.${APACHE_VHOST}" | sudo tee -a /etc/hosts
+        echo "127.0.0.1    ${APACHE_VHOST} www.${APACHE_VHOST}" | run tee -a /etc/hosts
         print_status "Added ${APACHE_VHOST} to /etc/hosts"
     fi
     
@@ -229,11 +265,11 @@ create_directories() {
     print_info "Creating directory structure..."
     
     # Create directories
-    sudo mkdir -p ${INSTALL_DIR}/{public,includes,classes,database}
-    sudo mkdir -p ${INSTALL_DIR}/public/{admin,user,assets/{css,js,images}}
-    sudo mkdir -p ${UPLOADS_DIR}
-    sudo mkdir -p ${TEMP_DIR}
-    sudo mkdir -p ${STORAGE_DIR}/logs
+    run mkdir -p ${INSTALL_DIR}/{public,includes,classes,database}
+    run mkdir -p ${INSTALL_DIR}/public/{admin,user,assets/{css,js,images}}
+    run mkdir -p ${UPLOADS_DIR}
+    run mkdir -p ${TEMP_DIR}
+    run mkdir -p ${STORAGE_DIR}/logs
     
     print_status "Directory structure created"
 }
@@ -243,18 +279,18 @@ set_permissions() {
     print_info "Setting permissions..."
     
     # Set ownership
-    sudo chown -R www-data:www-data ${INSTALL_DIR}/public
-    sudo chown -R www-data:www-data ${STORAGE_DIR}
+    run chown -R www-data:www-data ${INSTALL_DIR}/public
+    run chown -R www-data:www-data ${STORAGE_DIR}
     
     # Set permissions
-    sudo chmod -R 755 ${INSTALL_DIR}/public
-    sudo chmod -R 750 ${STORAGE_DIR}
-    sudo chmod -R 770 ${UPLOADS_DIR}
-    sudo chmod -R 770 ${TEMP_DIR}
-    sudo chmod -R 770 ${STORAGE_DIR}/logs
-    
+    run chmod -R 755 ${INSTALL_DIR}/public
+    run chmod -R 750 ${STORAGE_DIR}
+    run chmod -R 770 ${UPLOADS_DIR}
+    run chmod -R 770 ${TEMP_DIR}
+    run chmod -R 770 ${STORAGE_DIR}/logs
+
     # Make install.sh executable
-    sudo chmod +x ${INSTALL_DIR}/install.sh
+    run chmod +x ${INSTALL_DIR}/install.sh
     
     print_status "Permissions set"
 }
@@ -270,7 +306,7 @@ create_config() {
         PROTO="http"
     fi
 
-    sudo tee ${INSTALL_DIR}/includes/config.php > /dev/null <<EOF
+    run tee ${INSTALL_DIR}/includes/config.php > /dev/null <<EOF
 <?php
 /**
  * Mimir File Management System - Configuration
@@ -315,8 +351,8 @@ ini_set('display_errors', 1);
 ?>
 EOF
     
-    sudo chown www-data:www-data ${INSTALL_DIR}/includes/config.php
-    sudo chmod 640 ${INSTALL_DIR}/includes/config.php
+    run chown www-data:www-data ${INSTALL_DIR}/includes/config.php
+    run chmod 640 ${INSTALL_DIR}/includes/config.php
     
     print_status "Configuration file created"
 }
@@ -333,18 +369,18 @@ import_schema() {
 
     print_info "Importing database schema from ${SCHEMA_FILE}..."
     # Run import as current user (avoid sudo which can change environment and cause auth issues)
-    mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} < ${SCHEMA_FILE}
+    run mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} < ${SCHEMA_FILE}
     print_status "Database schema imported successfully"
 
     # Apply any known migrations (kept for backward compatibility)
     if [ -f "${INSTALL_DIR}/database/migration_2fa.sql" ]; then
         print_info "Applying 2FA migration..."
-        sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migration_2fa.sql 2>/dev/null
+        run mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migration_2fa.sql 2>/dev/null
         print_status "2FA migration applied"
     fi
     if [ -f "${INSTALL_DIR}/database/migrations/add_forensic_fields.sql" ]; then
         print_info "Applying forensic logging migration..."
-        sudo mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migrations/add_forensic_fields.sql 2>/dev/null
+        run mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < ${INSTALL_DIR}/database/migrations/add_forensic_fields.sql 2>/dev/null
         print_status "Forensic logging migration applied"
     fi
 
@@ -358,7 +394,7 @@ apply_migrations() {
         for f in "${INSTALL_DIR}/database/migrations"/*.sql; do
             [ -e "$f" ] || continue
             print_info "Applying migration: $(basename "$f")"
-            mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} < "$f" || {
+            run mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} < "$f" || {
                 print_error "Failed applying migration: $f"
             }
         done
@@ -378,7 +414,7 @@ install_notification_worker() {
 
     print_info "Installing notification worker systemd service..."
     SERVICE_FILE="/etc/systemd/system/mimir-notification-worker.service"
-    sudo tee "$SERVICE_FILE" > /dev/null <<'EOF'
+    run tee "$SERVICE_FILE" > /dev/null <<'EOF'
 [Unit]
 Description=Mimir Notification Worker
 After=network.target mysql.service
@@ -396,9 +432,9 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-    sudo systemctl daemon-reload
-    sudo systemctl enable mimir-notification-worker.service || true
-    sudo systemctl start mimir-notification-worker.service || true
+    run systemctl daemon-reload
+    run systemctl enable mimir-notification-worker.service || true
+    run systemctl start mimir-notification-worker.service || true
     print_status "Notification worker service installed and started (if supported)"
 }
 
@@ -418,7 +454,7 @@ create_admin_user() {
 
     # Insert admin if not exists
     # Use INSERT ... ON DUPLICATE KEY UPDATE to ensure password is set and force_password_change enabled
-    sudo mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} <<EOF 2>/dev/null
+        run mysql -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} <<EOF 2>/dev/null
 INSERT INTO users (username, email, password, full_name, role, is_active, is_ldap, created_at, updated_at)
 VALUES ('${ADMIN_USER}', '${ADMIN_EMAIL}', '${ADMIN_HASH}', 'Administrator', 'admin', 1, 0, NOW(), NOW())
 ON DUPLICATE KEY UPDATE
@@ -440,10 +476,17 @@ install_composer() {
     if ! command -v composer &> /dev/null; then
         print_info "Installing Composer..."
         cd /tmp
-        curl -sS https://getcomposer.org/installer -o composer-setup.php
-        sudo php composer-setup.php --install-dir=/usr/local/bin --filename=composer
-        rm composer-setup.php
-        print_status "Composer installed"
+        # Prefer distro package when available
+        if apt-cache show composer >/dev/null 2>&1; then
+            print_info "Installing Composer from distro repository..."
+            run apt install -y composer
+            print_status "Composer installed via apt"
+        else
+            curl -sS https://getcomposer.org/installer -o composer-setup.php
+            run php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+            rm composer-setup.php
+            print_status "Composer installed (downloaded)"
+        fi
     else
         print_status "Composer already installed"
     fi
@@ -468,10 +511,10 @@ install_dependencies() {
 
         cd ${INSTALL_DIR}
         # Run composer as the web user to ensure correct ownership of vendor files
-        if ! sudo -u www-data composer install --no-dev --optimize-autoloader; then
+        if ! run_as_www composer install --no-dev --optimize-autoloader; then
             print_error "Composer install failed. Retrying once..."
             sleep 1
-            if ! sudo -u www-data composer install --no-dev --optimize-autoloader; then
+            if ! run_as_www composer install --no-dev --optimize-autoloader; then
                 print_error "Composer install failed again. Please run 'composer install' manually in ${INSTALL_DIR} as www-data."
                 return 1
             fi
@@ -486,7 +529,7 @@ install_dependencies() {
 # Function to restart Apache
 restart_apache() {
     print_info "Restarting Apache..."
-    sudo systemctl restart apache2
+    run systemctl restart apache2
     print_status "Apache restarted"
 }
 
