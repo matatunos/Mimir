@@ -59,8 +59,9 @@ function renderHeader($title, $user, $auth = null) {
         <a href="<?php echo BASE_URL; ?>/user/profile.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-user"></i> Mi Perfil</a>
         <?php if ($user['role'] === 'admin'): ?>
             <?php
+            // Prefer a shared Config instance when available to avoid cache inconsistency
             require_once __DIR__ . '/../classes/Config.php';
-            $config = new Config();
+            $config = $GLOBALS['config_instance'] ?? new Config();
             $maintenanceMode = $config->get('maintenance_mode', '0');
             $isInMaintenance = $maintenanceMode === '1';
             $globalProtection = $config->get('enable_config_protection', '0');
@@ -81,8 +82,9 @@ function renderHeader($title, $user, $auth = null) {
 }
 
 function renderSidebar($currentPage, $isAdmin = false) {
+    // Use shared Config instance when present (pages can set $GLOBALS['config_instance'])
     require_once __DIR__ . '/../classes/Config.php';
-    $config = new Config();
+    $config = $GLOBALS['config_instance'] ?? new Config();
     $siteName = $config->get('site_name', 'Mimir');
     $logo = $config->get('site_logo', '');
     ?>
