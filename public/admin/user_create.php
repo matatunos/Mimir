@@ -18,6 +18,10 @@ $auth->requireAdmin();
 $user = $auth->getUser();
 $userClass = new User();
 $logger = new Logger();
+// Load site name from config for use in emails/issuers
+require_once __DIR__ . '/../../classes/Config.php';
+$cfg = new Config();
+$siteNameGlobal = $cfg->get('site_name', 'Mimir');
 
 // Local helper: send notification with retries and forensic escalation.
 function sendNotificationWithRetries($recipient, $subject, $body, $options = [], $context = []) {
@@ -116,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Generar secret TOTP
                     $totp = TOTP::generate();
                     $totp->setLabel($username);
-                    $totp->setIssuer(SITE_NAME ?? 'Mimir');
+                    $totp->setIssuer($siteNameGlobal);
                     $secret = $totp->getSecret();
                     
                     // Guardar en BD
@@ -148,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Enviar email si se solicitó
                 if ($sendEmail && !empty($email)) {
-                    $emailBody = "<h2>¡Bienvenido a " . (SITE_NAME ?? 'Mimir') . "!</h2>";
+                    $emailBody = "<h2>¡Bienvenido a " . htmlspecialchars($siteNameGlobal) . "!</h2>";
                     $emailBody .= "<p>Se ha creado una cuenta para ti con las siguientes credenciales:</p>";
                     $emailBody .= "<ul>";
                     $emailBody .= "<li><strong>Usuario:</strong> " . htmlspecialchars($username) . "</li>";
@@ -173,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $fromEmail = defined('SMTP_FROM_EMAIL') ? SMTP_FROM_EMAIL : ('noreply@' . parse_url(BASE_URL, PHP_URL_HOST));
                     try {
                         $notifier = new Notification();
-                        $sent = $notifier->send($email, 'Cuenta creada en ' . (SITE_NAME ?? 'Mimir'), $emailBody, ['from_email' => $fromEmail, 'from_name' => SITE_NAME ?? 'Mimir']);
+                        $sent = $notifier->send($email, 'Cuenta creada en ' . $siteNameGlobal, $emailBody, ['from_email' => $fromEmail, 'from_name' => $siteNameGlobal]);
                         if ($sent) {
                             $logger->log($user['id'], 'email_sent', 'user', $userId, "Email de bienvenida enviado a: $email");
                         }
@@ -209,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $recipients = array_values(array_unique($recipients));
                         if (!empty($recipients)) {
                             $emailSender = new Notification();
-                            $siteName = $cfg->get('site_name', SITE_NAME ?? 'Mimir');
+                            $siteName = $cfg->get('site_name', 'Mimir');
                             $fromEmailCfg = $cfg->get('email_from_address', '');
                             $fromNameCfg = $cfg->get('email_from_name', $siteName);
                             $subject = "Nuevo usuario creado — " . $siteName;
