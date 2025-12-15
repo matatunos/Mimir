@@ -96,10 +96,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Fetch recent invitations
 $db = Database::getInstance()->getConnection();
 try {
-    $stmt = $db->query('SELECT id, email, token, role, message, forced_username, force_2fa, created_at, expires_at, used_at, used_by, is_revoked, (SELECT username FROM users WHERE email = invitations.email LIMIT 1) AS existing_username FROM invitations ORDER BY created_at DESC LIMIT 50');
+    // Use LEFT JOIN with explicit COLLATE to avoid illegal mix of collations between users.email and invitations.email
+    $sql = "SELECT i.id, i.email, i.token, i.role, i.message, i.forced_username, i.force_2fa, i.created_at, i.expires_at, i.used_at, i.used_by, i.is_revoked, u.username AS existing_username
+            FROM invitations i
+            LEFT JOIN users u ON u.email COLLATE utf8mb4_unicode_ci = i.email COLLATE utf8mb4_unicode_ci
+            ORDER BY i.created_at DESC
+            LIMIT 50";
+    $stmt = $db->query($sql);
     $invites = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $invites = [];
+    @file_put_contents('/tmp/mimir_invitations_error.log', date('c') . " - " . $e->getMessage() . "\n", FILE_APPEND);
 }
 
 renderPageStart('Invitaciones', 'invitations', true);

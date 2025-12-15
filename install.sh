@@ -163,6 +163,8 @@ install_php() {
         php-zip \
         php-ldap \
         php-fileinfo \
+        php-imagick \
+        imagemagick \
         libapache2-mod-php
     
     print_status "PHP and extensions installed"

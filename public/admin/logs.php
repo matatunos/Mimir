@@ -52,7 +52,7 @@ renderHeader('Registros de Actividad', $user);
                         <select name="action" class="form-control">
                             <option value="">Todas</option>
                             <?php foreach ($actions as $act): ?>
-                                <option value="<?php echo htmlspecialchars($act); ?>" <?php echo $action === $act ? 'selected' : ''; ?>><?php echo htmlspecialchars($act); ?></option>
+                                <option value="<?php echo htmlspecialchars($act ?? ''); ?>" <?php echo $action === $act ? 'selected' : ''; ?>><?php echo htmlspecialchars($act ?? ''); ?></option>
                             <?php endforeach; ?>
                         </select>
                         <small style="display:block; margin-top:0.25rem; color:var(--text-muted);">Selecciona una acción para filtrar los registros.</small>
@@ -84,9 +84,9 @@ renderHeader('Registros de Actividad', $user);
                         <?php foreach ($logs as $log): ?>
                         <tr>
                             <td><?php echo htmlspecialchars($log['username'] ?? 'Sistema'); ?></td>
-                            <td><code><?php echo htmlspecialchars($log['action']); ?></code></td>
+                            <td><code><?php echo htmlspecialchars($log['action'] ?? ''); ?></code></td>
                             <td><?php echo htmlspecialchars($log['description'] ?? '-'); ?></td>
-                            <td><?php echo htmlspecialchars($log['ip_address']); ?></td>
+                            <td><?php echo htmlspecialchars($log['ip_address'] ?? '-'); ?></td>
                             <td><?php echo date('d/m/Y H:i:s', strtotime($log['created_at'])); ?></td>
                         </tr>
                         <?php endforeach; ?>
