@@ -33,3 +33,6 @@ ESTADO_FINAL.md
 *.bak
 backup_*
 .env
+
+# Secrets directory (keep out of repo)
+.secrets/
