@@ -48,6 +48,12 @@ class Email {
         $user = $this->config->get('smtp_username', '');
         $pass = $this->config->get('smtp_password', '');
 
+        // If password is stored encrypted (ENC:<iv>:<ciphertext>), attempt to decrypt
+        if (is_string($pass) && strpos($pass, 'ENC:') === 0) {
+            $decoded = $this->decryptConfigValue($pass);
+            if ($decoded !== false) $pass = $decoded;
+        }
+
         if (empty($host)) {
             $res = $this->sendMailFunction($to, $subject, $body, $options);
             $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to}" : "Failed to send email to {$to}"), ['to' => $to, 'subject' => $subject, 'method' => 'mail']);
@@ -65,99 +71,137 @@ class Email {
         $headers[] = 'Content-Type: text/html; charset=UTF-8';
         $headers[] = 'X-Mailer: Mimir PHP/' . phpversion();
 
-        // Try SMTP
+        // Try SMTP with primary settings; on failure attempt fallback to 465/ssl once
         try {
-            $timeout = 10;
-            $connected = false;
-            $fp = null;
-
-            if ($enc === 'ssl' || $port === 465) {
-                $fp = @stream_socket_client('ssl://' . $host . ':' . $port, $errno, $errstr, $timeout);
-                if ($fp) { $connected = true; stream_set_timeout($fp, $timeout); }
-            } else {
-                $fp = @stream_socket_client('tcp://' . $host . ':' . $port, $errno, $errstr, $timeout);
-                if ($fp) { $connected = true; stream_set_timeout($fp, $timeout); }
-            }
-
-            if (!$connected || !$fp) {
-                throw new Exception('SMTP connect failed: ' . ($errstr ?? ''));
-            }
-
-            $this->smtpGetLine($fp); // banner
-            $this->smtpSend($fp, "EHLO " . gethostname());
-            $ehlo = $this->smtpReadMultiline($fp);
-
-            if ($enc === 'tls') {
-                if (stripos($ehlo, 'STARTTLS') !== false) {
-                    $this->smtpSend($fp, "STARTTLS");
-                    $resp = $this->smtpGetLine($fp);
-                    if (strpos($resp, '220') === 0) {
-                        if (!@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
-                            throw new Exception('STARTTLS negotiation failed');
-                        }
-                        // re-EHLO
-                        $this->smtpSend($fp, "EHLO " . gethostname());
-                        $ehlo = $this->smtpReadMultiline($fp);
-                    }
-                }
-            }
-
-            // AUTH if credentials provided
-            if (!empty($user) && !empty($pass)) {
-                $plain = base64_encode("\0" . $user . "\0" . $pass);
-                $this->smtpSend($fp, "AUTH PLAIN $plain");
-                $resp = $this->smtpGetLine($fp);
-                if (strpos($resp, '235') !== 0) {
-                    // try LOGIN
-                    $this->smtpSend($fp, "AUTH LOGIN");
-                    $step = $this->smtpGetLine($fp);
-                    if (strpos($step, '334') === 0) {
-                        $this->smtpSend($fp, base64_encode($user));
-                        $this->smtpGetLine($fp);
-                        $this->smtpSend($fp, base64_encode($pass));
-                        $final = $this->smtpGetLine($fp);
-                        if (strpos($final, '235') !== 0) {
-                            throw new Exception('SMTP auth failed');
-                        }
-                    }
-                }
-            }
-
-            // MAIL FROM
-            $this->smtpSend($fp, 'MAIL FROM:<' . $fromEmail . '>');
-            $this->smtpGetLine($fp);
-            // RCPT TO
-            $this->smtpSend($fp, 'RCPT TO:<' . $to . '>');
-            $this->smtpGetLine($fp);
-            // DATA
-            $this->smtpSend($fp, 'DATA');
-            $this->smtpGetLine($fp);
-
-            // Construct message
-            $message = "Subject: " . $this->escapeHeader($subject) . "\r\n";
-            foreach ($headers as $h) { $message .= $h . "\r\n"; }
-            $message .= "\r\n";
-            $message .= $body . "\r\n";
-            $message .= ".\r\n";
-
-            fwrite($fp, $message);
-            $this->smtpGetLine($fp);
-
-            $this->smtpSend($fp, 'QUIT');
-            fclose($fp);
-
-            // Log SMTP send
+            $this->smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers);
             $logger->log($actor, 'email_sent', 'email', null, "Sent email to {$to} via SMTP", ['to' => $to, 'subject' => $subject, 'method' => 'smtp', 'from' => $fromEmail]);
-
             return true;
-
         } catch (Exception $e) {
-            // Fallback to mail()
+            // Try fallback SSL/465 if not already using it
+            try {
+                if (!($enc === 'ssl' || $port === 465)) {
+                    $fallbackPort = 465;
+                    $fallbackEnc = 'ssl';
+                    $this->smtpSendRaw($host, $fallbackPort, $fallbackEnc, $user, $pass, $fromEmail, $to, $subject, $body, $headers);
+                    $logger->log($actor, 'email_sent', 'email', null, "Sent email to {$to} via SMTP fallback", ['to' => $to, 'subject' => $subject, 'method' => 'smtp', 'from' => $fromEmail, 'fallback' => '465/ssl']);
+                    return true;
+                }
+            } catch (Exception $e2) {
+                error_log('Email::send SMTP fallback error: ' . $e2->getMessage());
+            }
+
+            // Final fallback to mail()
             error_log('Email::send SMTP error: ' . $e->getMessage());
             $res = $this->sendMailFunction($to, $subject, $body, $options);
             $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to} via mail() after SMTP failure" : "Failed to send email to {$to} after SMTP failure"), ['to' => $to, 'subject' => $subject, 'method' => 'mail', 'error' => $e->getMessage()]);
             return $res;
         }
+    }
+
+    /**
+     * Decrypt a config value stored as ENC:<base64_iv>:<base64_cipher>
+     * Returns plaintext or false on failure
+     */
+    private function decryptConfigValue($encValue) {
+        $parts = explode(':', $encValue, 3);
+        if (count($parts) !== 3) return false;
+        list($_tag, $b64iv, $b64cipher) = $parts;
+        $iv = base64_decode($b64iv);
+        $cipher = base64_decode($b64cipher);
+        $keyFile = rtrim(dirname(__DIR__), '/') . '/.secrets/smtp_key';
+        if (!file_exists($keyFile)) return false;
+        $key = trim(@file_get_contents($keyFile));
+        if ($key === '') return false;
+        $keyRaw = base64_decode($key);
+        if ($keyRaw === false) return false;
+        $plain = @openssl_decrypt($cipher, 'AES-256-CBC', $keyRaw, OPENSSL_RAW_DATA, $iv);
+        return $plain === false ? false : $plain;
+    }
+
+    /**
+     * Perform the low-level SMTP send using provided connection parameters.
+     * Throws Exception on failure.
+     */
+    private function smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers) {
+        $timeout = 10;
+        $connected = false;
+        $fp = null;
+
+        if ($enc === 'ssl' || $port === 465) {
+            $fp = @stream_socket_client('ssl://' . $host . ':' . $port, $errno, $errstr, $timeout);
+            if ($fp) { $connected = true; stream_set_timeout($fp, $timeout); }
+        } else {
+            $fp = @stream_socket_client('tcp://' . $host . ':' . $port, $errno, $errstr, $timeout);
+            if ($fp) { $connected = true; stream_set_timeout($fp, $timeout); }
+        }
+
+        if (!$connected || !$fp) {
+            throw new Exception('SMTP connect failed: ' . ($errstr ?? ''));
+        }
+
+        $this->smtpGetLine($fp); // banner
+        $this->smtpSend($fp, "EHLO " . gethostname());
+        $ehlo = $this->smtpReadMultiline($fp);
+
+        if ($enc === 'tls') {
+            if (stripos($ehlo, 'STARTTLS') !== false) {
+                $this->smtpSend($fp, "STARTTLS");
+                $resp = $this->smtpGetLine($fp);
+                if (strpos($resp, '220') === 0) {
+                    if (!@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                        throw new Exception('STARTTLS negotiation failed');
+                    }
+                    // re-EHLO
+                    $this->smtpSend($fp, "EHLO " . gethostname());
+                    $ehlo = $this->smtpReadMultiline($fp);
+                }
+            }
+        }
+
+        // AUTH if credentials provided
+        if (!empty($user) && !empty($pass)) {
+            $plain = base64_encode("\0" . $user . "\0" . $pass);
+            $this->smtpSend($fp, "AUTH PLAIN $plain");
+            $resp = $this->smtpGetLine($fp);
+            if (strpos($resp, '235') !== 0) {
+                // try LOGIN
+                $this->smtpSend($fp, "AUTH LOGIN");
+                $step = $this->smtpGetLine($fp);
+                if (strpos($step, '334') === 0) {
+                    $this->smtpSend($fp, base64_encode($user));
+                    $this->smtpGetLine($fp);
+                    $this->smtpSend($fp, base64_encode($pass));
+                    $final = $this->smtpGetLine($fp);
+                    if (strpos($final, '235') !== 0) {
+                        throw new Exception('SMTP auth failed');
+                    }
+                }
+            }
+        }
+
+        // MAIL FROM
+        $this->smtpSend($fp, 'MAIL FROM:<' . $fromEmail . '>');
+        $this->smtpGetLine($fp);
+        // RCPT TO
+        $this->smtpSend($fp, 'RCPT TO:<' . $to . '>');
+        $this->smtpGetLine($fp);
+        // DATA
+        $this->smtpSend($fp, 'DATA');
+        $this->smtpGetLine($fp);
+
+        // Construct message
+        $message = "Subject: " . $this->escapeHeader($subject) . "\r\n";
+        foreach ($headers as $h) { $message .= $h . "\r\n"; }
+        $message .= "\r\n";
+        $message .= $body . "\r\n";
+        $message .= ".\r\n";
+
+        fwrite($fp, $message);
+        $this->smtpGetLine($fp);
+
+        $this->smtpSend($fp, 'QUIT');
+        fclose($fp);
+        return true;
     }
 
     private function escapeHeader($s) {

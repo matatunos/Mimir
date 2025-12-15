@@ -93,11 +93,17 @@ CREATE TABLE IF NOT EXISTS `files` (
   `file_hash` varchar(64) DEFAULT NULL COMMENT 'SHA256 hash for deduplication',
   `description` text DEFAULT NULL,
   `is_shared` tinyint(1) NOT NULL DEFAULT 0,
+  `is_expired` tinyint(1) NOT NULL DEFAULT 0,
+  `never_expire` tinyint(1) NOT NULL DEFAULT 0,
+  `expired_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   KEY `idx_is_shared` (`is_shared`),
+  KEY `idx_is_expired` (`is_expired`),
+  KEY `idx_never_expire` (`never_expire`),
+  KEY `idx_expired_at` (`expired_at`),
   KEY `idx_file_hash` (`file_hash`),
   KEY `idx_created_at` (`created_at`),
   CONSTRAINT `files_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
@@ -232,6 +238,32 @@ INSERT INTO `config` (`config_key`, `config_value`, `config_type`, `description`
 -- LDAP settings (OpenLDAP)
 ('enable_ldap', '0', 'boolean', 'Enable LDAP authentication', 1),
 ('ldap_host', '', 'string', 'LDAP server host', 0),
+
+-- --------------------------------------------------------
+-- Table structure for table `invitations`
+-- --------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `invitations` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `token` varchar(128) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `inviter_id` int(11) DEFAULT NULL,
+  `role` varchar(20) NOT NULL DEFAULT 'user',
+  `message` text DEFAULT NULL,
+  `expires_at` datetime DEFAULT NULL,
+  `forced_username` varchar(100) DEFAULT NULL,
+  `force_2fa` varchar(20) NOT NULL DEFAULT 'none',
+  `totp_secret` varchar(128) DEFAULT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `used_by` int(11) DEFAULT NULL,
+  `is_revoked` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `token` (`token`),
+  KEY `email` (`email`),
+  KEY `inviter_id` (`inviter_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 ('ldap_port', '389', 'number', 'LDAP server port', 0),
 ('ldap_base_dn', '', 'string', 'LDAP base DN', 0),
 ('ldap_bind_dn', '', 'string', 'LDAP bind DN', 0),
@@ -463,11 +495,17 @@ CREATE TABLE IF NOT EXISTS `files` (
   `file_hash` varchar(64) DEFAULT NULL COMMENT 'SHA256 hash for deduplication',
   `description` text DEFAULT NULL,
   `is_shared` tinyint(1) NOT NULL DEFAULT 0,
+  `is_expired` tinyint(1) NOT NULL DEFAULT 0,
+  `never_expire` tinyint(1) NOT NULL DEFAULT 0,
+  `expired_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   KEY `idx_is_shared` (`is_shared`),
+  KEY `idx_is_expired` (`is_expired`),
+  KEY `idx_never_expire` (`never_expire`),
+  KEY `idx_expired_at` (`expired_at`),
   KEY `idx_file_hash` (`file_hash`),
   KEY `idx_created_at` (`created_at`),
   CONSTRAINT `files_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
