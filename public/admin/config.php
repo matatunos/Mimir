@@ -156,6 +156,8 @@ $defaults = [
     'max_file_size' => ['value' => '536870912', 'type' => 'number'],
     'allowed_extensions' => ['value' => 'pdf,doc,docx,xls,xlsx,ppt,pptx,txt,jpg,jpeg,png,gif,zip,rar,7z', 'type' => 'string'],
     'default_storage_quota' => ['value' => '10737418240', 'type' => 'number'],
+    // Physical path where user uploads are stored. Change if you mount a different disk.
+    'storage_uploads_path' => ['value' => UPLOADS_PATH, 'type' => 'string'],
     // Sharing
     'default_max_share_days' => ['value' => '30', 'type' => 'number'],
     'default_max_downloads' => ['value' => '100', 'type' => 'number'],
@@ -223,6 +225,7 @@ $defaults = [
 // Description for global config protection toggle
 $descs['enable_config_protection'] = 'Si está activado, las claves marcadas como sistema (is_system) no serán editables desde la UI. Por defecto está desactivado.';
 $descs['notify_user_creation_enabled'] = 'Si está activado, el sistema enviará notificaciones cuando se cree un usuario vía invitación.';
+$descs['storage_uploads_path'] = 'Ruta física absoluta en el servidor donde se almacenan los ficheros subidos por los usuarios. Útil para montar un disco diferente (ej.: /mnt/storage/uploads).';
 $descs['notify_user_creation_emails'] = 'Lista separada por comas de direcciones de correo que recibirán notificaciones cuando se cree un usuario (por ejemplo: ops@example.com, infra@example.com). Déjalo vacío para ningún correo adicional.';
 $descs['notify_user_creation_to_admins'] = 'Si está marcado, además se enviarán notificaciones a todos los usuarios con rol administrador que tengan email configurado.';
 $descs['notify_user_creation_retry_attempts'] = 'Número máximo de reintentos para enviar notificaciones de creación de usuario antes de registrar un evento forense.';
@@ -543,6 +546,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $brandColors['secondary'],
                                 $brandColors['accent']
                             );
+                            // Generate favicons from the uploaded logo (best-effort)
+                            try {
+                                if (function_exists('generateFavicons')) {
+                                    $generated = generateFavicons(BASE_PATH . '/public/uploads/branding/' . $filename);
+                                    if ($generated) {
+                                        $logger->log($user['id'], 'favicon_generated', 'system', null, "Favicons generados desde logo: $filename");
+                                    }
+                                }
+                            } catch (Exception $e) {
+                                $logger->log($user['id'], 'favicon_generation_failed', 'system', null, 'Error generando favicons: ' . $e->getMessage());
+                            }
                         } catch (Exception $e) {
                             // Don't fail the whole upload if color extraction fails
                             $logger->log($user['id'], 'color_extraction_failed', 'system', null, 

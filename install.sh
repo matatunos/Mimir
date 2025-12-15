@@ -29,6 +29,14 @@ STORAGE_DIR="${INSTALL_DIR}/storage"
 UPLOADS_DIR="${STORAGE_DIR}/uploads"
 TEMP_DIR="${STORAGE_DIR}/temp"
 
+# Prompt for uploads directory so user can choose a physical mount point
+if [ -t 1 ]; then
+    read -p "Uploads directory [${UPLOADS_DIR}]: " user_uploads
+    if [ -n "${user_uploads}" ]; then
+        UPLOADS_DIR="${user_uploads}"
+    fi
+fi
+
 # Function to print colored messages
 print_status() {
     echo -e "${GREEN}[✓]${NC} $1"
