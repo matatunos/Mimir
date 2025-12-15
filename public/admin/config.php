@@ -363,6 +363,80 @@ function makeBackgroundTransparentIfPossible($filePath, $extension) {
     return ['path' => $filePath, 'extension' => $extension];
 }
 
+/**
+ * Generate favicons (ico + png sizes) from a logo file.
+ * Writes files to public/favicon.ico, public/favicon-32x32.png, public/favicon-16x16.png
+ */
+function generateFavicons($logoPath) {
+    $outDir = BASE_PATH . '/public';
+    if (!file_exists($logoPath)) return false;
+
+    // Prefer Imagick if available
+    if (class_exists('Imagick')) {
+        try {
+            $src = new Imagick($logoPath);
+            $ico = new Imagick();
+
+            $sizes = [64, 32, 16];
+            foreach ($sizes as $s) {
+                $frame = clone $src;
+                $frame->setImageBackgroundColor(new ImagickPixel('transparent'));
+                $frame->setImageAlphaChannel(Imagick::ALPHACHANNEL_ACTIVATE);
+                $frame->resizeImage($s, $s, Imagick::FILTER_LANCZOS, 1, true);
+                $pngPath = $outDir . '/favicon-' . $s . 'x' . $s . '.png';
+                $frame->setImageFormat('png32');
+                $frame->writeImage($pngPath);
+
+                // Add for .ico (use 64,32,16 frames)
+                $ico->addImage(clone $frame);
+                $frame->clear();
+                $frame->destroy();
+            }
+
+            // Write ICO (Imagick will combine frames)
+            $ico->setFormat('ico');
+            $icoPath = $outDir . '/favicon.ico';
+            $ico->writeImage($icoPath);
+            $ico->clear();
+            $ico->destroy();
+            $src->clear();
+            $src->destroy();
+            return true;
+        } catch (Exception $e) {
+            error_log('generateFavicons Imagick failed: ' . $e->getMessage());
+        }
+    }
+
+    // Fallback to GD: create 32x32 and 16x16 PNGs
+    if (!extension_loaded('gd')) return false;
+    try {
+        $info = getimagesize($logoPath);
+        $mime = $info['mime'] ?? '';
+        switch ($mime) {
+            case 'image/png': $img = imagecreatefrompng($logoPath); break;
+            case 'image/jpeg': $img = imagecreatefromjpeg($logoPath); break;
+            case 'image/gif': $img = imagecreatefromgif($logoPath); break;
+            case 'image/webp': $img = imagecreatefromwebp($logoPath); break;
+            default: return false;
+        }
+
+        foreach ([32,16] as $s) {
+            $thumb = imagecreatetruecolor($s, $s);
+            imagesavealpha($thumb, true);
+            $trans = imagecolorallocatealpha($thumb, 0, 0, 0, 127);
+            imagefill($thumb, 0, 0, $trans);
+            imagecopyresampled($thumb, $img, 0,0,0,0, $s,$s, imagesx($img), imagesy($img));
+            $pngPath = $outDir . '/favicon-' . $s . 'x' . $s . '.png';
+            imagepng($thumb, $pngPath);
+            imagedestroy($thumb);
+        }
+        imagedestroy($img);
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
 $success = '';
 $error = '';
 

@@ -36,3 +36,8 @@ backup_*
 
 # Secrets directory (keep out of repo)
 .secrets/
+
+# Ignore public uploads (user uploaded assets should not be committed)
+/public/uploads/*
+# Ignore generated favicons
+/public/favicon*
