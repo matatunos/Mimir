@@ -24,7 +24,7 @@ function sendNotificationWithRetries($recipient, $subject, $body, $options = [],
     require_once __DIR__ . '/../../classes/Config.php';
     require_once __DIR__ . '/../../classes/Logger.php';
     require_once __DIR__ . '/../../classes/ForensicLogger.php';
-    require_once __DIR__ . '/../../classes/Email.php';
+    require_once __DIR__ . '/../../classes/Notification.php';
 
     $cfg = new Config();
     $maxAttempts = max(1, intval($cfg->get('notify_user_creation_retry_attempts', 3)));
@@ -32,7 +32,7 @@ function sendNotificationWithRetries($recipient, $subject, $body, $options = [],
 
     $logger = $context['logger'] ?? new Logger();
     $forensic = $context['forensic'] ?? new ForensicLogger();
-    $emailSender = $context['emailSender'] ?? new Email();
+    $emailSender = $context['emailSender'] ?? new Notification();
     $actorId = $context['actor_id'] ?? null;
     $targetId = $context['target_id'] ?? null;
 
@@ -169,23 +169,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $emailBody .= "<p>Por favor, cambia tu contraseña después del primer inicio de sesión.</p>";
                     $emailBody .= "<hr><p style='color: #666; font-size: 0.875rem;'>Este es un mensaje automático, por favor no responder.</p>";
                     
-                    require_once __DIR__ . '/../../classes/Email.php';
+                    require_once __DIR__ . '/../../classes/Notification.php';
                     $fromEmail = defined('SMTP_FROM_EMAIL') ? SMTP_FROM_EMAIL : ('noreply@' . parse_url(BASE_URL, PHP_URL_HOST));
                     try {
-                        $emailSender = new Email();
-                        $sent = $emailSender->send($email, 'Cuenta creada en ' . (SITE_NAME ?? 'Mimir'), $emailBody, ['from_email' => $fromEmail, 'from_name' => SITE_NAME ?? 'Mimir']);
+                        $notifier = new Notification();
+                        $sent = $notifier->send($email, 'Cuenta creada en ' . (SITE_NAME ?? 'Mimir'), $emailBody, ['from_email' => $fromEmail, 'from_name' => SITE_NAME ?? 'Mimir']);
                         if ($sent) {
                             $logger->log($user['id'], 'email_sent', 'user', $userId, "Email de bienvenida enviado a: $email");
                         }
                     } catch (Exception $e) {
-                        error_log('Welcome email send error: ' . $e->getMessage());
+                        error_log('Welcome notification send error: ' . $e->getMessage());
                     }
                 }
 
                 // Enviar notificaciones configuradas sobre la creación del usuario
                 try {
                     require_once __DIR__ . '/../../classes/Config.php';
-                    require_once __DIR__ . '/../../classes/Email.php';
+                    require_once __DIR__ . '/../../classes/Notification.php';
                     $cfg = new Config();
                     if ((bool)$cfg->get('notify_user_creation_enabled', '0')) {
                         $emailsRaw = $cfg->get('notify_user_creation_emails', '');
@@ -208,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         $recipients = array_values(array_unique($recipients));
                         if (!empty($recipients)) {
-                            $emailSender = new Email();
+                            $emailSender = new Notification();
                             $siteName = $cfg->get('site_name', SITE_NAME ?? 'Mimir');
                             $fromEmailCfg = $cfg->get('email_from_address', '');
                             $fromNameCfg = $cfg->get('email_from_name', $siteName);
