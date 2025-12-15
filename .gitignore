@@ -30,7 +30,6 @@ CAMBIOS_IMPLEMENTADOS.md
 ESTADO_FINAL.md
 
 # Backups
-*.sql
 *.bak
 backup_*
 .env

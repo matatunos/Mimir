@@ -75,7 +75,9 @@ run_as_www() {
     else
         # If running as root and sudo may not be available, use su
         if [[ $EUID -eq 0 ]]; then
-            su -s /bin/sh -c "${*//"/\"}" www-data
+            # Escape arguments safely and run via su as www-data
+            CMD=$(printf '%q ' "$@")
+            su -s /bin/sh -c "$CMD" www-data
         else
             # Fallback: try to run command directly
             "$@"
