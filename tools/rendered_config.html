@@ -3,46 +3,46 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="csrf-token" content="809efcadd2ab1cd3eaeb7aef6e3a241202eb4186c1b080a0821421d3ca659ac4">
-        <title>Configuración - Mimir</title>
+        <meta name="csrf-token" content="236b86c507902ca635321dee679aeccb15cdd86e6dd4333674e9c24b6b622472">
+        <title>Configuración - MatatunoS</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <link rel="stylesheet" href="https://files.favala.es/assets/css/style.css">
         <style>
         :root {
             /* Override brand colors from configuration */
-            --brand-primary: #667eea !important;
-            --brand-secondary: #764ba2 !important;
-            --brand-accent: #667eea !important;
+            --brand-primary: #31404a !important;
+            --brand-secondary: #898d91 !important;
+            --brand-accent: #4b6b80 !important;
             
             /* Update dependent colors */
-            --primary-color: #667eea !important;
-            --primary-dark: #5164bb !important;
-            --primary-light: #84a3ff !important;
-            --secondary-color: #764ba2 !important;
-            --accent-color: #667eea !important;
-            --info-color: #667eea !important;
-            --primary: #667eea !important;
+            --primary-color: #31404a !important;
+            --primary-dark: #27333b !important;
+            --primary-light: #3f5360 !important;
+            --secondary-color: #898d91 !important;
+            --accent-color: #4b6b80 !important;
+            --info-color: #4b6b80 !important;
+            --primary: #31404a !important;
         }
         
         /* Ensure proper text contrast on buttons */
         .btn-primary,
         .btn.btn-primary,
         button.btn-primary {
-            background: #667eea !important;
-            color: #000000 !important;
+            background: #31404a !important;
+            color: #ffffff !important;
         }
         
         .btn-primary:hover,
         .btn.btn-primary:hover,
         button.btn-primary:hover {
-            background: #5164bb !important;
-            color: #000000 !important;
+            background: #27333b !important;
+            color: #ffffff !important;
         }
         
         .btn-accent,
         .btn.btn-accent {
-            background: #667eea !important;
-            color: #000000 !important;
+            background: #4b6b80 !important;
+            color: #ffffff !important;
         }
         </style>
         <style>
@@ -105,11 +105,8 @@
                 <div class="sidebar">
         <div class="sidebar-header">
             <div class="logo">
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                        <polyline points="13 2 13 9 20 9"></polyline>
-                    </svg>
-                                <span>Mimir</span>
+                                    <img src="https://files.favala.es/uploads/branding/logo_1765827046.png" alt="MatatunoS">
+                                <span>MatatunoS</span>
             </div>
         </div>
         
@@ -193,10 +190,10 @@
     <div id="userMenuDropdown" style="display: none; position: absolute; right: 1.5rem; top: 70px; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 1000;">
         <a href="https://files.favala.es/user/profile.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-user"></i> Mi Perfil</a>
                                 <a href="https://files.favala.es/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
-            <a href="#" onclick="toggleMaintenance(event, true, '809efcadd2ab1cd3eaeb7aef6e3a241202eb4186c1b080a0821421d3ca659ac4')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
+            <a href="#" onclick="toggleMaintenance(event, true, '236b86c507902ca635321dee679aeccb15cdd86e6dd4333674e9c24b6b622472')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
                 <i class="fas fa-tools"></i> 
                 Activar Mantenimiento            </a>
-            <a href="#" onclick="toggleConfigProtection(event, true, '809efcadd2ab1cd3eaeb7aef6e3a241202eb4186c1b080a0821421d3ca659ac4')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
+            <a href="#" onclick="toggleConfigProtection(event, true, '236b86c507902ca635321dee679aeccb15cdd86e6dd4333674e9c24b6b622472')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
                 <i class="fas fa-shield-alt"></i>
                 Activar protección de configuración            </a>
                 <a href="https://files.favala.es/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color); text-decoration: none;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
@@ -212,7 +209,7 @@
     </div>
     
     <form method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="809efcadd2ab1cd3eaeb7aef6e3a241202eb4186c1b080a0821421d3ca659ac4">
+        <input type="hidden" name="csrf_token" value="236b86c507902ca635321dee679aeccb15cdd86e6dd4333674e9c24b6b622472">
         
                                 <div class="card" style="margin-bottom: 2rem;">
                 <div class="card-header">
@@ -280,7 +277,7 @@
                                 type="text" 
                                 name="site_name" 
                                 class="form-control" 
-                                value="Mimir"
+                                value="MatatunoS"
                                 placeholder="Mi Gestor de Archivos"                                                            >
                                                                             
                                                     <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
@@ -295,7 +292,7 @@
                                 <input 
                                     type="color" 
                                     id="color_brand_accent_color"
-                                    value="#667eea" 
+                                    value="#4b6b80" 
                                     style="width: 60px; height: 40px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer;"
                                     onchange="document.getElementById('text_brand_accent_color').value = this.value; updateColorPreview();"
                                 >
@@ -304,7 +301,7 @@
                                     id="text_brand_accent_color"
                                     name="brand_accent_color" 
                                     class="form-control" 
-                                    value="#667eea" 
+                                    value="#4b6b80" 
                                     placeholder="#1e40af"
                                     style="flex: 1; font-family: monospace;"
                                     oninput="document.getElementById('color_brand_accent_color').value = this.value; updateColorPreview();"
@@ -317,7 +314,7 @@
                                     style="padding: 0.5rem 0.75rem; height: 40px; white-space: nowrap;">
                                     <i class="fas fa-eye-dropper"></i>
                                 </button>
-                                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); border: 2px solid var(--border-color); background: #667eea;" id="preview_brand_accent_color"></div>
+                                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); border: 2px solid var(--border-color); background: #4b6b80;" id="preview_brand_accent_color"></div>
                             </div>
                                                 
                                                     <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
@@ -332,7 +329,7 @@
                                 <input 
                                     type="color" 
                                     id="color_brand_primary_color"
-                                    value="#667eea" 
+                                    value="#31404a" 
                                     style="width: 60px; height: 40px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer;"
                                     onchange="document.getElementById('text_brand_primary_color').value = this.value; updateColorPreview();"
                                 >
@@ -341,7 +338,7 @@
                                     id="text_brand_primary_color"
                                     name="brand_primary_color" 
                                     class="form-control" 
-                                    value="#667eea" 
+                                    value="#31404a" 
                                     placeholder="#1e40af"
                                     style="flex: 1; font-family: monospace;"
                                     oninput="document.getElementById('color_brand_primary_color').value = this.value; updateColorPreview();"
@@ -354,7 +351,7 @@
                                     style="padding: 0.5rem 0.75rem; height: 40px; white-space: nowrap;">
                                     <i class="fas fa-eye-dropper"></i>
                                 </button>
-                                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); border: 2px solid var(--border-color); background: #667eea;" id="preview_brand_primary_color"></div>
+                                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); border: 2px solid var(--border-color); background: #31404a;" id="preview_brand_primary_color"></div>
                             </div>
                                                 
                                                     <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
@@ -369,7 +366,7 @@
                                 <input 
                                     type="color" 
                                     id="color_brand_secondary_color"
-                                    value="#764ba2" 
+                                    value="#898d91" 
                                     style="width: 60px; height: 40px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer;"
                                     onchange="document.getElementById('text_brand_secondary_color').value = this.value; updateColorPreview();"
                                 >
@@ -378,7 +375,7 @@
                                     id="text_brand_secondary_color"
                                     name="brand_secondary_color" 
                                     class="form-control" 
-                                    value="#764ba2" 
+                                    value="#898d91" 
                                     placeholder="#1e40af"
                                     style="flex: 1; font-family: monospace;"
                                     oninput="document.getElementById('color_brand_secondary_color').value = this.value; updateColorPreview();"
@@ -391,7 +388,7 @@
                                     style="padding: 0.5rem 0.75rem; height: 40px; white-space: nowrap;">
                                     <i class="fas fa-eye-dropper"></i>
                                 </button>
-                                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); border: 2px solid var(--border-color); background: #764ba2;" id="preview_brand_secondary_color"></div>
+                                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); border: 2px solid var(--border-color); background: #898d91;" id="preview_brand_secondary_color"></div>
                             </div>
                                                 
                                                     <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
@@ -403,6 +400,12 @@
                         
                                                     <!-- Logo upload -->
                             <div style="margin-bottom: 1rem;">
+                                                                    <div style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius-md); display: inline-block;">
+                                        <img src="https://files.favala.es/uploads/branding/logo_1765827046.png" 
+                                             alt="Logo actual" 
+                                             id="current_logo_preview"
+                                             style="max-width: 200px; max-height: 100px; display: block;">
+                                    </div>
                                                                 <div style="display: flex; gap: 1rem; align-items: center;">
                                     <input 
                                         type="file" 
@@ -433,7 +436,7 @@
                                     </p>
                                 </div>
                             </div>
-                            <input type="hidden" name="site_logo" value="">
+                            <input type="hidden" name="site_logo" value="uploads/branding/logo_1765827046.png">
                                                 
                                                     <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
                                 Path to site logo                            </small>
@@ -525,7 +528,7 @@
                                 type="text" 
                                 name="ldap_bind_dn" 
                                 class="form-control" 
-                                value=""
+                                value="nacho"
                                 placeholder="cn=admin,dc=ejemplo,dc=com"                                                            >
                                                                             
                                                     <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
@@ -1375,7 +1378,7 @@ document.addEventListener('DOMContentLoaded', function(){
             var xhr = new XMLHttpRequest();
             xhr.open('POST', 'https://files.favala.es/admin/upload_signature_image.php');
             // send CSRF token header
-            xhr.setRequestHeader('X-CSRF-Token', '809efcadd2ab1cd3eaeb7aef6e3a241202eb4186c1b080a0821421d3ca659ac4');
+            xhr.setRequestHeader('X-CSRF-Token', '236b86c507902ca635321dee679aeccb15cdd86e6dd4333674e9c24b6b622472');
             xhr.onload = function() {
                 if (xhr.status === 200) {
                     try {
