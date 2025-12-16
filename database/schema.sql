@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
-  UNIQUE KEY `email` (`email`),
   KEY `idx_role` (`role`),
   KEY `idx_is_active` (`is_active`),
   KEY `idx_require_2fa` (`require_2fa`),
