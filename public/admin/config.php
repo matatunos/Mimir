@@ -703,7 +703,7 @@ $categories = [
     $category = 'other';
     
     // General settings
-    if (in_array($key, ['admin_email', 'timezone', 'base_url', 'maintenance_mode', 'maintenance_message', 'session_lifetime', 'session_name', 'enable_config_protection']) 
+    if (in_array($key, ['admin_email', 'timezone', 'base_url', 'maintenance_mode', 'maintenance_message', 'session_lifetime', 'session_name']) 
         || (strpos($key, 'default_') === 0)) {
         $category = 'general';
     } 
