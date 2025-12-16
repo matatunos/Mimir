@@ -1,5 +1,6 @@
 // Mimir File Management System - Main JavaScript
-const Mimir = {
+window.Mimir = window.Mimir || {};
+Object.assign(window.Mimir, {
     apiUrl: window.location.origin,
     
     showAlert: function(message, type = 'info') {
@@ -280,7 +281,7 @@ const Mimir = {
             xhr.send(formData);
         });
     }
-};
+});
 
 // Toggle user menu dropdown
 function toggleUserMenu(event) {

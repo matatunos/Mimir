@@ -294,7 +294,10 @@ function makeBackgroundTransparentIfPossible($filePath, $extension) {
 
             // Use a fuzz factor to allow near-matching colors (5% by default)
             $fuzz = ($im->getImageWidth() + $im->getImageHeight()) / 2 * 0.01; // heuristic
-            $im->setImageFuzz($fuzz);
+            // Some Imagick builds lack setImageFuzz(); guard the call to avoid fatal errors
+            if (method_exists($im, 'setImageFuzz')) {
+                $im->setImageFuzz($fuzz);
+            }
 
             // Make the sampled color transparent
             $im->transparentPaintImage($bgHex, 0, $fuzz, false);
@@ -877,7 +880,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
                             <div style="margin-bottom: 1rem;">
                                 <?php if (!empty($cfg['config_value'])): ?>
                                     <div style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius-md); display: inline-block;">
-                                        <img src="<?php echo BASE_URL . '/' . htmlspecialchars($cfg['config_value']); ?>" 
+                                        <img src="<?php echo BASE_URL . '/_asset.php?f=' . str_replace('%2F','/',rawurlencode($cfg['config_value'])); ?>" 
                                              alt="Logo actual" 
                                              id="current_logo_preview"
                                              style="max-width: 200px; max-height: 100px; display: block;">
@@ -1126,7 +1129,6 @@ renderHeader('Configuración del Sistema', $user, $auth);
     });
 })();
 
-<script>
 function previewLogo(input) {
     const preview = document.getElementById('logo_preview');
     const previewImg = document.getElementById('logo_preview_img');
@@ -1221,14 +1223,15 @@ async function pickColorFromScreen(configKey) {
             
             // Update preview
             updateColorPreview();
-        }
-    } catch (err) {
+            }
+        } catch (err) {
         // User cancelled or error occurred
         if (err.name !== 'AbortError') {
             console.error('Error al seleccionar color:', err);
         }
     }
 }
+
 </script>
 <script>
 function testLdap(type) {
@@ -1293,12 +1296,17 @@ function testSmtp() {
 }
 </script>
 
-<!-- TinyMCE integration for email signature field -->
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<!-- TinyMCE self-hosted integration for email signature field (served locally to avoid API key/CSP issues) -->
+<script src="<?php echo BASE_URL; ?>/assets/vendor/tinymce/tinymce.min.js" referrerpolicy="no-referrer"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
     var sigField = document.getElementById('email_signature_field');
     if (!sigField) return;
+
+    // Ensure TinyMCE loads assets from the local vendor directory
+    if (window.tinymce) {
+        try { tinymce.baseURL = '<?php echo BASE_URL; ?>/assets/vendor/tinymce'; } catch(e) {}
+    }
 
     tinymce.init({
         selector: '#email_signature_field',
@@ -1306,6 +1314,17 @@ document.addEventListener('DOMContentLoaded', function(){
         menubar: false,
         plugins: 'link image media paste code',
         toolbar: 'undo redo | styleselect | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | code',
+        skin: false, // use local skin files
+        skin_url: '<?php echo BASE_URL; ?>/assets/vendor/tinymce/skins/ui/oxide',
+        content_css: '<?php echo BASE_URL; ?>/assets/vendor/tinymce/skins/ui/oxide/content.min.css',
+        // Map plugins to local copies to avoid any external network calls
+        external_plugins: {
+            paste: '<?php echo BASE_URL; ?>/assets/vendor/tinymce/plugins/paste/plugin.min.js',
+            image: '<?php echo BASE_URL; ?>/assets/vendor/tinymce/plugins/image/plugin.min.js',
+            media: '<?php echo BASE_URL; ?>/assets/vendor/tinymce/plugins/media/plugin.min.js',
+            link: '<?php echo BASE_URL; ?>/assets/vendor/tinymce/plugins/link/plugin.min.js',
+            code: '<?php echo BASE_URL; ?>/assets/vendor/tinymce/plugins/code/plugin.min.js'
+        },
         images_upload_handler: function (blobInfo, success, failure) {
             var xhr = new XMLHttpRequest();
             xhr.open('POST', '<?php echo BASE_URL; ?>/admin/upload_signature_image.php');

@@ -40,21 +40,38 @@ function renderHeader($title, $user, $auth = null) {
             </button>
             <h1 class="header-title"><?php echo htmlspecialchars($title); ?></h1>
         </div>
-        <div class="header-actions">
-            <div class="user-menu" onclick="toggleUserMenu(event)">
-                <div class="user-avatar">
-                    <?php echo strtoupper(substr($user['username'], 0, 1)); ?>
-                </div>
-                <div>
-                    <div style="font-weight: 500;"><?php echo htmlspecialchars($user['full_name'] ?? $user['username']); ?></div>
-                    <div style="font-size: 0.8125rem; color: var(--text-muted);">
-                        <?php echo $user['role'] === 'admin' ? 'Administrador' : 'Usuario'; ?>
-                    </div>
-                </div>
+        <div class="header-right" style="position:relative;">
+            <button id="userMenuButton" class="btn btn-ghost user-menu" onclick="Mimir.toggleUserMenu(event)">
+                <span class="user-avatar" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <circle cx="12" cy="8" r="3.2" fill="currentColor" />
+                        <path d="M4 20c0-3.3137 2.6863-6 6-6h4c3.3137 0 6 2.6863 6 6" stroke="none" fill="currentColor" opacity="0.95" />
+                    </svg>
+                </span>
+                <span class="sr-only">Abrir menú de usuario</span>
+            </button>
+            <div id="userMenuDropdown" class="user-dropdown" style="display:none; position: absolute; right: 0.5rem; top: calc(var(--header-height) + 8px); background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 220px; z-index: 1200;">
+                <a href="<?php echo BASE_URL; ?>/user/profile.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-user"></i> Mi Perfil</a>
+                <?php if ($user['role'] === 'admin'): ?>
+                    <?php
+                    // Prefer a shared Config instance when available to avoid cache inconsistency
+                    require_once __DIR__ . '/../classes/Config.php';
+                    $config = $GLOBALS['config_instance'] ?? new Config();
+                    $maintenanceMode = $config->get('maintenance_mode', '0');
+                    $isInMaintenance = $maintenanceMode === '1';
+                    $globalProtection = $config->get('enable_config_protection', '0');
+                    ?>
+                    <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
+                    <a href="#" onclick="toggleConfigProtection(event, <?php echo $globalProtection ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
+                        <i class="fas fa-shield-alt"></i>
+                        <?php echo $globalProtection ? 'Desactivar protección de configuración' : 'Activar protección de configuración'; ?>
+                    </a>
+                <?php endif; ?>
+                <a href="<?php echo BASE_URL; ?>/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color); text-decoration: none;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
             </div>
         </div>
     </div>
-    
+
     <div id="userMenuDropdown" style="display: none; position: absolute; right: 1.5rem; top: 70px; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 1000;">
         <a href="<?php echo BASE_URL; ?>/user/profile.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-user"></i> Mi Perfil</a>
         <?php if ($user['role'] === 'admin'): ?>
@@ -67,7 +84,6 @@ function renderHeader($title, $user, $auth = null) {
             $globalProtection = $config->get('enable_config_protection', '0');
             ?>
             <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
-            <!-- Maintenance toggle removed from admin dropdown per request -->
             <a href="#" onclick="toggleConfigProtection(event, <?php echo $globalProtection ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
                 <i class="fas fa-shield-alt"></i>
                 <?php echo $globalProtection ? 'Desactivar protección de configuración' : 'Activar protección de configuración'; ?>
@@ -87,18 +103,19 @@ function renderSidebar($currentPage, $isAdmin = false) {
     ?>
     <div class="sidebar">
         <div class="sidebar-header">
-            <div class="logo">
-                <?php if ($logo): ?>
-                    <img src="<?php echo BASE_URL . '/' . htmlspecialchars($logo); ?>" alt="<?php echo htmlspecialchars($siteName); ?>">
-                <?php else: ?>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                        <polyline points="13 2 13 9 20 9"></polyline>
-                    </svg>
-                <?php endif; ?>
-                <span><?php echo htmlspecialchars($siteName); ?></span>
+                <div class="logo">
+                    <?php if ($logo): ?>
+                        <img src="<?php echo BASE_URL . '/_asset.php?f=' . urlencode($logo); ?>" alt="<?php echo htmlspecialchars($siteName); ?>">
+                        <span class="sidebar-brand-text"><?php echo htmlspecialchars($siteName); ?></span>
+                    <?php else: ?>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                            <polyline points="13 2 13 9 20 9"></polyline>
+                        </svg>
+                        <span><?php echo htmlspecialchars($siteName); ?></span>
+                    <?php endif; ?>
+                </div>
             </div>
-        </div>
         
         <div class="sidebar-menu">
             <?php if ($isAdmin): ?>
@@ -118,9 +135,7 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     <a href="<?php echo BASE_URL; ?>/admin/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
                         <i class="fas fa-folder"></i> Archivos
                     </a>
-                    <a href="<?php echo BASE_URL; ?>/admin/config.php#storage" class="menu-item <?php echo $currentPage === 'config' ? 'active' : ''; ?>">
-                        <i class="fas fa-hdd"></i> Almacenamiento
-                    </a>
+                    <!-- Almacenamiento removed from main admin menu to avoid duplicate active state -->
                     <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="menu-item <?php echo $currentPage === 'orphan_files' ? 'active' : ''; ?>">
                         <i class="fas fa-box"></i> Archivos huérfanos
                     </a>
@@ -337,6 +352,27 @@ function renderPageStart($title, $currentPage, $isAdmin = false) {
         <div class="app-container">
             <?php renderSidebar($currentPage, $isAdmin); ?>
             <div class="main-content">
+    <script>
+    // Minimal UI helpers for toggling menus
+    window.Mimir = window.Mimir || {};
+    Mimir.toggleUserMenu = function(event) {
+        var d = document.getElementById('userMenuDropdown');
+        if (!d) return;
+        if (d.style.display === 'block') {
+            d.style.display = 'none';
+            document.removeEventListener('click', Mimir._userMenuOutsideHandler);
+        } else {
+            d.style.display = 'block';
+            // close when clicking outside
+            Mimir._userMenuOutsideHandler = function(ev){ if (!d.contains(ev.target) && ev.target.id !== 'userMenuButton') { d.style.display='none'; document.removeEventListener('click', Mimir._userMenuOutsideHandler); } };
+            setTimeout(function(){ document.addEventListener('click', Mimir._userMenuOutsideHandler); }, 10);
+        }
+        if (event) event.stopPropagation();
+    };
+    Mimir.toggleMobileMenu = function() {
+        document.body.classList.toggle('mobile-menu-open');
+    };
+    </script>
     <?php
 }
 

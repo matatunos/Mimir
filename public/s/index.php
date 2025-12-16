@@ -121,26 +121,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $validation = $shareClass->validateAccess($token);
     
     if (is_array($validation) && !empty($validation['valid'])) {
-        // No password needed, proceed to download
+        // No password needed — show download page and require user to click the button
         $share = $shareClass->getByToken($token);
         if ($share) {
             $shareId = $share['share_id'] ?? $share['id'] ?? null;
             $fileSize = $share['file_size'] ?? null;
             if ($shareId !== null) {
-                $forensicLogger->logShareAccess($shareId, 'download', $fileSize);
-                $downloadLogId = $forensicLogger->logDownload($share['file_id'], $shareId, null);
-            } else {
-                $downloadLogId = null;
+                // Log a view event; actual download will be logged when user clicks
+                $forensicLogger->logShareAccess($shareId, 'view', $fileSize);
             }
         }
-        $dlRes = $shareClass->download($token, null, $downloadLogId);
-        if (is_array($dlRes) && !empty($dlRes['error'])) {
-            $error = $dlRes['error'];
-            $needsPassword = false;
-            $share = $shareClass->getByToken($token);
-        } else {
-            exit;
-        }
+        // Ensure we render the page with a download button (do not auto-stream)
+        $needsPassword = false;
+        // $share is set and page will show download button below
     } elseif (is_array($validation) && ($validation['error'] ?? '') === 'Password required') {
         $needsPassword = true;
         $share = $shareClass->getByToken($token);
@@ -206,7 +199,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <button type="submit" class="btn btn-primary" style="background: <?php echo htmlspecialchars($buttonBg); ?>; color: <?php echo htmlspecialchars($buttonText); ?>; border: none; padding: 0.7rem 1.2rem; font-size: 1rem; border-radius: 6px; display: inline-block; cursor: pointer;">⬇️ Descargar</button>
                         </div>
                 </form>
-            <?php elseif (isset($error) && $error): ?>
+                <?php elseif ($share && !$needsPassword): ?>
+                    <div class="mb-3" style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
+                        <h2 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars($share['original_name']); ?></h2>
+                        <p style="color: var(--text-muted);">
+                            <?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB
+                        </p>
+                        <p style="margin-top: 1rem;">Pulsa el botón para descargar el archivo.</p>
+                    </div>
+
+                    <form method="POST" class="login-form">
+                        <div style="margin-top: 1rem;">
+                            <button type="submit" class="btn btn-primary" style="background: <?php echo htmlspecialchars($buttonBg); ?>; color: <?php echo htmlspecialchars($buttonText); ?>; border: none; padding: 0.7rem 1.2rem; font-size: 1rem; border-radius: 6px; display: inline-block; cursor: pointer;">⬇️ Descargar</button>
+                        </div>
+                    </form>
+
+                <?php elseif (isset($error) && $error): ?>
                 <div style="text-align: center; padding: 2rem;">
                     <div style="font-size: 4rem; margin-bottom: 1rem;">❌</div>
                     <p style="color: var(--text-muted);">No se puede acceder al archivo</p>

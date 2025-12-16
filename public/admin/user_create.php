@@ -309,8 +309,8 @@ renderHeader('Crear Nuevo Usuario', $user);
                     
                     <div class="form-group">
                         <label>Nombre de usuario *</label>
-                        <input type="text" name="username" class="form-control" required value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
-                        <small style="color: var(--text-muted);">Solo letras, números y guiones</small>
+                        <input id="username_field" type="text" name="username" class="form-control" required value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
+                        <small id="username_help" style="color: var(--text-muted); display:block;">Solo letras, números y guiones</small>
                     </div>
                     
                     <div class="form-group">
@@ -441,6 +441,76 @@ if (method === 'totp') {
 } else if (method === 'duo') {
     document.getElementById('duo_info').style.display = 'block';
 }
+</script>
+
+<script>
+// Username availability check (debounced)
+(function(){
+    var input = document.getElementById('username_field');
+    var help = document.getElementById('username_help');
+    var submitBtn = document.querySelector('button[type="submit"]');
+    if (!input || !help) return;
+
+    var timeout = null;
+    var lastChecked = '';
+    function setInvalid(msg) {
+        help.style.color = '#dc2626';
+        help.textContent = msg;
+        input.classList.add('input-invalid');
+        if (submitBtn) submitBtn.disabled = true;
+    }
+    function setValid(msg) {
+        help.style.color = 'var(--text-muted)';
+        help.textContent = msg;
+        input.classList.remove('input-invalid');
+        if (submitBtn) submitBtn.disabled = false;
+    }
+
+    function checkUsername(username) {
+        if (!username) { setValid('Solo letras, números y guiones'); return; }
+        if (username === lastChecked) return;
+        lastChecked = username;
+        fetch('<?php echo BASE_URL; ?>/admin/check_username.php?username=' + encodeURIComponent(username))
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                if (data && data.exists) {
+                    setInvalid('El nombre de usuario ya existe (' + (data.where || 'users') + ')');
+                } else {
+                    setValid('Nombre de usuario disponible');
+                }
+            }).catch(function(err){
+                // On error, allow submit but show muted note
+                setValid('No se pudo comprobar disponibilidad (fallo de red)');
+            });
+    }
+
+    input.addEventListener('input', function(){
+        var v = input.value.trim();
+        // basic client-side validation: only allow letters, numbers, dash, underscore
+        if (v && !/^[A-Za-z0-9_-]+$/.test(v)) {
+            setInvalid('Caracteres inválidos: usa solo letras, números, guion o guion_bajo');
+            return;
+        }
+        // debounce
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(function(){ checkUsername(v); }, 400);
+    });
+
+    // Also check on blur
+    input.addEventListener('blur', function(){ checkUsername(input.value.trim()); });
+
+    // Prevent submitting while invalid
+    var form = input.closest('form');
+    if (form) {
+        form.addEventListener('submit', function(e){
+            if (input.classList.contains('input-invalid')) {
+                e.preventDefault();
+                input.focus();
+                alert('Corrige el nombre de usuario antes de continuar.');
+            }
+        });
+    }
+})();
 </script>
 
 <?php renderPageEnd(); ?>

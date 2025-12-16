@@ -77,15 +77,36 @@ a:hover { color: var(--primary-dark); }
 .sidebar { width: var(--sidebar-width); background-color: var(--surface-color); border-right: 1px solid var(--border-color); box-shadow: var(--shadow-sm); position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
 .main-content { flex: 1; margin-left: var(--sidebar-width); min-height: 100vh; display: flex; flex-direction: column; }
 .header { height: var(--header-height); background-color: var(--surface-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; box-shadow: var(--shadow-sm); }
+/* Make header a positioning context for absolute dropdowns */
+.header { position: relative; }
 .content { flex: 1; padding: 1.5rem; }
 
 /* ===== Sidebar ===== */
 .sidebar-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); }
 .logo { font-size: 1.5rem; font-weight: 700; color: var(--primary-color); display: flex; align-items: center; gap: 0.75rem; }
 .logo img { max-height: 40px; max-width: 150px; width: auto; height: auto; object-fit: contain; }
+/* Visually hidden utility for screen-readers (when logo image is present we hide textual site name) */
+.visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; border: 0; padding: 0; margin: -1px; }
 .sidebar-menu { padding: 1rem 0; }
 .menu-section { margin-bottom: 1.5rem; }
 .menu-section-title { padding: 0.5rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; }
+
+.header-brand { display: flex; align-items: center; gap: 0.5rem; }
+.header-brand-logo { height: 32px; width: auto; }
+.header-brand-text { font-weight: 600; font-size: 1rem; }
+
+.sidebar-brand-visual { display: flex; align-items: center; gap: 0.5rem; padding: 8px 12px; }
+.sidebar-brand-logo { height: 40px; width: auto; }
+.sidebar-brand-text { font-weight: 700; font-size: 1.05rem; color:var(--text-color); }
+
+/* Basic responsive behavior: when mobile-menu-open, slide sidebar over content */
+body.mobile-menu-open .sidebar {
+    transform: translateX(0);
+}
+
+/* Ensure sidebar header takes minimal width and profile doesn't create extra column */
+.sidebar { width: 220px; min-width: 220px; }
+.main-content { margin-left: 220px; }
 .menu-item { display: flex; align-items: center; padding: 0.75rem 1.5rem; color: var(--text-color); transition: all 0.2s; cursor: pointer; }
 .menu-item:hover { background-color: var(--bg-color); color: var(--primary-color); }
 .menu-item.active { background-color: var(--primary-color); color: white; font-weight: 500; }
@@ -94,9 +115,17 @@ a:hover { color: var(--primary-dark); }
 /* ===== Header ===== */
 .header-title { font-size: 1.25rem; font-weight: 600; }
 .header-actions { display: flex; align-items: center; gap: 1rem; }
+.header-brand { display: flex; align-items: center; gap: 0.6rem; margin-left: 0.5rem; }
+.header-brand-logo { max-height: 36px; max-width: 140px; object-fit: contain; display: inline-block; }
+.header-brand-text { font-weight: 700; color: var(--primary-color); font-size: 1rem; display: inline-block; }
 .user-menu { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem; border-radius: var(--radius-md); cursor: pointer; transition: background-color 0.2s; }
 .user-menu:hover { background-color: var(--bg-color); }
-.user-avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-accent) 100%); color: white; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; box-shadow: 0 2px 8px rgba(16,24,40,0.12); }
+.user-avatar svg { width: 20px; height: 20px; fill: white; display: block; }
+
+/* User dropdown styling (used by header dropdown) */
+.user-dropdown { display: none; }
+.user-dropdown.show { display: block; }
 
 /* ===== Cards ===== */
 .card { background-color: var(--surface-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); margin-bottom: 1.5rem; }

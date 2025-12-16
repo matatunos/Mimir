@@ -43,10 +43,11 @@ class Logger {
     public function log($userId, $action, $entityType = null, $entityId = null, $description = null, $metadata = null) {
         try {
             // Normalize empty values: ensure integer columns receive NULL rather than empty string
-            if (is_string($entityId) && trim($entityId) === '') {
+            // Treat any empty-like scalar (empty string, false, whitespace-only) as NULL
+            if (!is_null($entityId) && trim((string)$entityId) === '') {
                 $entityId = null;
             }
-            if (is_string($entityType) && trim($entityType) === '') {
+            if (!is_null($entityType) && trim((string)$entityType) === '') {
                 $entityType = null;
             }
             $stmt = $this->db->prepare("
