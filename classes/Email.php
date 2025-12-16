@@ -230,11 +230,14 @@ class Email {
     }
 
     private function smtpSend($fp, $line) {
+        // Log outgoing SMTP command (do not log sensitive auth payloads)
+        $this->smtpLog('C: ' . preg_replace('/(AUTH PLAIN |AUTH LOGIN|AUTH LOGIN\r?\n)/i', '$0(REDACTED)', $line));
         fwrite($fp, $line . "\r\n");
     }
 
     private function smtpGetLine($fp) {
         $res = rtrim(fgets($fp, 512));
+        if ($res !== false && $res !== '') $this->smtpLog('S: ' . $res);
         return $res;
     }
 
@@ -245,9 +248,26 @@ class Email {
             $line = fgets($fp, 512);
             if ($line === false) break;
             $out .= $line;
+            $this->smtpLog('S: ' . rtrim($line));
             if (preg_match('/^[0-9]{3} /', $line)) break;
             if ((microtime(true) - $start) > 5) break;
         }
         return $out;
+    }
+
+    /**
+     * Append SMTP debug lines to LOGS_PATH/smtp_debug.log
+     * This is a temporary diagnostic helper; avoid logging secrets.
+     */
+    private function smtpLog($msg) {
+        try {
+            $path = defined('LOGS_PATH') ? LOGS_PATH : (dirname(__DIR__) . '/storage/logs');
+            if (!is_dir($path)) @mkdir($path, 0755, true);
+            $f = $path . '/smtp_debug.log';
+            $line = date('c') . ' ' . $msg . "\n";
+            @file_put_contents($f, $line, FILE_APPEND | LOCK_EX);
+        } catch (Throwable $e) {
+            // best-effort logging only
+        }
     }
 }

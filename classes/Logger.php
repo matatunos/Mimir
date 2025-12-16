@@ -42,6 +42,13 @@ class Logger {
     }
     public function log($userId, $action, $entityType = null, $entityId = null, $description = null, $metadata = null) {
         try {
+            // Normalize empty values: ensure integer columns receive NULL rather than empty string
+            if (is_string($entityId) && trim($entityId) === '') {
+                $entityId = null;
+            }
+            if (is_string($entityType) && trim($entityType) === '') {
+                $entityType = null;
+            }
             $stmt = $this->db->prepare("
                 INSERT INTO activity_log 
                 (user_id, action, entity_type, entity_id, description, ip_address, user_agent, metadata) 

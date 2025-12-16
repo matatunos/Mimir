@@ -675,6 +675,8 @@ class Share {
                 $fileSize = filesize($filePath);
 
                 // Headers
+                // Prevent indexing of this served file by crawlers
+                header('X-Robots-Tag: noindex, nofollow');
                 header('Content-Type: ' . ($share['mime_type'] ?: 'application/octet-stream'));
                 header('Content-Disposition: attachment; filename="' . basename($share['original_name']) . '"');
                 header('Content-Length: ' . $fileSize);

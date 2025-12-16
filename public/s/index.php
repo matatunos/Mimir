@@ -12,6 +12,9 @@ require_once __DIR__ . '/../../classes/SecurityHeaders.php';
 // Apply security headers
 SecurityHeaders::applyAll();
 
+// Prevent search engines from indexing share pages
+header('X-Robots-Tag: noindex, nofollow');
+
 $shareClass = new Share();
 $logger = new Logger();
 $forensicLogger = new ForensicLogger();
@@ -161,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
     <title>Descargar Archivo - <?php echo htmlspecialchars($siteName); ?></title>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
 </head>

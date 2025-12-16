@@ -67,10 +67,7 @@ function renderHeader($title, $user, $auth = null) {
             $globalProtection = $config->get('enable_config_protection', '0');
             ?>
             <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
-            <a href="#" onclick="toggleMaintenance(event, <?php echo $isInMaintenance ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
-                <i class="fas fa-tools"></i> 
-                <?php echo $isInMaintenance ? 'Desactivar Mantenimiento' : 'Activar Mantenimiento'; ?>
-            </a>
+            <!-- Maintenance toggle removed from admin dropdown per request -->
             <a href="#" onclick="toggleConfigProtection(event, <?php echo $globalProtection ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
                 <i class="fas fa-shield-alt"></i>
                 <?php echo $globalProtection ? 'Desactivar protección de configuración' : 'Activar protección de configuración'; ?>
@@ -121,6 +118,9 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     <a href="<?php echo BASE_URL; ?>/admin/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
                         <i class="fas fa-folder"></i> Archivos
                     </a>
+                    <a href="<?php echo BASE_URL; ?>/admin/config.php#storage" class="menu-item <?php echo $currentPage === 'config' ? 'active' : ''; ?>">
+                        <i class="fas fa-hdd"></i> Almacenamiento
+                    </a>
                     <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="menu-item <?php echo $currentPage === 'orphan_files' ? 'active' : ''; ?>">
                         <i class="fas fa-box"></i> Archivos huérfanos
                     </a>
@@ -142,7 +142,7 @@ function renderSidebar($currentPage, $isAdmin = false) {
                 </div>
                 
                 <div class="menu-section">
-                    <div class="menu-section-title">Sistema</div>
+                    <!-- 'Sistema' section title removed per request -->
                     <a href="<?php echo BASE_URL; ?>/admin/config.php" class="menu-item <?php echo $currentPage === 'config' ? 'active' : ''; ?>">
                         <i class="fas fa-cog"></i> Configuración
                     </a>

@@ -222,6 +222,34 @@ $defaults = [
     'items_per_page' => ['value' => '25', 'type' => 'number']
 ];
 
+// Ensure default configuration keys exist in the DB so they are visible in the UI
+$db = null;
+try {
+    $db = Database::getInstance()->getConnection();
+} catch (Exception $e) {
+    $db = null;
+}
+
+// Ensure default configuration keys exist in the DB so they are visible in the UI
+if ($db) {
+    foreach ($defaults as $k => $meta) {
+        try {
+            $stmt = $db->prepare("SELECT COUNT(*) FROM config WHERE config_key = ?");
+            $stmt->execute([$k]);
+            $exists = (int)$stmt->fetchColumn();
+            if (!$exists) {
+                $ins = $db->prepare("INSERT INTO config (config_key, config_value, config_type, is_system) VALUES (?, ?, ?, 0)");
+                $ins->execute([$k, $meta['value'], $meta['type']]);
+            }
+        } catch (Exception $e) {
+            // ignore insert errors to avoid breaking admin page
+        }
+    }
+    // Reload configs after inserting defaults
+    $configClass->reload();
+    $configs = $configClass->getAllDetails();
+}
+
 // Description for global config protection toggle
 $descs['enable_config_protection'] = 'Si está activado, las claves marcadas como sistema (is_system) no serán editables desde la UI. Por defecto está desactivado.';
 $descs['notify_user_creation_enabled'] = 'Si está activado, el sistema enviará notificaciones cuando se cree un usuario vía invitación.';
@@ -579,7 +607,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // First, handle boolean configs which include a presence marker when editable
             foreach ($configs as $cfg) {
                 if ($cfg['config_type'] === 'boolean') {
-                    $key = $cfg['config_key'];
+        $key = $cfg['config_key'];
+        // Hide internal toggle from the admin UI per request
+        if ($key === 'enable_config_protection') continue;
                     $isReadonly = ((bool)$globalConfigProtection && $cfg['is_system']) && !in_array($key, $editableSystemKeys);
                     // Only process booleans if the form included the presence marker (i.e., the control was editable)
                     if (isset($_POST[$key . '_present']) && !$isReadonly) {
@@ -793,7 +823,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
         
         <?php foreach ($categories as $catKey => $category): ?>
             <?php if (!empty($category['configs'])): ?>
-            <div class="card" style="margin-bottom: 2rem;">
+            <div id="config-<?php echo htmlspecialchars($catKey); ?>" class="card" style="margin-bottom: 2rem;">
                 <div class="card-header">
                     <h3 class="card-title"><?php echo $category['icon']; ?> <?php echo $category['title']; ?></h3>
                 </div>

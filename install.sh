@@ -174,8 +174,22 @@ install_php() {
         php-imagick \
         imagemagick \
         libapache2-mod-php
-    
+        sendmail \
+        mailutils \
+        sendmail-bin
+
     print_status "PHP and extensions installed"
+
+    # Ensure sendmail service is available and running (mail() fallback requires a local MTA)
+    if command -v sendmail >/dev/null 2>&1; then
+        print_info "Configuring local sendmail service..."
+        # Try both common service names; some distros use sendmail, others use sendmail.service
+        run systemctl enable sendmail.service || true
+        run systemctl start sendmail.service || true
+        print_status "Local sendmail configured"
+    else
+        print_error "sendmail command not found after install. Mail fallback may not work."
+    fi
 }
 
 # Function to configure MySQL database

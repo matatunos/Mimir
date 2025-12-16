@@ -34,7 +34,8 @@ if ($search) {
     $totalFiles = $fileClass->getCount($user['id'], $filters);
 } else {
     // get all items in folder, then slice for pagination (getFolderContents has no SQL-level pagination)
-    $all = $fileClass->getFolderContents($user['id'], $currentFolderId);
+    // Include expired files for the owner so "Ver mis archivos" shows all their items
+    $all = $fileClass->getFolderContents($user['id'], $currentFolderId, true);
     $totalFiles = count($all);
     if ($totalFiles > $perPage) {
         $files = array_slice($all, $offset, $perPage);

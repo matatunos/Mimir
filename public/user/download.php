@@ -16,6 +16,9 @@ $logger = new Logger();
 $forensicLogger = new ForensicLogger();
 $security = SecurityValidator::getInstance();
 
+// Do not allow search engines to index authenticated downloads
+header('X-Robots-Tag: noindex, nofollow');
+
 // Validate and sanitize file ID
 $fileId = $security->validateInt($_GET['id'] ?? 0, 1, PHP_INT_MAX);
 

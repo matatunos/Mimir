@@ -73,6 +73,17 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Diagnostic: record incoming POST (mask passwords) to help debug missing creates
+    try {
+        $dbgPath = defined('LOGS_PATH') ? LOGS_PATH : (dirname(__DIR__,2) . '/storage/logs');
+        if (!is_dir($dbgPath)) @mkdir($dbgPath, 0755, true);
+        $postCopy = $_POST;
+        if (isset($postCopy['password'])) $postCopy['password'] = '***';
+        if (isset($postCopy['password_confirm'])) $postCopy['password_confirm'] = '***';
+        $line = date('c') . ' | ADMIN_USER_CREATE_POST | admin_id=' . ($user['id'] ?? 'null') . ' | uri=' . ($_SERVER['REQUEST_URI'] ?? '') . ' | POST=' . json_encode($postCopy) . "\n";
+        @file_put_contents($dbgPath . '/user_create_debug.log', $line, FILE_APPEND | LOCK_EX);
+    } catch (Throwable $e) {}
+
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Token de seguridad inválido';
     } else {

@@ -70,7 +70,17 @@ class Invitation {
 
             // Send invitation email if requested
             if (!empty($options['send_email'])) {
-                $this->sendInviteEmail($email, $token, $message, $expiresAt);
+                $sent = $this->sendInviteEmail($email, $token, $message, $expiresAt);
+                // Log result to activity_log for easier auditing
+                try {
+                    if ($sent) {
+                        $this->logger->log($inviterId, 'invitation_email_sent', 'invitation', $id, "Invitation email sent to {$email}");
+                    } else {
+                        $this->logger->log($inviterId, 'invitation_email_failed', 'invitation', $id, "Invitation email failed to send to {$email}");
+                    }
+                } catch (Exception $e) {
+                    error_log('Failed to record invitation email send result: ' . $e->getMessage());
+                }
             }
 
             return $token;
@@ -185,9 +195,32 @@ class Invitation {
             $html .= '</div>';
 
             $emailSender = new Email();
-            return $emailSender->send($email, $subject, $html);
+
+            // Write a short diagnostic line to invite_debug.log before sending
+            try {
+                $dpath = defined('LOGS_PATH') ? LOGS_PATH : (dirname(__DIR__) . '/storage/logs');
+                if (!is_dir($dpath)) @mkdir($dpath, 0755, true);
+                $dbgFile = $dpath . '/invite_debug.log';
+                $line = date('c') . " | SEND_INVITE_ATTEMPT | to={$email} | token={$token} | subject=" . preg_replace('/\s+/', ' ', substr($subject,0,120)) . "\n";
+                @file_put_contents($dbgFile, $line, FILE_APPEND | LOCK_EX);
+            } catch (Throwable $e) {}
+
+            $res = $emailSender->send($email, $subject, $html);
+
+            // Record result to invite_debug.log and activity_log
+            try {
+                $dline = date('c') . ' | SEND_INVITE_RESULT | to=' . $email . ' | token=' . $token . ' | result=' . ($res ? 'OK' : 'FAIL') . "\n";
+                @file_put_contents($dbgFile, $dline, FILE_APPEND | LOCK_EX);
+            } catch (Throwable $e) {}
+
+            return $res;
         } catch (Exception $e) {
             error_log('Invitation sendInviteEmail error: ' . $e->getMessage());
+            try {
+                $dpath = defined('LOGS_PATH') ? LOGS_PATH : (dirname(__DIR__) . '/storage/logs');
+                $dbgFile = $dpath . '/invite_debug.log';
+                @file_put_contents($dbgFile, date('c') . ' | SEND_INVITE_EXCEPTION | ' . $e->getMessage() . "\n", FILE_APPEND | LOCK_EX);
+            } catch (Throwable $e2) {}
             return false;
         }
     }

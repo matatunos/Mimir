@@ -24,13 +24,15 @@ class File {
     /**
      * Upload a file
      */
-    public function upload($fileData, $userId, $description = null) {
+    public function upload($fileData, $userId, $description = null, $parentFolderId = null) {
         try {
             require_once __DIR__ . '/SecurityValidator.php';
             $security = SecurityValidator::getInstance();
             
             // Validate file
-            if (!isset($fileData['tmp_name']) || !is_uploaded_file($fileData['tmp_name'])) {
+            $isHttpUpload = isset($fileData['tmp_name']) && is_uploaded_file($fileData['tmp_name']);
+            $isCliTest = php_sapi_name() === 'cli' && getenv('ALLOW_CLI_UPLOAD') === '1' && isset($fileData['tmp_name']) && file_exists($fileData['tmp_name']);
+            if (!$isHttpUpload && !$isCliTest) {
                 throw new Exception("Invalid file upload");
             }
             
@@ -123,26 +125,62 @@ class File {
             $fileHash = hash_file('sha256', $fileData['tmp_name']);
             $storedName = uniqid() . '_' . time() . '.' . $ext;
             
-            // Create user directory structure
+            // Create user directory structure and ensure it's writable
             $userDir = UPLOADS_PATH . '/' . $userId;
             if (!is_dir($userDir)) {
-                mkdir($userDir, 0770, true);
+                if (!@mkdir($userDir, 0770, true)) {
+                    throw new Exception("Unable to create upload directory: $userDir");
+                }
             }
-            
+
+            // Ensure the directory is writable by the PHP process
+            if (!is_writable($userDir)) {
+                @chmod($userDir, 0770);
+                if (!is_writable($userDir)) {
+                    $owner = null;
+                    if (function_exists('posix_getpwuid')) {
+                        $pw = @posix_getpwuid(@fileowner($userDir));
+                        if ($pw && isset($pw['name'])) $owner = $pw['name'];
+                    }
+                    throw new Exception("Upload directory not writable: $userDir (owner: " . ($owner ?: 'unknown') . ")");
+                }
+            }
+
             $filePath = $userDir . '/' . $storedName;
-            
-            // Move uploaded file
-            if (!move_uploaded_file($fileData['tmp_name'], $filePath)) {
-                throw new Exception("Failed to move uploaded file");
+
+            // Move uploaded file (provide richer error info on failure)
+            $moved = false;
+            // Prefer move_uploaded_file for actual HTTP uploads
+            if (is_uploaded_file($fileData['tmp_name'])) {
+                $moved = @move_uploaded_file($fileData['tmp_name'], $filePath);
+            } else {
+                // Allow CLI test mode when ALLOW_CLI_UPLOAD=1 and running via CLI: use rename() as a safe fallback
+                if (php_sapi_name() === 'cli' && getenv('ALLOW_CLI_UPLOAD') === '1') {
+                    $moved = @rename($fileData['tmp_name'], $filePath);
+                    if (!$moved) {
+                        // try copy as last resort
+                        $moved = @copy($fileData['tmp_name'], $filePath);
+                        if ($moved) @unlink($fileData['tmp_name']);
+                    }
+                } else {
+                    // Not an uploaded file and not in CLI test mode
+                    $moved = false;
+                }
+            }
+
+            if (!$moved) {
+                $err = error_get_last();
+                $details = isset($err['message']) ? $err['message'] : 'unknown';
+                throw new Exception("Failed to move uploaded file to $filePath: $details");
             }
             
             // Insert file record
-            $stmt = $this->db->prepare("
-                INSERT INTO files 
-                (user_id, original_name, stored_name, file_path, file_size, mime_type, file_hash, description) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-            
+            $stmt = $this->db->prepare(
+                "INSERT INTO files 
+                (user_id, original_name, stored_name, file_path, file_size, mime_type, file_hash, description, parent_folder_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+
             $stmt->execute([
                 $userId,
                 $originalName,
@@ -151,9 +189,9 @@ class File {
                 $fileSize,
                 $mimeType,
                 $fileHash,
-                $description
+                $description,
+                $parentFolderId
             ]);
-            
             $fileId = $this->db->lastInsertId();
             
             // Update user storage
@@ -354,7 +392,7 @@ class File {
      * Get folder contents (files and folders) for a user at a given folder level
      * Returns array of rows including `file_count` and `subfolder_count` for folders
      */
-    public function getFolderContents($userId, $folderId = null) {
+    public function getFolderContents($userId, $folderId = null, $includeExpired = false) {
         try {
             $params = [$userId];
             if ($folderId === null) {
@@ -364,15 +402,18 @@ class File {
                 $params[] = $folderId;
             }
 
-            // Hide expired files/folders from user views
+            // By default hide expired files/folders from user views unless explicitly requested
+            $fileCountSub = $includeExpired ? "(SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 0)" : "(SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 0 AND is_expired = 0)";
+            $subfolderCountSub = $includeExpired ? "(SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 1)" : "(SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 1 AND is_expired = 0)";
+
             $sql = "
                 SELECT
                     f.*,
-                    (SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 0 AND is_expired = 0) as file_count,
-                    (SELECT COUNT(*) FROM files WHERE parent_folder_id = f.id AND is_folder = 1 AND is_expired = 0) as subfolder_count,
+                    $fileCountSub as file_count,
+                    $subfolderCountSub as subfolder_count,
                     (SELECT COUNT(*) FROM shares WHERE file_id = f.id AND is_active = 1) as share_count
                 FROM files f
-                WHERE f.user_id = ? AND {$parentClause} AND f.is_expired = 0
+                WHERE f.user_id = ? AND {$parentClause} " . ($includeExpired ? "" : "AND f.is_expired = 0") . "
                 ORDER BY f.is_folder DESC, f.created_at DESC
             ";
 
@@ -613,6 +654,8 @@ class File {
                 "File downloaded: {$file['original_name']}"
             );
             
+            // Prevent indexing of authenticated downloads
+            header('X-Robots-Tag: noindex, nofollow');
             // Set secure download headers
             SecurityHeaders::setDownloadHeaders($file['original_name'], $file['mime_type'], true);
             header('Content-Length: ' . $file['file_size']);
