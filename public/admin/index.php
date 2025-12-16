@@ -513,6 +513,10 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
                 <?php else: ?>
                     <div style="max-height: 400px; overflow-y: auto;">
                         <?php foreach ($storageUsageByUser as $u): ?>
+                        <?php
+                            // Normalize usage_percent to avoid nulls causing deprecated round() warnings
+                            $usagePercent = isset($u['usage_percent']) ? (float)$u['usage_percent'] : 0.0;
+                        ?>
                         <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                                 <div style="font-weight: 500;"><?php echo htmlspecialchars($u['full_name'] ?: $u['username']); ?></div>
@@ -521,10 +525,10 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
                                 </div>
                             </div>
                             <div style="background: var(--bg-secondary); height: 0.5rem; border-radius: 0.25rem; overflow: hidden;">
-                                <div style="width: <?php echo min(100, $u['usage_percent']); ?>%; height: 100%; background: <?php echo $u['usage_percent'] > 90 ? 'var(--danger)' : ($u['usage_percent'] > 70 ? 'var(--warning)' : 'var(--success)'); ?>; transition: width 0.3s;"></div>
+                                <div style="width: <?php echo min(100, $usagePercent); ?>%; height: 100%; background: <?php echo $usagePercent > 90 ? 'var(--danger)' : ($usagePercent > 70 ? 'var(--warning)' : 'var(--success)'); ?>; transition: width 0.3s;"></div>
                             </div>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; text-align: right;">
-                                <?php echo round($u['usage_percent'], 1); ?>%
+                                <?php echo round($usagePercent, 1); ?>%
                             </div>
                         </div>
                         <?php endforeach; ?>
