@@ -184,9 +184,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
 
                 foreach ($rows as $f) {
                     try {
-                        // Delete physical file
-                        $fullPath = UPLOADS_PATH . '/' . $f['file_path'];
-                        if (file_exists($fullPath)) {
+                        // Delete physical file (support absolute and relative stored paths)
+                        $fp = $f['file_path'] ?? '';
+                        if (strpos($fp, '/') === 0) {
+                            $fullPath = $fp;
+                        } else {
+                            $fullPath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($fp, '/');
+                        }
+                        if ($fullPath && file_exists($fullPath)) {
                             @unlink($fullPath);
                         }
 

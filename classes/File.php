@@ -494,9 +494,17 @@ class File {
                 return false;
             }
             
-            // Delete physical file
-            if (file_exists($file['file_path'])) {
-                unlink($file['file_path']);
+            // Delete physical file (support absolute and relative stored paths)
+            $fp = $file['file_path'] ?? '';
+            if (!empty($fp)) {
+                if (strpos($fp, '/') === 0) {
+                    $fullPath = $fp;
+                } else {
+                    $fullPath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($fp, '/');
+                }
+                if (!empty($fullPath) && file_exists($fullPath)) {
+                    @unlink($fullPath);
+                }
             }
             
             // Delete database record (cascades to shares)
@@ -610,18 +618,10 @@ class File {
                 return false;
             }
             
-            // Validate file path to prevent path traversal
-            $validPath = $security->validateFilePath($file['stored_name'], UPLOADS_PATH);
-            
-            if (!$validPath || !file_exists($validPath)) {
-                error_log("Invalid or missing file path: " . $file['file_path']);
-                return false;
-            }
-            
-            // Verify file is within allowed directory
+            // Verify file exists and is within allowed directory using the stored file_path
             $realPath = realpath($file['file_path']);
             $realUploadsPath = realpath(UPLOADS_PATH);
-            
+
             if ($realPath === false || strpos($realPath, $realUploadsPath) !== 0) {
                 error_log("Path traversal attempt blocked: " . $file['file_path']);
                 

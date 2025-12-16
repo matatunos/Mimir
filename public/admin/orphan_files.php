@@ -412,7 +412,7 @@ function confirmAssign() {
         formData.append('search', <?php echo json_encode($search); ?>);
         formData.append('user_id', userId);
 
-        fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', { method: 'POST', body: formData })
+        fetch('/admin/orphan_files_api.php', { method: 'POST', body: formData, credentials: 'same-origin' })
             .then(Mimir.parseJsonResponse)
             .then(data => {
                 if (data.success) {
@@ -449,7 +449,7 @@ function searchUsers() {
     resultsDiv.style.display = 'block';
     
     searchTimeout = setTimeout(() => {
-        fetch(`<?php echo BASE_URL; ?>/admin/orphan_files_api.php?action=search_users&q=${encodeURIComponent(query)}`)
+        fetch(`/admin/orphan_files_api.php?action=search_users&q=${encodeURIComponent(query)}`, { credentials: 'same-origin' })
             .then(Mimir.parseJsonResponse)
             .then(data => {
                 if (data.success && data.users.length > 0) {
@@ -490,7 +490,7 @@ function assignToUser(userId) {
         fd.append('user_id', userId);
         fd.append('file_ids', JSON.stringify(chunk));
 
-        fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+        fetch('/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
             .then(Mimir.parseJsonResponse)
             .then(resp => {
                 if (resp && resp.success) {
@@ -537,7 +537,7 @@ function deleteOrphan(fileId, fileName) {
         fd.append('action', 'bulk_delete');
         fd.append('file_ids', JSON.stringify(chunk));
 
-        fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+        fetch('/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
             .then(Mimir.parseJsonResponse)
             .then(resp => {
                 if (resp && resp.success) {
@@ -575,7 +575,7 @@ function bulkDelete() {
         const filters = <?php echo json_encode($search); ?> ? ('search=' + encodeURIComponent(<?php echo json_encode($search); ?>)) : '';
         // Use paginated processing for large lists
         const filters = <?php echo json_encode($search); ?> ? ('search=' + encodeURIComponent(<?php echo json_encode($search); ?>)) : '';
-        const listUrl = '<?php echo BASE_URL; ?>/admin/orphan_files_api.php?action=list_ids&' + filters;
+        const listUrl = '/admin/orphan_files_api.php?action=list_ids&' + filters;
         showProcessing('Obteniendo y procesando archivos por páginas...', { clearLogs: true, percent: 0, status: 'Iniciando' });
         Mimir.processListIdsInPages(listUrl, 'bulk_delete', 500, 100, {
             onProgress: function(processed, total) { updateProcessingProgress(total ? Math.round((processed/total)*100) : 0, `Procesados ${processed} / ${total||'?'} `); },
@@ -605,7 +605,7 @@ function processIdsInBatches(ids, action, batchSize, onComplete) {
         fd.append('action', action);
         fd.append('file_ids', JSON.stringify(chunk));
 
-        fetch('<?php echo BASE_URL; ?>/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+        fetch('/admin/orphan_files_api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
             .then(Mimir.parseJsonResponse)
             .then(resp => {
                 if (resp && resp.success) {

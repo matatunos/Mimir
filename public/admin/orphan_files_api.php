@@ -44,6 +44,12 @@ register_shutdown_function(function() {
 $fileClass = new File();
 $userClass = new User();
 $logger = new Logger();
+// Orphan delete debug log
+$orphanDebugLog = LOGS_PATH . '/orphan_delete_debug.log';
+function orphan_debug($msg) {
+    global $orphanDebugLog;
+    @file_put_contents($orphanDebugLog, date('c') . ' | ' . $msg . "\n", FILE_APPEND | LOCK_EX);
+}
 
 // GET requests - search users
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -364,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Verify file exists and is orphaned
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT id, original_name, file_path FROM files WHERE id = ? AND user_id IS NULL");
+        $stmt = $db->prepare("SELECT id, original_name, file_path, is_folder FROM files WHERE id = ? AND user_id IS NULL");
         $stmt->execute([$fileId]);
         $file = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -374,27 +380,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         try {
-            // Delete physical file
-            $fullPath = UPLOADS_PATH . '/' . $file['file_path'];
-            if (file_exists($fullPath)) {
-                unlink($fullPath);
+            // If folder, use recursive deleteFolder
+            if (!empty($file['is_folder'])) {
+                orphan_debug("DELETE folder id={$fileId} name='{$file['original_name']}'");
+                $ok = $fileClass->deleteFolder($fileId, null);
+                if ($ok) {
+                    echo json_encode(['success' => true]);
+                } else {
+                    orphan_debug("  deleteFolder returned false for id={$fileId}");
+                    echo json_encode(['success' => false, 'message' => 'Error al eliminar la carpeta']);
+                }
+                exit;
             }
-            
-            // Delete database record
+
+            // Resolve path (support absolute or relative). Skip if empty.
+            $fp = $file['file_path'] ?? '';
+            if ($fp === '' || $fp === null) {
+                orphan_debug("DELETE file id={$fileId} has empty file_path");
+            } else {
+                if (strpos($fp, '/') === 0) {
+                    $fullPath = $fp;
+                } else {
+                    $fullPath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($fp, '/');
+                }
+                orphan_debug("DELETE attempt id={$fileId} name='{$file['original_name']}' db_path='{$fp}' resolved='{$fullPath}'");
+                if ($fullPath && file_exists($fullPath)) {
+                    $beforePerms = sprintf('%o', fileperms($fullPath) & 0777);
+                    orphan_debug("  exists=yes perms={$beforePerms} owner=" . @fileowner($fullPath));
+                    $unlinkOk = @unlink($fullPath);
+                    orphan_debug("  unlink_result=" . ($unlinkOk ? 'ok' : 'failed') . " error=" . json_encode(error_get_last()));
+                } else {
+                    orphan_debug("  exists=no for resolved={$fullPath}");
+                }
+            }
+
+            // Delete DB record
             $stmt = $db->prepare("DELETE FROM files WHERE id = ?");
-            if ($stmt->execute([$fileId])) {
-                    $logger->log(
-                        $adminUser['id'],
-                        'orphan_deleted',
-                        'file',
-                        $fileId,
-                        "Archivo huérfano '{$file['original_name']}' eliminado"
-                    );
+            $execOk = $stmt->execute([$fileId]);
+            orphan_debug("  db_delete_result=" . ($execOk ? 'ok' : 'failed'));
+            if ($execOk) {
+                $logger->log(
+                    $adminUser['id'],
+                    'orphan_deleted',
+                    'file',
+                    $fileId,
+                    "Archivo huérfano '{$file['original_name']}' eliminado"
+                );
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Error al eliminar el archivo']);
             }
         } catch (Exception $e) {
+            orphan_debug('  exception: ' . $e->getMessage());
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
         exit;
@@ -407,11 +444,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['all']) && $_POST['all'] == '1') {
             $search = trim($_POST['search'] ?? '');
             if ($search !== '') {
-                $stmt = $db->prepare("SELECT id, original_name, file_path FROM files WHERE user_id IS NULL AND original_name LIKE ?");
+                $stmt = $db->prepare("SELECT id, original_name, file_path, is_folder FROM files WHERE user_id IS NULL AND original_name LIKE ?");
                 $like = '%' . $search . '%';
                 $stmt->execute([$like]);
             } else {
-                $stmt = $db->prepare("SELECT id, original_name, file_path FROM files WHERE user_id IS NULL");
+                $stmt = $db->prepare("SELECT id, original_name, file_path, is_folder FROM files WHERE user_id IS NULL");
                 $stmt->execute();
             }
             $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -425,7 +462,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $types = str_repeat('i', count($fileIds));
             
             // Get orphaned files
-            $stmt = $db->prepare("SELECT id, original_name, file_path FROM files WHERE id IN ($placeholders) AND user_id IS NULL");
+            $stmt = $db->prepare("SELECT id, original_name, file_path, is_folder FROM files WHERE id IN ($placeholders) AND user_id IS NULL");
             $stmt->execute($fileIds);
             $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
@@ -438,10 +475,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $deleted = 0;
         foreach ($files as $file) {
             try {
-                // Delete physical file
-                $fullPath = UPLOADS_PATH . '/' . $file['file_path'];
-                if (file_exists($fullPath)) {
-                    unlink($fullPath);
+                // If folder, use deleteFolder
+                if (!empty($file['is_folder'])) {
+                    orphan_debug("BULK deleteFolder id={$file['id']} name='{$file['original_name']}'");
+                    if ($fileClass->deleteFolder($file['id'], null)) {
+                        $deleted++;
+                        $logger->log(
+                            $adminUser['id'],
+                            'orphan_deleted',
+                            'file',
+                            $file['id'],
+                            "Carpeta huérfana '{$file['original_name']}' eliminada (bulk)"
+                        );
+                    }
+                    continue;
+                }
+
+                // Delete physical file (support absolute and relative stored paths)
+                $fp = $file['file_path'] ?? '';
+                if ($fp === '' || $fp === null) {
+                    orphan_debug("BULK id={$file['id']} has empty file_path");
+                } else {
+                    if (strpos($fp, '/') === 0) {
+                        $fullPath = $fp;
+                    } else {
+                        $fullPath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($fp, '/');
+                    }
+                    orphan_debug("BULK attempt id={$file['id']} name='{$file['original_name']}' db_path='{$fp}' resolved='{$fullPath}'");
+                    if ($fullPath && file_exists($fullPath)) {
+                        $beforePerms = sprintf('%o', fileperms($fullPath) & 0777);
+                        orphan_debug("  exists=yes perms={$beforePerms} owner=" . @fileowner($fullPath));
+                        $unlinkOk = @unlink($fullPath);
+                        orphan_debug("  unlink_result=" . ($unlinkOk ? 'ok' : 'failed') . " error=" . json_encode(error_get_last()));
+                    } else {
+                        orphan_debug("  exists=no for resolved={$fullPath}");
+                    }
                 }
                 
                 // Delete database record

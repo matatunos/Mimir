@@ -72,7 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && (!empty
             
             switch ($action) {
                 case 'delete':
-                    if ($fileClass->delete($fileId, $user['id'])) {
+                    // Admin may delete files they do not own; do not restrict by admin user id
+                    if ($fileClass->delete($fileId)) {
                         $logger->log($user['id'], 'file_delete', 'file', $fileId, 'Admin eliminó archivo: ' . $file['original_name']);
                         $success++;
                     } else {
