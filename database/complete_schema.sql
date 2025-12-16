@@ -346,7 +346,6 @@ CREATE TABLE `users` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
-  UNIQUE KEY `email` (`email`),
   KEY `idx_role` (`role`),
   KEY `idx_is_active` (`is_active`),
   KEY `idx_require_2fa` (`require_2fa`),
