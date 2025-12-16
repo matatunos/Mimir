@@ -120,6 +120,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'is_active' => 1,
                     'require_2fa' => $require2FA
                 ]);
+                if (!$userId) {
+                    throw new Exception('No se pudo crear el usuario. Nombre de usuario o email posiblemente ya existe.');
+                }
                 
                 $logger->log($user['id'], 'user_create', 'user', $userId, "Usuario creado: $username");
                 
