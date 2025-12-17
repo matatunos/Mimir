@@ -92,9 +92,9 @@ class Share {
 
             // If a recipient email was provided, send the share link by email
             if (!empty($recipientEmail)) {
-                try {
-                    require_once __DIR__ . '/Email.php';
-                    $email = new Email();
+                    try {
+                    require_once __DIR__ . '/Notification.php';
+                    $email = new Notification();
                     $shareUrl = BASE_URL . '/s/' . $shareToken;
 
                     // Fetch owner info
@@ -713,7 +713,7 @@ class Share {
 
                 // Send notification to owner if recipient email was set on the share
                 if (!empty($share['recipient_email']) && !empty($share['owner_email'])) {
-                    require_once __DIR__ . '/Email.php';
+                    require_once __DIR__ . '/Notification.php';
                     require_once __DIR__ . '/Config.php';
                     $cfgNotif = new Config();
                     $siteNameNotif = $cfgNotif->get('site_name', '');
@@ -756,7 +756,7 @@ class Share {
                     $bodyHtml .= '</div>';
 
                     try {
-                        $email = new Email();
+                        $email = new Notification();
                         // Use configured sender for owner notifications as well
                         $cfgNotif = new Config();
                         $fromEmailNotif = $cfgNotif->get('email_from_address', '');
@@ -828,8 +828,8 @@ class Share {
             $recipient = $overrideRecipient ?: ($share['recipient_email'] ?? null);
             if (empty($recipient)) return false;
 
-            require_once __DIR__ . '/Email.php';
-            $email = new Email();
+            require_once __DIR__ . '/Notification.php';
+            $email = new Notification();
             $shareUrl = BASE_URL . '/s/' . ($share['share_token'] ?? '');
 
             // Branding and colors

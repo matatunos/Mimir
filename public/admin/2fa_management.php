@@ -260,10 +260,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $body .= "--{$boundary}--";
                     
-                    require_once __DIR__ . '/../../classes/Email.php';
+                    require_once __DIR__ . '/../../classes/Notification.php';
                     $fromEmail = 'noreply@' . parse_url(BASE_URL, PHP_URL_HOST);
                     try {
-                        $emailSender = new Email();
+                        $emailSender = new Notification();
                         $sent = $emailSender->send($to, $subject, $htmlMessage, ['from_email' => $fromEmail, 'from_name' => SITE_NAME ?? 'Mimir']);
                         if ($sent) {
                             $logger->log($adminUser['id'], '2fa_email_sent', 'user', $userId, "Código QR enviado por email a {$user['username']}");

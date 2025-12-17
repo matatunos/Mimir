@@ -187,7 +187,7 @@ try {
             
         case 'send_totp_email':
             require_once __DIR__ . '/../../classes/TwoFactor.php';
-            require_once __DIR__ . '/../../classes/Email.php';
+            require_once __DIR__ . '/../../classes/Notification.php';
             $twoFactor = new TwoFactor();
             
             if (empty($targetUser['email'])) {
@@ -237,7 +237,7 @@ try {
             </div>
             ";
             
-            $email = new Email();
+            $email = new Notification();
             if ($email->send($targetUser['email'], 'Configuración de Autenticación de Dos Factores', $emailBody)) {
                 $logger->log(
                     $adminUser['id'], 

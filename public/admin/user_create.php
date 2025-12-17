@@ -92,7 +92,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fullName = trim($_POST['full_name'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $role = $_POST['role'] ?? 'user';
-        $storageQuota = intval($_POST['storage_quota'] ?? 10) * 1024 * 1024 * 1024; // Convert GB to bytes
+        $storageQuota = isset($_POST['storage_quota']) ? intval($_POST['storage_quota']) : 10;
+        // Convert GB to bytes; 0 means unlimited (NULL)
+        $storageQuota = ($storageQuota > 0) ? ($storageQuota * 1024 * 1024 * 1024) : null;
         $twoFactorMethod = $_POST['2fa_method'] ?? 'none';
         $require2FA = isset($_POST['require_2fa']);
         $sendEmail = isset($_POST['send_email']);
@@ -339,7 +341,8 @@ renderHeader('Crear Nuevo Usuario', $user);
                     
                     <div class="form-group">
                         <label>Cuota de almacenamiento (GB) *</label>
-                        <input type="number" name="storage_quota" class="form-control" required value="<?php echo htmlspecialchars($_POST['storage_quota'] ?? '10'); ?>" min="1" max="1000">
+                        <input type="number" name="storage_quota" class="form-control" required value="<?php echo htmlspecialchars($_POST['storage_quota'] ?? '10'); ?>" min="0" max="1000">
+                        <small style="color: var(--text-muted);">Introduce 0 para cuota ilimitada.</small>
                     </div>
                     
                     <hr style="margin: 1.5rem 0; border: none; border-top: 2px solid var(--border-color);">

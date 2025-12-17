@@ -274,6 +274,15 @@ if (!empty($descs) && is_array($descs) && $db) {
     }
 }
 
+// Determine and display warnings for email config
+$smtpPasswordPresent = false;
+$sendmailAvailable = false;
+try {
+    $det = $configClass->getDetails('smtp_password');
+    $smtpPasswordPresent = !empty($det) && !empty($det['config_value']);
+} catch (Exception $e) { }
+$sendmailAvailable = @file_exists('/usr/sbin/sendmail');
+
 /**
  * Try to make the background of an image transparent.
  * Returns an array with ['path'=>..., 'extension'=>...] on success or original on failure.
@@ -474,6 +483,12 @@ $error = '';
 
 // Load configs before POST processing (needed for type detection)
 $configs = $configClass->getAllDetails();
+
+// Check SMTP health to display admin warnings (password missing or sendmail absent)
+$smtpDetails = $configClass->getDetails('smtp_password');
+$smtpPasswordPresent = !empty($smtpDetails) && !empty($smtpDetails['config_value']);
+$sendmailAvailable = (bool)@file_exists('/usr/sbin/sendmail');
+
 // Ensure the internal protection toggle is not shown in the admin config UI
 $configs = array_values(array_filter($configs, function($c) {
     return isset($c['config_key']) && $c['config_key'] !== 'enable_config_protection';
@@ -652,6 +667,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'ad_host','ad_port','ad_base_dn','ad_bind_dn','ad_bind_password','ad_use_ssl','ad_use_tls','ad_require_group','ad_domain','enable_ad',
                     'ldap_host','ldap_port','ldap_base_dn','ldap_bind_dn','ldap_bind_password','enable_ldap'
                 ];
+
+                // Validation: if admin attempts to set smtp_username without smtp_password, reject.
+                $willHaveUser = array_key_exists('smtp_username', $updates) ? trim((string)$updates['smtp_username']) : trim((string)$configClass->get('smtp_username'));
+                $willHavePass = array_key_exists('smtp_password', $updates) ? trim((string)$updates['smtp_password']) : trim((string)$configClass->get('smtp_password'));
+                if ($willHaveUser !== '' && $willHavePass === '') {
+                    throw new Exception('Si se configura `smtp_username`, debe proporcionarse también `smtp_password`.');
+                }
 
                 foreach ($updates as $key => $value) {
                 // Get existing config to preserve type
@@ -960,6 +982,34 @@ renderHeader('Configuración del Sistema', $user, $auth);
                             <i class="fas fa-paper-plane"></i> TEST correo
                         </button>
                         <span id="testSmtpResult" style="margin-left:1rem;font-weight:bold;"></span>
+                    </div>
+                    <?php if (!$smtpPasswordPresent): ?>
+                    <div class="alert alert-warning" style="margin-bottom:1rem;">
+                        <strong>Aviso:</strong> No hay contraseña SMTP configurada; los envíos SMTP pueden fallar si el servidor requiere autenticación.
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!$sendmailAvailable): ?>
+                    <div class="alert alert-info" style="margin-bottom:1rem;">
+                        <strong>Info:</strong> No se encontró /usr/sbin/sendmail en el sistema; la opción de fallback a sendmail está deshabilitada.
+                    </div>
+                    <?php endif; ?>
+                    <!-- Helpful guidance about unified email handling -->
+                    <div style="margin-bottom:1rem;">
+                        <details>
+                            <summary style="cursor:pointer; font-weight:700;">Guía rápida: Envíos de correo (API unificada)</summary>
+                            <div style="margin-top:0.5rem;">
+                                <p style="margin:0 0 0.5rem 0;">La aplicación usa una API unificada `Notification` para enviar correos. Internamente `Notification` utiliza `classes/Email.php` como implementación SMTP.</p>
+                                <ul style="margin:0 0 0.5rem 1rem;">
+                                    <li>Para cambiar comportamiento o rotar la contraseña SMTP, usa la herramienta <strong>tools/set_smtp_config.php</strong>.</li>
+                                    <li>La contraseña puede almacenarse cifrada; la clave está en <strong>/opt/Mimir/.secrets/smtp_key</strong>.</li>
+                                    <li>Las llamadas de envío en el código ahora deben usar `new Notification()` o el helper `Notification::send()`; evita instanciar `Email` directamente.</li>
+                                </ul>
+                                <p style="margin:0;">Comandos útiles (ejecutar en el servidor):</p>
+                                <pre style="background:#f5f5f5;padding:8px;border-radius:4px;margin-top:0.5rem;">php tools/set_smtp_config.php --host=smtp.example.com --port=587 --encryption=tls --username=noreply@example.com</pre>
+                                <p style="margin:0.25rem 0 0 0;">Luego puedes probar el envío con:</p>
+                                <pre style="background:#f5f5f5;padding:8px;border-radius:4px;margin-top:0.5rem;">php tools/test_email_send.php you@example.com --verbose</pre>
+                            </div>
+                        </details>
                     </div>
                     <?php endif; ?>
                     <?php foreach ($category['configs'] as $cfg): ?>

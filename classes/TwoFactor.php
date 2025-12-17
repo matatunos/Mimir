@@ -32,7 +32,10 @@ class TwoFactor {
      */
     public function getTOTP($username, $secret) {
         $issuer = $this->getIssuerName();
-        $totp = TOTP::create($secret, 30, 'sha1', 6, 0);
+        // Secret is Base32 encoded by generateSecret(); let the library
+        // interpret it as Base32 (default) so provisioning URI and verification
+        // are consistent with authenticator apps.
+        $totp = TOTP::create($secret, 30, 'sha1', 6);
         // Set account label (username) and issuer explicitly so authenticator apps show "ISSUER (account)"
         $totp->setLabel($username);
         $totp->setIssuer($issuer);

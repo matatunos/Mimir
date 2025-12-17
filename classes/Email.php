@@ -48,10 +48,16 @@ class Email {
         $user = $this->config->get('smtp_username', '');
         $pass = $this->config->get('smtp_password', '');
 
-        // If password is stored encrypted (ENC:<iv>:<ciphertext>), attempt to decrypt
+        // If password is stored encrypted (ENC:<iv>:<ciphertext>), attempt to decrypt.
+        // If decryption fails, set to empty to avoid attempting an invalid auth payload.
         if (is_string($pass) && strpos($pass, 'ENC:') === 0) {
             $decoded = $this->decryptConfigValue($pass);
-            if ($decoded !== false) $pass = $decoded;
+            if ($decoded !== false) {
+                $pass = $decoded;
+            } else {
+                error_log('Email::send: smtp_password decryption failed; treating as empty');
+                $pass = '';
+            }
         }
 
         if (empty($host)) {
@@ -90,11 +96,10 @@ class Email {
                 error_log('Email::send SMTP fallback error: ' . $e2->getMessage());
             }
 
-            // Final fallback to mail()
+            // Do not fallback to mail() (sendmail); record failure and return false
             error_log('Email::send SMTP error: ' . $e->getMessage());
-            $res = $this->sendMailFunction($to, $subject, $body, $options);
-            $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to} via mail() after SMTP failure" : "Failed to send email to {$to} after SMTP failure"), ['to' => $to, 'subject' => $subject, 'method' => 'mail', 'error' => $e->getMessage()]);
-            return $res;
+            $logger->log($actor, 'email_failed', 'email', null, "Failed to send email to {$to} via SMTP: " . $e->getMessage(), ['to' => $to, 'subject' => $subject, 'method' => 'smtp']);
+            return false;
         }
     }
 
@@ -177,6 +182,22 @@ class Email {
                     }
                 }
             }
+        }
+
+        // If server advertises AUTH but we have a username without a usable password,
+        // abort to avoid sending MAIL FROM unauthenticated (which can trigger 554 Access denied).
+        if (stripos($ehlo, 'AUTH') !== false && !empty($user) && empty($pass)) {
+            // Log to smtp debug and activity log then abort to avoid unauthenticated MAIL FROM
+            $this->smtpLog('C: ABORTING - server advertises AUTH but no SMTP password configured for user ' . $user);
+            try {
+                $logger = new Logger();
+                $logger->log(null, 'email_config_missing_credentials', 'email', null, 'SMTP server requires AUTH but no password configured', ['smtp_user' => $user, 'host' => $host]);
+            } catch (Throwable $e) {
+                error_log('Email::send logger failure: ' . $e->getMessage());
+            }
+            // Close connection politely
+            try { $this->smtpSend($fp, 'QUIT'); @fclose($fp); } catch (Throwable $e) {}
+            throw new Exception('SMTP credentials missing: server requires AUTH but no password configured');
         }
 
         // MAIL FROM

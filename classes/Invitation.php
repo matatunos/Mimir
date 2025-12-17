@@ -6,7 +6,7 @@
  */
 
 require_once __DIR__ . '/Config.php';
-require_once __DIR__ . '/Email.php';
+require_once __DIR__ . '/Notification.php';
 require_once __DIR__ . '/Logger.php';
 require_once __DIR__ . '/TwoFactor.php';
 
@@ -194,7 +194,7 @@ class Invitation {
             $html .= '<p>Saludos,<br>El equipo</p>';
             $html .= '</div>';
 
-            $emailSender = new Email();
+            $emailSender = new Notification();
 
             // Write a short diagnostic line to invite_debug.log before sending
             try {

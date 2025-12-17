@@ -5,7 +5,7 @@
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../classes/Config.php';
-require_once __DIR__ . '/../classes/Email.php';
+require_once __DIR__ . '/../classes/Notification.php';
 
 $argv0 = $argv[0] ?? 'test_email_send.php';
 $to = $argv[1] ?? null;
@@ -36,7 +36,7 @@ if ($verbose) {
 $subject = 'Prueba de correo desde Mimir - ' . date('c');
 $body = '<div style="font-family: Arial, sans-serif;"><p>Esta es una prueba de envío de correo desde la instalación de Mimir.</p><p>Fecha: ' . date('c') . '</p></div>';
 
-$email = new Email();
+$email = new Notification();
 try {
     $ok = $email->send($to, $subject, $body, ['from_email' => $from, 'from_name' => $fromName]);
     if ($ok) {

@@ -136,7 +136,16 @@ class User {
             $params[] = $offset;
             
             $stmt = $this->db->prepare($sql);
-            $stmt->execute($params);
+            try {
+                $stmt->execute($params);
+            } catch (PDOException $e) {
+                // Duplicate entry or constraint violation
+                if ($e->getCode() === '23000') {
+                    // Provide a friendly message for unique constraint failures
+                    throw new Exception('El nombre de usuario o el email ya están en uso.');
+                }
+                throw $e;
+            }
             
             return $stmt->fetchAll();
         } catch (Exception $e) {

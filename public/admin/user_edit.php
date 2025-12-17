@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($_POST['email'] ?? '');
         $fullName = trim($_POST['full_name'] ?? '');
         $role = $_POST['role'] ?? 'user';
-        $storageQuota = floatval($_POST['storage_quota'] ?? 10);
+        $storageQuota = isset($_POST['storage_quota']) ? (float)$_POST['storage_quota'] : 10.0;
         $require2FA = isset($_POST['require_2fa']);
         $isActive = isset($_POST['is_active']);
         $newPassword = $_POST['new_password'] ?? '';
@@ -53,9 +53,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'email' => $email,
                     'full_name' => $fullName,
                     'role' => $role,
-                    'storage_quota' => $storageQuota * 1024 * 1024 * 1024,
+                    // Interpret 0 (zero) as unlimited (NULL in DB)
+                    'storage_quota' => ($storageQuota > 0) ? ($storageQuota * 1024 * 1024 * 1024) : null,
                     'require_2fa' => $require2FA,
-                    'is_active' => $isActive
+                    // Do not allow admin to toggle their own active state via this form
+                    // Only include is_active when editing someone else
+                    'is_active' => ($userId === $adminUser['id']) ? $user['is_active'] : $isActive
                 ];
                 
                 if (!empty($newPassword)) {
@@ -79,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$storageQuotaGB = $user['storage_quota'] / 1024 / 1024 / 1024;
+$storageQuotaGB = (isset($user['storage_quota']) && $user['storage_quota'] !== null) ? ($user['storage_quota'] / 1024 / 1024 / 1024) : 0;
 
 renderPageStart('Editar Usuario', 'users', true);
 renderHeader('Editar Usuario', $adminUser);
@@ -164,7 +167,8 @@ renderHeader('Editar Usuario', $adminUser);
                     
                     <div class="form-group">
                         <label for="storage_quota" class="form-label required">Cuota de Almacenamiento (GB)</label>
-                        <input type="number" id="storage_quota" name="storage_quota" class="form-control" value="<?php echo number_format($storageQuotaGB, 2, '.', ''); ?>" min="0.1" step="0.1" required>
+                        <input type="number" id="storage_quota" name="storage_quota" class="form-control" value="<?php echo number_format($storageQuotaGB, 2, '.', ''); ?>" min="0" step="0.1" required>
+                        <small style="color: var(--text-muted);">Introduce 0 para cuota ilimitada.</small>
                     </div>
                 </div>
 

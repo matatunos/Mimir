@@ -25,7 +25,7 @@ function sendNotificationWithRetries($recipient, $subject, $body, $options = [],
     require_once __DIR__ . '/../classes/Config.php';
     require_once __DIR__ . '/../classes/Logger.php';
     require_once __DIR__ . '/../classes/ForensicLogger.php';
-    require_once __DIR__ . '/../classes/Email.php';
+    require_once __DIR__ . '/../classes/Notification.php';
 
     $cfg = new Config();
     $maxAttempts = max(1, intval($cfg->get('notify_user_creation_retry_attempts', 3)));
@@ -33,7 +33,7 @@ function sendNotificationWithRetries($recipient, $subject, $body, $options = [],
 
     $logger = $context['logger'] ?? new Logger();
     $forensic = $context['forensic'] ?? new ForensicLogger();
-    $emailSender = $context['emailSender'] ?? new Email();
+    $emailSender = $context['emailSender'] ?? new Notification();
     $actorId = $context['actor_id'] ?? null;
     $targetId = $context['target_id'] ?? null;
 
@@ -174,8 +174,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $inv) {
                         }
                         $recipients = array_values(array_unique($recipients));
                         if (!empty($recipients)) {
-                            require_once __DIR__ . '/../classes/Email.php';
-                            $emailSender = new Email();
+                            require_once __DIR__ . '/../classes/Notification.php';
+                            $emailSender = new Notification();
                             $siteName = $configClass->get('site_name', 'Mimir');
                             $fromEmailCfg = $configClass->get('email_from_address', '');
                             $fromNameCfg = $configClass->get('email_from_name', $siteName);

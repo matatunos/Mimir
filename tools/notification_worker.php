@@ -4,7 +4,7 @@
 
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
-require_once __DIR__ . '/../classes/Email.php';
+require_once __DIR__ . '/../classes/Notification.php';
 require_once __DIR__ . '/../classes/Logger.php';
 require_once __DIR__ . '/../classes/ForensicLogger.php';
 
@@ -16,7 +16,7 @@ if (php_sapi_name() !== 'cli') {
 $db = Database::getInstance()->getConnection();
 $logger = new Logger();
 $forensic = new ForensicLogger();
-$email = new Email();
+$email = new Notification();
 
 echo "Notification worker started.\n";
 

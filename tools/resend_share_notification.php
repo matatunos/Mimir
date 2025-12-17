@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../classes/Share.php';
-require_once __DIR__ . '/../classes/Email.php';
+require_once __DIR__ . '/../classes/Notification.php';
 
 $shareId = intval($argv[1] ?? 0);
 $recipient = $argv[2] ?? null;
@@ -69,7 +69,7 @@ $body .= '<div style="font-size:12px;color:#666;word-break:break-all;">Enlace di
 $body .= '<div style="margin-top:18px;font-size:12px;color:#999;">Si no ha solicitado este correo, ignórelo.</div>';
 $body .= '</div>';
 
-$email = new Email();
+$email = new Notification();
 try {
     $fromEmailCfg = $cfgTool->get('email_from_address', '');
     $fromNameCfg = $cfgTool->get('email_from_name', '');

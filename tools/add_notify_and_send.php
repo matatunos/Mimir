@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../classes/Config.php';
-require_once __DIR__ . '/../classes/Email.php';
+require_once __DIR__ . '/../classes/Notification.php';
 require_once __DIR__ . '/../classes/Logger.php';
 
 $recipient = $argv[1] ?? null;
@@ -62,7 +62,7 @@ $body .= '</ul>';
 $body .= '<p>Este usuario se ha creado mediante una invitación.</p>';
 $body .= '</div>';
 
-$emailSender = new Email();
+$emailSender = new Notification();
 $ok = $emailSender->send($recipient, $subject, $body, ['from_email' => $fromEmail, 'from_name' => $fromName]);
 if ($ok) {
     echo "Notification sent to $recipient\n";
