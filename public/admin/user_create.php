@@ -139,10 +139,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $totp->setIssuer($siteNameGlobal);
                     $secret = $totp->getSecret();
                     
-                    // Guardar en BD
-                    $stmt = $db->prepare("
-                        INSERT INTO user_2fa (user_id, method, secret, is_enabled, created_at)
-                        VALUES (?, 'totp', ?, 1, NOW())
+                    // Guardar en BD (usar columna `totp_secret`)
+                    $stmt = $db->prepare("\
+                        INSERT INTO user_2fa (user_id, method, totp_secret, is_enabled, created_at)\
+                        VALUES (?, 'totp', ?, 1, NOW())\
                     ");
                     $stmt->execute([$userId, $secret]);
                     
