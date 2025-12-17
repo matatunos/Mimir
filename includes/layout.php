@@ -151,6 +151,9 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     <a href="<?php echo BASE_URL; ?>/admin/logs.php" class="menu-item <?php echo $currentPage === 'logs' ? 'active' : ''; ?>">
                         <i class="fas fa-clipboard-list"></i> Registros
                     </a>
+                    <a href="<?php echo BASE_URL; ?>/admin/operations.php" class="menu-item <?php echo $currentPage === 'operations' ? 'active' : ''; ?>">
+                        <i class="fas fa-tools"></i> Operaciones
+                    </a>
                     <a href="<?php echo BASE_URL; ?>/admin/forensic_logs.php" class="menu-item <?php echo $currentPage === 'forensic-logs' ? 'active' : ''; ?>">
                         <i class="fas fa-search"></i> Análisis Forense
                     </a>
