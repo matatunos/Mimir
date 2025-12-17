@@ -265,7 +265,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
             <div style="position: relative; z-index: 1;">
                 <div class="admin-stat-label">Comparticiones</div>
                 <div class="admin-stat-value"><?php echo $totalShares; ?></div>
-                <div class="admin-stat-sublabel">🟢 Activas</div>
+                <div class="admin-stat-sublabel"><i class="fas fa-circle" style="color:#16a34a; font-size:0.85rem; vertical-align:middle; margin-right:0.4rem;"></i> Activas</div>
             </div>
             <div class="admin-stat-icon"><i class="fas fa-link"></i></div>
         </div>
