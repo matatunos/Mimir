@@ -174,9 +174,6 @@ install_php() {
         php-imagick \
         imagemagick \
         libapache2-mod-php
-        sendmail \
-        mailutils \
-        sendmail-bin
 
     print_status "PHP and extensions installed"
 

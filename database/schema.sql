@@ -236,7 +236,7 @@ INSERT INTO `config` (`config_key`, `config_value`, `config_type`, `description`
 ('email_from_name', 'Mimir', 'string', 'From name', 0),
 -- LDAP settings (OpenLDAP)
 ('enable_ldap', '0', 'boolean', 'Enable LDAP authentication', 1),
-('ldap_host', '', 'string', 'LDAP server host', 0),
+('ldap_host', '', 'string', 'LDAP server host', 0);
 
 -- --------------------------------------------------------
 -- Table structure for table `invitations`
@@ -262,44 +262,7 @@ CREATE TABLE IF NOT EXISTS `invitations` (
   KEY `email` (`email`),
   KEY `inviter_id` (`inviter_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-('ldap_port', '389', 'number', 'LDAP server port', 0),
-('ldap_base_dn', '', 'string', 'LDAP base DN', 0),
-('ldap_bind_dn', '', 'string', 'LDAP bind DN', 0),
-('ldap_bind_password', '', 'string', 'LDAP bind password', 0),
-('ldap_search_filter', '(&(objectClass=inetOrgPerson)(uid=%s))', 'string', 'LDAP search filter', 0),
-('ldap_username_attribute', 'uid', 'string', 'LDAP username attribute', 0),
-('ldap_email_attribute', 'mail', 'string', 'LDAP email attribute', 0),
-('ldap_display_name_attribute', 'cn', 'string', 'LDAP display name attribute', 0),
--- Active Directory settings
-('enable_ad', '0', 'boolean', 'Enable Active Directory authentication', 0),
-('ad_host', '', 'string', 'Active Directory server host', 0),
-('ad_port', '389', 'string', 'Active Directory port', 0),
-('ad_base_dn', '', 'string', 'Active Directory base DN', 0),
-('ad_bind_dn', '', 'string', 'Active Directory bind DN', 0),
-('ad_bind_password', '', 'string', 'Active Directory bind password', 0),
-('ad_search_filter', '(&(objectClass=user)(sAMAccountName=%s))', 'string', 'Active Directory search filter', 0),
-('ad_username_attribute', 'sAMAccountName', 'string', 'Active Directory username attribute', 0),
-('ad_email_attribute', 'mail', 'string', 'Active Directory email attribute', 0),
-('ad_display_name_attribute', 'displayName', 'string', 'Active Directory display name attribute', 0),
-('ad_require_group', '', 'string', 'Active Directory required group DN', 0),
-('ad_group_filter', '(&(objectClass=group)(member=%s))', 'string', 'Active Directory group filter', 0),
-('ad_use_ssl', '0', 'boolean', 'Use LDAPS (SSL/TLS)', 0),
-('ad_use_tls', '0', 'boolean', 'Use StartTLS', 0),
--- 2FA settings
-('enable_duo', '0', 'boolean', 'Enable Duo Security 2FA', 1),
-('duo_client_id', '', 'string', 'Duo Client ID', 0),
-('duo_client_secret', '', 'string', 'Duo Client Secret', 0),
-('duo_api_hostname', '', 'string', 'Duo API Hostname', 0),
-('duo_redirect_uri', '', 'string', 'Duo Redirect URI', 0),
-('2fa_max_attempts', '3', 'number', 'Maximum 2FA attempts before lockout', 1),
-('2fa_lockout_minutes', '15', 'number', 'Lockout duration in minutes', 1),
-('2fa_grace_period_hours', '24', 'number', 'Grace period for new 2FA setup', 1),
-('2fa_device_trust_days', '30', 'number', 'Device trust duration in days', 1),
--- Branding
-('brand_primary_color', '#667eea', 'string', 'Primary brand color', 0),
-('brand_secondary_color', '#764ba2', 'string', 'Secondary brand color', 0),
-('brand_accent_color', '#667eea', 'string', 'Accent brand color', 0);
+ 
 
 -- --------------------------------------------------------
 -- Insert default admin user
