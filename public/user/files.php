@@ -55,6 +55,14 @@ if ($currentFolderId) {
 $success = $_GET['success'] ?? '';
 $error = $_GET['error'] ?? '';
 
+// Show detailed upload results from previous upload (if any)
+$uploadResults = [];
+if (session_status() === PHP_SESSION_NONE) session_start();
+if (!empty($_SESSION['upload_results'])) {
+    $uploadResults = $_SESSION['upload_results'];
+    unset($_SESSION['upload_results']);
+}
+
 $isAdmin = ($user['role'] === 'admin');
 renderPageStart('Mis Archivos', 'user-files', $isAdmin);
 renderHeader('Mis Archivos', $user);
@@ -64,32 +72,117 @@ renderHeader('Mis Archivos', $user);
 /* Floating bulk actions bar (similar to admin) */
 .bulk-actions-bar {
     position: fixed;
-    bottom: 2rem;
+    bottom: 1.25rem;
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(135deg, #4a90e2, #50c878);
     color: white;
-    padding: 1rem 2rem;
-    border-radius: 2rem;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
     display: none;
     z-index: 1000;
-    animation: slideUp 0.3s ease-out;
+    animation: slideUp 0.18s ease-out;
+    max-width: calc(100% - 2rem);
+    white-space: nowrap;
+    overflow: hidden;
+    align-items: center;
 }
 @keyframes slideUp {
     from { transform: translateX(-50%) translateY(100px); opacity: 0; }
     to { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
-.bulk-actions-bar.show { display: flex; align-items: center; gap: 1rem; }
-.file-checkbox { width: 18px; height: 18px; cursor: pointer; }
+.bulk-actions-bar.show { display: flex; align-items: center; gap: 0.5rem; }
+.bulk-actions-bar .btn { padding: 0.35rem 0.5rem; font-size: 0.9rem; min-width: 2.2rem; }
+.file-checkbox { width: 16px; height: 16px; cursor: pointer; }
 </style>
 
 <div class="content">
     <?php if ($success): ?>
         <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
     <?php endif; ?>
+
+    <script>
+    (function(){
+        function makeInteractive(tableId, searchId, statusId){
+            var table = document.getElementById(tableId);
+            if (!table) return;
+            var tbody = table.tBodies[0];
+            var rows = Array.prototype.slice.call(tbody.rows);
+            var headers = table.tHead.rows[0].cells;
+            for (let i=0;i<headers.length;i++){
+                headers[i].style.cursor='pointer';
+                headers[i].addEventListener('click', function(){
+                    var asc = this.getAttribute('data-asc') !== '1';
+                    rows.sort(function(a,b){
+                        var A = a.cells[i].innerText.trim().toLowerCase();
+                        var B = b.cells[i].innerText.trim().toLowerCase();
+                        return A === B ? 0 : (A > B ? 1 : -1);
+                    });
+                    if (!asc) rows.reverse();
+                    rows.forEach(function(r){ tbody.appendChild(r); });
+                    this.setAttribute('data-asc', asc ? '1' : '0');
+                });
+            }
+            var search = document.getElementById(searchId);
+            var status = document.getElementById(statusId);
+            function applyFilter(){
+                var q = (search && search.value || '').toLowerCase();
+                var s = (status && status.value) || 'all';
+                rows.forEach(function(r){
+                    var name = r.cells[0].innerText.toLowerCase();
+                    var st = r.cells[1].innerText.toLowerCase().trim();
+                    var ok = (q === '' || name.indexOf(q) !== -1) && (s === 'all' || st === s);
+                    r.style.display = ok ? '' : 'none';
+                });
+            }
+            if (search) search.addEventListener('input', applyFilter);
+            if (status) status.addEventListener('change', applyFilter);
+        }
+        makeInteractive('filesUploadResultsTable','filesResultsSearch','filesResultsStatus');
+    })();
+    </script>
     <?php if ($error): ?>
         <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
+
+    <?php if (!empty($uploadResults)): ?>
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header"><strong>Resultado de la subida</strong></div>
+            <div class="card-body">
+                <div style="margin-bottom:0.5rem;">
+                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']==='ok'; })); ?></strong> archivos subidos correctamente,
+                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']!=='ok'; })); ?></strong> fallaron.
+                </div>
+                <div style="max-height:220px; overflow:auto;">
+                    <div style="display:flex; justify-content:space-between; gap:0.5rem; margin-bottom:0.5rem; align-items:center;">
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input id="filesResultsSearch" type="text" placeholder="Buscar archivo..." class="form-control" style="padding:0.4rem 0.6rem; width:220px;">
+                            <select id="filesResultsStatus" class="form-control" style="padding:0.35rem 0.5rem; width:160px;">
+                                <option value="all">Todos</option>
+                                <option value="ok">OK</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+                        <div style="font-size:0.9rem; color:var(--text-muted);">Haz clic en los encabezados para ordenar</div>
+                    </div>
+                    <table id="filesUploadResultsTable" class="table table-sm">
+                        <thead>
+                            <tr><th>Archivo</th><th>Estado</th><th>Motivo</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($uploadResults as $res): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($res['name']); ?></td>
+                                    <td><?php echo $res['status'] === 'ok' ? '<span class="badge badge-success">OK</span>' : '<span class="badge badge-danger">Error</span>'; ?></td>
+                                    <td><?php echo $res['status'] === 'ok' ? '-' : htmlspecialchars($res['reason']); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     <?php endif; ?>
 
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
@@ -235,23 +328,27 @@ renderHeader('Mis Archivos', $user);
 
                 <!-- Bulk Actions Bar for users -->
                 <div class="bulk-actions-bar" id="userBulkActionsBar">
-                    <span id="userSelectedCount">0</span> elementos seleccionados
-                    <button type="button" class="btn btn-danger" onclick="confirmUserBulkAction('delete')">
-                        <i class="fas fa-trash"></i> Eliminar seleccionados
-                    </button>
-                    <button type="button" class="btn btn-warning" onclick="confirmUserBulkAction('share')">
-                        <i class="fas fa-share"></i> Marcar como compartidos
-                    </button>
-                    <button type="button" class="btn btn-info" onclick="confirmUserBulkAction('unshare')">
-                        <i class="fas fa-ban"></i> Desactivar compartidos
-                    </button>
-                    <!-- Move action removed from user UI -->
-                    <button type="button" class="btn btn-secondary" onclick="clearUserSelection()">
-                        <i class="fas fa-times"></i> Cancelar
-                    </button>
-                    <button type="button" class="btn btn-outline btn-outline--on-dark" id="selectAllMatchingBtn" style="margin-left:1rem;">
-                        Seleccionar todos los <?php echo $totalFiles; ?> coincidencias
-                    </button>
+                        <span id="userSelectedCount">0</span>
+                        <div style="display:inline-flex; align-items:center; gap:0.4rem; margin-left:0.5rem;">
+                            <button type="button" class="btn btn-danger" title="Eliminar" onclick="confirmUserBulkAction('delete')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button type="button" class="btn btn-warning" title="Compartir" onclick="confirmUserBulkAction('share')">
+                                <i class="fas fa-share"></i>
+                            </button>
+                            <button type="button" class="btn btn-primary" title="Descargar" onclick="confirmUserBulkAction('download')">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button type="button" class="btn btn-info" title="Desactivar compartidos" onclick="confirmUserBulkAction('unshare')">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                            <button type="button" class="btn btn-secondary" title="Cancelar" onclick="clearUserSelection()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-outline btn-outline--on-dark" id="selectAllMatchingBtn" style="margin-left:0.5rem; padding:0.35rem 0.6rem; font-size:0.85rem;">
+                            Seleccionar <?php echo $totalFiles; ?>
+                        </button>
                 </div>
 
                 <!-- Bulk confirm modal -->
@@ -462,6 +559,14 @@ function confirmUserBulkAction(action) {
                 form.appendChild(input);
             });
         }
+
+        // Close the confirm modal and hide the bulk actions bar immediately
+        try { hideBulkConfirmModal(); } catch (e) {}
+        try { document.getElementById('userBulkActionsBar').classList.remove('show'); } catch (e) {}
+        try { clearUserSelection(); } catch (e) {}
+
+        // Disable the confirm button to avoid double-submits
+        confirmBtn.disabled = true;
 
         form.submit();
     };

@@ -474,6 +474,10 @@ $error = '';
 
 // Load configs before POST processing (needed for type detection)
 $configs = $configClass->getAllDetails();
+// Ensure the internal protection toggle is not shown in the admin config UI
+$configs = array_values(array_filter($configs, function($c) {
+    return isset($c['config_key']) && $c['config_key'] !== 'enable_config_protection';
+}));
 // Global toggle: when enabled (1) enforce `is_system` protection; when disabled (0) allow editing all keys
 $globalConfigProtection = $configClass->get('enable_config_protection', '0');
 
@@ -542,6 +546,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Save new logo path
                     $configClass->set('site_logo', 'uploads/branding/' . $filename);
                     $logger->log($user['id'], 'logo_upload', 'system', null, "Logo actualizado: $filename");
+                    // Expose per-file result for inline reporting if page was used to upload
+                    if (session_status() === PHP_SESSION_NONE) session_start();
+                    $_SESSION['upload_results'] = [ ['name' => $_FILES['site_logo_file']['name'], 'status' => 'ok'] ];
                     
                     // Auto-extract colors if checkbox is checked (or by default)
                     $autoExtractColors = isset($_POST['auto_extract_colors']) ? $_POST['auto_extract_colors'] === '1' : true;
@@ -597,6 +604,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $success = 'Logo actualizado correctamente';
                     }
                 } else {
+                    // Populate session result for failure so UI can show reason
+                    if (session_status() === PHP_SESSION_NONE) session_start();
+                    $_SESSION['upload_results'] = [ ['name' => $_FILES['site_logo_file']['name'], 'status' => 'error', 'reason' => 'Error al subir el archivo'] ];
                     throw new Exception('Error al subir el archivo');
                 }
             }
@@ -802,9 +812,116 @@ renderHeader('Configuración del Sistema', $user, $auth);
     <?php if ($success): ?>
         <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
     <?php endif; ?>
+    <script>
+    (function(){
+        function makeInteractive(tableId, searchId, statusId){
+            var table = document.getElementById(tableId);
+            if (!table) return;
+            var tbody = table.tBodies[0];
+            var rows = Array.prototype.slice.call(tbody.rows);
+            var headers = table.tHead.rows[0].cells;
+            for (let i=0;i<headers.length;i++){
+                headers[i].style.cursor='pointer';
+                headers[i].addEventListener('click', function(){
+                    var asc = this.getAttribute('data-asc') !== '1';
+                    rows.sort(function(a,b){
+                        var A = a.cells[i].innerText.trim().toLowerCase();
+                        var B = b.cells[i].innerText.trim().toLowerCase();
+                        return A === B ? 0 : (A > B ? 1 : -1);
+                    });
+                    if (!asc) rows.reverse();
+                    rows.forEach(function(r){ tbody.appendChild(r); });
+                    this.setAttribute('data-asc', asc ? '1' : '0');
+                });
+            }
+            var search = document.getElementById(searchId);
+            var status = document.getElementById(statusId);
+            function applyFilter(){
+                var q = (search && search.value || '').toLowerCase();
+                var s = (status && status.value) || 'all';
+                rows.forEach(function(r){
+                    var name = r.cells[0].innerText.toLowerCase();
+                    var st = r.cells[1].innerText.toLowerCase().trim();
+                    var ok = (q === '' || name.indexOf(q) !== -1) && (s === 'all' || st === s);
+                    r.style.display = ok ? '' : 'none';
+                });
+            }
+            if (search) search.addEventListener('input', applyFilter);
+            if (status) status.addEventListener('change', applyFilter);
+        }
+        makeInteractive('adminUploadResultsTable','adminResultsSearch','adminResultsStatus');
+    })();
+    </script>
     <?php if ($error): ?>
         <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
+    <?php
+        $uploadResults = [];
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (!empty($_SESSION['upload_results'])) {
+            $uploadResults = $_SESSION['upload_results'];
+            unset($_SESSION['upload_results']);
+        }
+    ?>
+    <?php if (!empty($uploadResults)): ?>
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header"><strong>Resultado de la subida</strong></div>
+            <div class="card-body">
+                <div style="margin-bottom:0.5rem;">
+                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']==='ok'; })); ?></strong> archivos subidos correctamente,
+                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']!=='ok'; })); ?></strong> fallaron.
+                </div>
+                <div style="max-height:220px; overflow:auto;">
+                    <div style="display:flex; justify-content:space-between; gap:0.5rem; margin-bottom:0.5rem; align-items:center;">
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input id="adminResultsSearch" type="text" placeholder="Buscar archivo..." class="form-control" style="padding:0.4rem 0.6rem; width:220px;">
+                            <select id="adminResultsStatus" class="form-control" style="padding:0.35rem 0.5rem; width:160px;">
+                                <option value="all">Todos</option>
+                                <option value="ok">OK</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+                        <div style="font-size:0.9rem; color:var(--text-muted);">Haz clic en los encabezados para ordenar</div>
+                    </div>
+                    <table id="adminUploadResultsTable" class="table table-sm">
+                        <thead>
+                            <tr><th>Archivo</th><th>Estado</th><th>Motivo</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($uploadResults as $res): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($res['name']); ?></td>
+                                    <td><?php echo $res['status'] === 'ok' ? '<span class="badge badge-success">OK</span>' : '<span class="badge badge-danger">Error</span>'; ?></td>
+                                    <td><?php echo $res['status'] === 'ok' ? '-' : htmlspecialchars($res['reason']); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+    <!-- simple overlay for admin uploads -->
+    <div id="adminUploadOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-main); padding:1.25rem; border-radius:0.75rem; display:flex; gap:1rem; align-items:center; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+            <div class="spinner-border" role="status" style="width:2.25rem; height:2.25rem; border-width:0.3rem;"></div>
+            <div style="font-weight:700;">Procesando la subida del logo... no cierre esta ventana.</div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function(){
+        var cfgForm = document.querySelector('form[enctype="multipart/form-data"]');
+        if (!cfgForm) return;
+        cfgForm.addEventListener('submit', function(){
+            var fileInput = document.getElementById('site_logo_file');
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                var ov = document.getElementById('adminUploadOverlay');
+                if (ov) ov.style.display = 'flex';
+            }
+        });
+    });
+    </script>
     <!-- Global config protection indicator -->
     <div style="margin-bottom:1rem;">
         <span style="font-weight:700;">Protección de configuración:</span>

@@ -73,73 +73,26 @@ class SecurityValidator {
      */
     public function validateEmail($email) {
         $email = trim($email);
-        
+
         if (empty($email)) {
             return false;
         }
-        
+
         // Basic format check
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return false;
         }
-        
+
         // Check for common patterns used in attacks
         if (preg_match('/[<>"\']/', $email)) {
             return false;
         }
-        
+
         // Check length
         if (strlen($email) > 254) {
             return false;
         }
-        
-        return true;
-    }
-    
-    /**
-     * Validate URL
-     */
-    public function validateURL($url, $allowedSchemes = ['http', 'https']) {
-        $url = trim($url);
-        
-        if (empty($url)) {
-            return false;
-        }
-        
-        // Basic format check
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
-            return false;
-        }
-        
-        // Parse URL
-        $parsed = parse_url($url);
-        
-        if ($parsed === false) {
-            return false;
-        }
-        
-        // Check scheme
-        if (!isset($parsed['scheme']) || !in_array(strtolower($parsed['scheme']), $allowedSchemes)) {
-            return false;
-        }
-        
-        // Block localhost/internal IPs in production
-        if (isset($parsed['host'])) {
-            $host = strtolower($parsed['host']);
-            $blocked = ['localhost', '127.0.0.1', '::1', '0.0.0.0'];
-            
-            if (in_array($host, $blocked)) {
-                return false;
-            }
-            
-            // Block private IP ranges
-            if (filter_var($host, FILTER_VALIDATE_IP)) {
-                if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                    return false;
-                }
-            }
-        }
-        
+
         return true;
     }
     
@@ -432,6 +385,27 @@ class SecurityValidator {
                 $username = $details['username'];
             }
 
+            // Normalize event_type to allowed enum values to avoid MySQL enum truncation warnings
+            $allowed = ['failed_login','brute_force','suspicious_download','rate_limit','unauthorized_access','data_breach_attempt','malware_upload'];
+            $normalized = $eventType;
+            if (!in_array($normalized, $allowed)) {
+                $lower = strtolower($eventType);
+                if (strpos($lower, 'rate') !== false) {
+                    $normalized = 'rate_limit';
+                } elseif (strpos($lower, 'malware') !== false || strpos($lower, 'virus') !== false || strpos($lower, 'upload') !== false || strpos($lower, 'file') !== false) {
+                    $normalized = 'malware_upload';
+                } elseif (strpos($lower, 'sql') !== false || strpos($lower, 'injection') !== false || strpos($lower, 'data') !== false) {
+                    $normalized = 'data_breach_attempt';
+                } elseif (strpos($lower, 'xss') !== false || strpos($lower, 'cross') !== false) {
+                    $normalized = 'data_breach_attempt';
+                } elseif (strpos($lower, 'path') !== false || strpos($lower, 'unauthorized') !== false || strpos($lower, 'access') !== false) {
+                    $normalized = 'unauthorized_access';
+                } else {
+                    // Fallback to a generic suspicious event
+                    $normalized = 'suspicious_download';
+                }
+            }
+
             $stmt = $this->db->prepare(
                 "INSERT INTO security_events 
                 (event_type, username, severity, ip_address, user_agent, description, details)
@@ -440,11 +414,11 @@ class SecurityValidator {
 
             $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-            $description = $this->getEventDescription($eventType);
-            $detailsJson = json_encode($details);
+            $description = $this->getEventDescription($normalized);
+            $detailsJson = is_array($details) ? json_encode($details) : $details;
 
             $stmt->execute([
-                $eventType,
+                $normalized,
                 $username,
                 $severity,
                 $ip,
@@ -456,10 +430,7 @@ class SecurityValidator {
             error_log("Failed to log security event: " . $e->getMessage());
         }
     }
-    
-    /**
-     * Get human-readable description for event type
-     */
+
     private function getEventDescription($eventType) {
         $descriptions = [
             'path_traversal_attempt' => 'Intento de path traversal detectado',
@@ -477,7 +448,7 @@ class SecurityValidator {
             'sql_injection_attempt' => 'Posible intento de SQL injection',
             'xss_attempt' => 'Posible intento de XSS'
         ];
-        
+
         return $descriptions[$eventType] ?? 'Evento de seguridad: ' . $eventType;
     }
     

@@ -383,7 +383,29 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
 </style>
 
 <div class="content">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <style>
+    /* Responsive admin stats grid: prefer 4 columns on wide screens, down to 1 on small */
+    .admin-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; grid-auto-flow: dense; }
+    @media (max-width: 1200px) { .admin-stats-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 900px) { .admin-stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .admin-stats-grid { grid-template-columns: 1fr; } }
+
+    /* Operational overview grid */
+    .admin-operational-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; grid-auto-flow: dense; }
+    @media (max-width: 900px) { .admin-operational-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .admin-operational-grid { grid-template-columns: 1fr; } }
+
+    /* Charts grid: make uploads chart span full width */
+    .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+    @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+    .charts-grid .uploads-chart-card { grid-column: 1 / -1; }
+    .charts-grid .filetypes-chart-card { grid-column: 1 / -1; }
+    /* Layout for filetypes chart with side legend/table */
+    .filetypes-chart-card .filetypes-chart-inner { display: grid; grid-template-columns: 1fr 300px; gap: 1rem; align-items: start; }
+    @media (max-width: 1000px) { .filetypes-chart-card .filetypes-chart-inner { grid-template-columns: 1fr; } }
+    </style>
+
+    <div class="admin-stats-grid">
         <div class="admin-stat-card">
             <div style="position: relative; z-index: 1;">
                 <div class="admin-stat-label">Usuarios Totales</div>
@@ -458,7 +480,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     </div>
     
     <!-- Operational Overview -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="admin-operational-grid">
         <div class="admin-stat-card">
             <div style="position: relative; z-index: 1;">
                 <div class="admin-stat-label">Cola de Notificaciones</div>
@@ -515,8 +537,8 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     </div>
 
     <!-- Gráficos -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-        <div class="card">
+    <div class="charts-grid">
+        <div class="card uploads-chart-card">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                 <h3 class="card-title"><i class="fas fa-chart-area"></i> Actividad de Subidas</h3>
                 <div class="period-selector" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
@@ -535,12 +557,48 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
             </div>
         </div>
         
-        <div class="card">
+        <div class="card filetypes-chart-card">
             <div class="card-header">
                 <h3 class="card-title"><i class="fas fa-chart-pie"></i> Distribución de Archivos</h3>
             </div>
             <div class="card-body">
-                <canvas id="fileTypesChart" height="300"></canvas>
+                <div class="filetypes-chart-inner">
+                    <div style="min-height:300px;">
+                        <canvas id="fileTypesChart" height="300" style="max-height:420px; width:100%;"></canvas>
+                    </div>
+                    <?php
+                        // Detailed breakdown table for file types (acts as legend)
+                        $typeTotal = array_sum($typeCounts);
+                    ?>
+                    <div style="max-height:420px; overflow:auto;">
+                        <table class="table table-sm" style="width:100%; border-collapse: collapse; margin:0;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left; padding:0.5rem;">Tipo</th>
+                                    <th style="text-align:right; padding:0.5rem;">Cantidad</th>
+                                    <th style="text-align:right; padding:0.5rem;">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php for ($i = 0; $i < count($typeLabels); $i++):
+                                $label = $typeLabels[$i];
+                                $count = $typeCounts[$i] ?? 0;
+                                $percent = $typeTotal ? round(($count / $typeTotal) * 100, 1) : 0;
+                                $color = $chartColors[$i] ?? '#999999';
+                            ?>
+                                <tr>
+                                    <td style="padding:0.5rem;">
+                                        <span style="display:inline-block; width:12px; height:12px; background:<?php echo htmlspecialchars($color); ?>; margin-right:0.5rem; vertical-align:middle; border-radius:2px;"></span>
+                                        <?php echo htmlspecialchars($label); ?>
+                                    </td>
+                                    <td style="padding:0.5rem; text-align:right;"><?php echo number_format($count); ?></td>
+                                    <td style="padding:0.5rem; text-align:right;"><?php echo $percent; ?>%</td>
+                                </tr>
+                            <?php endfor; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1102,7 +1160,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'right',
+                        display: false
                     },
                     title: {
                         display: false

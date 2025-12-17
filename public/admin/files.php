@@ -56,6 +56,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && (!empty
         $rows = $stmtA->fetchAll(PDO::FETCH_ASSOC);
         $fileIds = array_map(function($r){ return intval($r['id']); }, $rows);
     }
+    
+    // If admin requested a bulk download, prepare and stream a ZIP immediately
+    if ($action === 'download') {
+        $tmp = sys_get_temp_dir() . '/mimir_admin_bulk_' . bin2hex(random_bytes(8)) . '.zip';
+        $zip = new ZipArchive();
+        if ($zip->open($tmp, ZipArchive::CREATE) !== TRUE) {
+            header('Location: ' . BASE_URL . '/admin/files.php?error=' . urlencode('No se pudo crear el archivo ZIP temporal'));
+            exit;
+        }
+
+        $added = 0;
+        $namesSeen = [];
+        foreach ($fileIds as $fileId) {
+            $file = $fileClass->getById($fileId);
+            if (!$file) continue;
+            if ($file['is_folder']) continue;
+            if (!is_file($file['file_path'])) continue;
+
+            $name = $file['original_name'];
+            if (isset($namesSeen[$name])) {
+                $ext = pathinfo($name, PATHINFO_EXTENSION);
+                $base = pathinfo($name, PATHINFO_FILENAME);
+                $name = $base . '_' . $namesSeen[$name] . ($ext ? '.' . $ext : '');
+                $namesSeen[$file['original_name']]++;
+            } else {
+                $namesSeen[$file['original_name']] = 1;
+            }
+
+            $zip->addFile($file['file_path'], $name);
+            $added++;
+        }
+
+        $zip->close();
+
+        if ($added === 0) {
+            @unlink($tmp);
+            header('Location: ' . BASE_URL . '/admin/files.php?error=' . urlencode('No se encontraron archivos válidos para descargar'));
+            exit;
+        }
+
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="admin_download_' . date('Ymd_His') . '.zip"');
+        header('Content-Length: ' . filesize($tmp));
+        readfile($tmp);
+        @unlink($tmp);
+        exit;
+    }
 
     $success = 0;
     $errors = 0;
@@ -252,17 +299,21 @@ renderHeader('Gestión de Archivos', $user);
 }
 .bulk-actions-bar {
     position: fixed;
-    bottom: 2rem;
+    bottom: 1.25rem;
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(135deg, #4a90e2, #50c878);
     color: white;
-    padding: 1rem 2rem;
-    border-radius: 2rem;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
     display: none;
     z-index: 1000;
-    animation: slideUp 0.3s ease-out;
+    animation: slideUp 0.18s ease-out;
+    max-width: calc(100% - 2rem);
+    white-space: nowrap;
+    overflow: hidden;
+    align-items: center;
 }
 @keyframes slideUp {
     from { transform: translateX(-50%) translateY(100px); opacity: 0; }
@@ -271,7 +322,7 @@ renderHeader('Gestión de Archivos', $user);
 .bulk-actions-bar.show {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
 }
 .file-checkbox {
     width: 18px;
@@ -537,6 +588,9 @@ renderHeader('Gestión de Archivos', $user);
     <button type="button" class="btn btn-success" onclick="confirmBulkAction('share')">
         <i class="fas fa-share"></i> Marcar como Compartido
     </button>
+    <button type="button" class="btn btn-primary" onclick="confirmBulkAction('download')">
+        <i class="fas fa-download"></i> Descargar seleccionados
+    </button>
     <button type="button" class="btn btn-info" onclick="openReassignModal()">
         <i class="fas fa-user-edit"></i> Reasignar
     </button>
@@ -672,6 +726,9 @@ function confirmBulkAction(action) {
         case 'share':
             message = `¿Marcar ${count} archivo(s) como compartidos?`;
             break;
+        case 'download':
+            message = `¿Descargar ${count} archivo(s)?`;
+            break;
     }
     
     if (confirm(message)) {
@@ -693,6 +750,9 @@ function confirmBulkAction(action) {
             filtersInput.value = '';
         }
         document.getElementById('bulkAction').value = action;
+        // hide the bulk actions bar and clear selection so UI doesn't remain selected
+        try { document.getElementById('bulkActionsBar').classList.remove('show'); } catch (e) {}
+        try { clearSelection(); } catch (e) {}
         document.getElementById('bulkForm').submit();
     }
 }

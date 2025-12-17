@@ -62,6 +62,55 @@ try {
         exit;
     }
 
+    // Handle bulk download separately: stream a zip of selected files
+    if ($action === 'download') {
+        $tmp = sys_get_temp_dir() . '/mimir_bulk_' . bin2hex(random_bytes(8)) . '.zip';
+        $zip = new ZipArchive();
+        if ($zip->open($tmp, ZipArchive::CREATE) !== TRUE) {
+            header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode('No se pudo crear el archivo ZIP temporal'));
+            exit;
+        }
+
+        $added = 0;
+        $namesSeen = [];
+        foreach ($fileIds as $fid) {
+            $f = $fileClass->getById($fid);
+            if (!$f || $f['user_id'] != $user['id']) continue;
+            if ($f['is_folder']) continue;
+            if (!is_file($f['file_path'])) continue;
+
+            $name = $f['original_name'];
+            // Avoid duplicate names inside zip
+            if (isset($namesSeen[$name])) {
+                $ext = pathinfo($name, PATHINFO_EXTENSION);
+                $base = pathinfo($name, PATHINFO_FILENAME);
+                $name = $base . '_' . $namesSeen[$f['original_name']] . ($ext ? '.' . $ext : '');
+                $namesSeen[$f['original_name']]++;
+            } else {
+                $namesSeen[$f['original_name']] = 1;
+            }
+
+            $zip->addFile($f['file_path'], $name);
+            $added++;
+        }
+
+        $zip->close();
+
+        if ($added === 0) {
+            @unlink($tmp);
+            header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode('No se encontraron archivos válidos para descargar'));
+            exit;
+        }
+
+        // Stream zip and remove temp file
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="download_' . date('Ymd_His') . '.zip"');
+        header('Content-Length: ' . filesize($tmp));
+        readfile($tmp);
+        @unlink($tmp);
+        exit;
+    }
+
     $processed = 0;
     $errors = 0;
     $db->beginTransaction();

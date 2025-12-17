@@ -24,7 +24,7 @@ class File {
     /**
      * Upload a file
      */
-    public function upload($fileData, $userId, $description = null, $parentFolderId = null) {
+    public function upload($fileData, $userId, $description = null, $parentFolderId = null, $allowDuplicates = false) {
         try {
             require_once __DIR__ . '/SecurityValidator.php';
             $security = SecurityValidator::getInstance();
@@ -123,6 +123,29 @@ class File {
             
             // Generate unique file name and hash
             $fileHash = hash_file('sha256', $fileData['tmp_name']);
+            // Prevent duplicates in the same folder: if same hash exists in target folder, either block or allow saving a copy
+            try {
+                if ($parentFolderId === null) {
+                    $stmt = $this->db->prepare("SELECT id FROM files WHERE file_hash = ? AND parent_folder_id IS NULL LIMIT 1");
+                    $stmt->execute([$fileHash]);
+                } else {
+                    $stmt = $this->db->prepare("SELECT id FROM files WHERE file_hash = ? AND parent_folder_id = ? LIMIT 1");
+                    $stmt->execute([$fileHash, $parentFolderId]);
+                }
+                $existing = $stmt->fetch();
+                if ($existing) {
+                    if (!$allowDuplicates) {
+                        throw new Exception("Archivo duplicado en la carpeta (ID #" . $existing['id'] . ")");
+                    }
+                    // If duplicates are allowed, continue and save as a separate stored file (keep both)
+                }
+            } catch (Exception $e) {
+                // If duplicate detected and not allowed, bubble up the exception to caller for reporting
+                if (strpos($e->getMessage(), 'Archivo duplicado') === 0) {
+                    throw $e;
+                }
+                // otherwise ignore DB lookup errors and continue
+            }
             $storedName = uniqid() . '_' . time() . '.' . $ext;
             
             // Create user directory structure and ensure it's writable
@@ -499,11 +522,12 @@ class File {
             if (!empty($fp)) {
                 if (strpos($fp, '/') === 0) {
                     $fullPath = $fp;
-                } else {
-                    $fullPath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($fp, '/');
-                }
-                if (!empty($fullPath) && file_exists($fullPath)) {
-                    @unlink($fullPath);
+                    // Use an allowed enum value for event_type to avoid SQL warnings
+                    $stmt = $this->db->prepare("
+                        INSERT INTO security_events 
+                        (event_type, username, severity, ip_address, user_agent, description, details)
+                        VALUES ('rate_limit', ?, 'low', ?, ?, ?, ?)
+                    ");
                 }
             }
             
@@ -761,11 +785,12 @@ class File {
             if (!$this->userClass->hasStorageAvailable($newUserId, $file['file_size'])) {
                 throw new Exception("New user storage quota exceeded");
             }
-            
-            $this->db->beginTransaction();
-            
-            // Update file owner
-            $stmt = $this->db->prepare("UPDATE files SET user_id = ? WHERE id = ?");
+                    // Map blocked extension events to an allowed enum value to avoid enum truncation warnings
+                    $stmt = $this->db->prepare("
+                        INSERT INTO security_events 
+                        (event_type, username, severity, user_id, ip_address, user_agent, description, details)
+                        VALUES ('malware_upload', ?, 'medium', ?, ?, ?, ?, ?)
+                    ");
             $stmt->execute([$newUserId, $fileId]);
             
             // Update storage used for new user
