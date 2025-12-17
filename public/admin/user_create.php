@@ -190,7 +190,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $emailBody .= "<hr><p style='color: #666; font-size: 0.875rem;'>Este es un mensaje automático, por favor no responder.</p>";
                     
                     require_once __DIR__ . '/../../classes/Notification.php';
-                    $fromEmail = defined('SMTP_FROM_EMAIL') ? SMTP_FROM_EMAIL : ('noreply@' . parse_url(BASE_URL, PHP_URL_HOST));
+                    // Use configured from address from DB; fallback to SMTP_FROM_EMAIL or constructed host
+                    $fromEmail = $cfg->get('email_from_address', defined('SMTP_FROM_EMAIL') ? SMTP_FROM_EMAIL : ('noreply@' . parse_url(BASE_URL, PHP_URL_HOST)));
                     try {
                         $notifier = new Notification();
                         $sent = $notifier->send($email, 'Cuenta creada en ' . $siteNameGlobal, $emailBody, ['from_email' => $fromEmail, 'from_name' => $siteNameGlobal]);

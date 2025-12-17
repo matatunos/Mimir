@@ -242,8 +242,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Create multipart email
                     $boundary = md5(time());
-                    $headers = "From: Mimir <noreply@" . parse_url(BASE_URL, PHP_URL_HOST) . ">\r\n";
-                    $headers .= "Reply-To: noreply@" . parse_url(BASE_URL, PHP_URL_HOST) . "\r\n";
+                    // Use configured from address
+                    require_once __DIR__ . '/../../classes/Config.php';
+                    $cfg = new Config();
+                    $fromAddr = $cfg->get('email_from_address', 'noreply@' . parse_url(BASE_URL, PHP_URL_HOST));
+                    $headers = "From: Mimir <" . $fromAddr . ">\r\n";
+                    $headers .= "Reply-To: " . $fromAddr . "\r\n";
                     $headers .= "MIME-Version: 1.0\r\n";
                     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
                     $headers .= "X-Mailer: PHP/" . phpversion();
@@ -261,7 +265,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $body .= "--{$boundary}--";
                     
                     require_once __DIR__ . '/../../classes/Notification.php';
-                    $fromEmail = 'noreply@' . parse_url(BASE_URL, PHP_URL_HOST);
+                    // Prefer system configured from address
+                    require_once __DIR__ . '/../../classes/Config.php';
+                    $cfgSys = new Config();
+                    $fromEmail = $cfgSys->get('email_from_address', 'noreply@' . parse_url(BASE_URL, PHP_URL_HOST));
                     try {
                         $emailSender = new Notification();
                         $sent = $emailSender->send($to, $subject, $htmlMessage, ['from_email' => $fromEmail, 'from_name' => SITE_NAME ?? 'Mimir']);
