@@ -12,6 +12,54 @@ $user = $auth->getUser();
 $fileClass = new File();
 $db = Database::getInstance()->getConnection();
 
+// Operational metrics (same as dashboard)
+$queuedNotifications = 0;
+$failedNotifications = 0;
+$processingNotifications = 0;
+$smtpFailures24 = 0;
+$failedLogins24 = 0;
+$topFailedIpsSimple = [];
+$workerCount = 0;
+try {
+    $queuedNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'pending'")->fetchColumn();
+    $failedNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'failed'")->fetchColumn();
+    $processingNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'processing'")->fetchColumn();
+} catch (Exception $e) {
+    // ignore if table missing
+}
+
+// SMTP failures (parse last ~1000 lines, best-effort)
+$smtpLogPath = __DIR__ . '/../../storage/logs/smtp_debug.log';
+if (file_exists($smtpLogPath) && is_readable($smtpLogPath)) {
+    $out = trim(shell_exec("tail -n 1000 " . escapeshellarg($smtpLogPath) . " 2>/dev/null"));
+    if ($out !== '') {
+        $lines = explode("\n", $out);
+        foreach ($lines as $line) {
+            if (strpos($line, '535') !== false) {
+                if (preg_match('/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/', $line, $m)) {
+                    $ts = strtotime($m[1]);
+                    if ($ts !== false && $ts >= time() - 86400) $smtpFailures24++;
+                } else {
+                    $smtpFailures24++;
+                }
+            }
+        }
+    }
+}
+
+try {
+    $failedLogins24 = (int)$db->query("SELECT COUNT(*) FROM security_events WHERE event_type = 'failed_login' AND created_at >= (NOW() - INTERVAL 24 HOUR)")->fetchColumn();
+    $stmt = $db->prepare("SELECT ip_address, COUNT(*) as attempts FROM security_events WHERE event_type = 'failed_login' AND created_at >= (NOW() - INTERVAL 24 HOUR) GROUP BY ip_address ORDER BY attempts DESC LIMIT 5");
+    $stmt->execute();
+    $topFailedIpsSimple = $stmt->fetchAll();
+} catch (Exception $e) {
+    $failedLogins24 = 0;
+}
+
+// worker count via pgrep
+$wc = trim(shell_exec("pgrep -af notification_worker.php | wc -l 2>/dev/null"));
+if (is_numeric($wc)) $workerCount = (int)$wc;
+
 // Read last lines of smtp log (best-effort)
 $smtpTail = '';
 $smtpLog = __DIR__ . '/../../storage/logs/smtp_debug.log';
@@ -54,6 +102,62 @@ renderHeader('Operaciones', $user, $auth);
 ?>
 <div class="content">
     <h2>Operaciones</h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; margin-bottom:1rem;">
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Cola de Notificaciones</div>
+                <div class="admin-stat-value"><?php echo number_format($queuedNotifications); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-hourglass-start"></i> En cola</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-bell"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Notificaciones Fallidas (24h)</div>
+                <div class="admin-stat-value"><?php echo number_format($failedNotifications); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-exclamation-triangle"></i> Intentos fallidos</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-bell-slash"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Errores SMTP (24h)</div>
+                <div class="admin-stat-value"><?php echo number_format($smtpFailures24); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-envelope-open-text"></i> Autenticación</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-envelope"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Intentos Login Fallidos (24h)</div>
+                <div class="admin-stat-value"><?php echo number_format($failedLogins24); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-user-lock"></i> Seguridad</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-user-shield"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Archivos Huérfanos</div>
+                <div class="admin-stat-value"><?php echo number_format($orphanCount); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-question-circle"></i> Revisar</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-file-alt"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Workers</div>
+                <div class="admin-stat-value"><?php echo number_format($workerCount); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-play-circle"></i> notification_worker</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-server"></i></div>
+        </div>
+    </div>
+
     <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
         <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="btn btn-outline">Ver Archivos Huérfanos (<?php echo $orphanCount; ?>)</a>
         <a href="<?php echo BASE_URL; ?>/admin/logs.php" class="btn btn-outline">Ver Registros</a>
