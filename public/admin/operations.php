@@ -9,6 +9,47 @@ $auth = new Auth();
 $auth->requireAdmin();
 $user = $auth->getUser();
 
+$logger = new Logger();
+
+// Handle admin POST actions (CSRF protected)
+$actionResult = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!$auth->validateCsrfToken($token)) {
+        $actionResult = ['type' => 'error', 'msg' => 'CSRF token inválido'];
+    } else {
+        $act = $_POST['action'];
+        try {
+            if ($act === 'retry_failed') {
+                $stmt = $db->prepare("UPDATE notification_jobs SET status = 'pending', attempts = 0, last_error = NULL WHERE status = 'failed'");
+                $stmt->execute();
+                $count = $stmt->rowCount();
+                $logger->log($user['id'], 'admin_retry_failed_notifications', 'operations', null, "Requeued $count failed notification jobs");
+                $actionResult = ['type' => 'success', 'msg' => "Reencolados $count jobs fallidos"];
+            } elseif ($act === 'clear_failed') {
+                $stmt = $db->prepare("DELETE FROM notification_jobs WHERE status = 'failed'");
+                $stmt->execute();
+                $count = $stmt->rowCount();
+                $logger->log($user['id'], 'admin_clear_failed_notifications', 'operations', null, "Deleted $count failed notification jobs");
+                $actionResult = ['type' => 'success', 'msg' => "Eliminados $count jobs fallidos"];
+            } elseif ($act === 'restart_worker') {
+                // Best-effort restart via shell; requires sudoers or suitable permissions
+                $cmd = "sudo pkill -f notification_worker.php || true; sudo -u www-data nohup php /opt/Mimir/tools/notification_worker.php > /var/log/mimir_notification_worker.log 2>&1 & echo restarted";
+                $out = shell_exec($cmd . " 2>&1");
+                $logger->log($user['id'], 'admin_restart_worker', 'operations', null, "Restart worker: " . trim($out));
+                $actionResult = ['type' => 'success', 'msg' => 'Intentado reiniciar worker: ' . trim($out)];
+            } else {
+                $actionResult = ['type' => 'error', 'msg' => 'Acción desconocida'];
+            }
+        } catch (Exception $e) {
+            $actionResult = ['type' => 'error', 'msg' => 'Error al ejecutar la acción: ' . $e->getMessage()];
+        }
+        // Refresh some metrics after action
+        try { $queuedNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'pending'")->fetchColumn(); } catch (Exception $e) {}
+        try { $failedNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'failed'")->fetchColumn(); } catch (Exception $e) {}
+    }
+}
+
 $fileClass = new File();
 $db = Database::getInstance()->getConnection();
 
@@ -158,12 +199,30 @@ renderHeader('Operaciones', $user, $auth);
         </div>
     </div>
 
-    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; align-items:center;">
         <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="btn btn-outline">Ver Archivos Huérfanos (<?php echo $orphanCount; ?>)</a>
         <a href="<?php echo BASE_URL; ?>/admin/logs.php" class="btn btn-outline">Ver Registros</a>
         <a href="?view=smtp" class="btn btn-outline">Ver SMTP Log</a>
         <a href="?view=notifications" class="btn btn-outline">Ver Notification Jobs</a>
         <a href="?view=failed_logins" class="btn btn-outline">Ver Fallos de Login (24h)</a>
+
+        <form method="POST" style="display:inline-block; margin-left:1rem;" onsubmit="return confirm('¿Confirmas reintentar todos los jobs fallidos?');">
+            <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
+            <input type="hidden" name="action" value="retry_failed">
+            <button class="btn btn-primary" type="submit">Reintentar jobs fallidos</button>
+        </form>
+
+        <form method="POST" style="display:inline-block;" onsubmit="return confirm('¿Confirmas eliminar todos los jobs fallidos? Esta acción es irreversible.');">
+            <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
+            <input type="hidden" name="action" value="clear_failed">
+            <button class="btn btn-danger" type="submit">Eliminar jobs fallidos</button>
+        </form>
+
+        <form method="POST" style="display:inline-block;" onsubmit="return confirm('¿Confirmas reiniciar el worker de notificaciones?');">
+            <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
+            <input type="hidden" name="action" value="restart_worker">
+            <button class="btn btn-accent" type="submit">Reiniciar worker</button>
+        </form>
     </div>
 
     <?php if (isset($_GET['view']) && $_GET['view'] === 'smtp'): ?>
