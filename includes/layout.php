@@ -333,6 +333,44 @@ function renderPageStart($title, $currentPage, $isAdmin = false) {
         }
         </style>
         <style>
+        /* Shared admin stat card styles (used by dashboard and operations) */
+        .admin-stat-card {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .admin-dashboard .card-header {
+            background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+            color: white;
+        }
+        .admin-stat-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 16px 32px rgba(0,0,0,0.10);
+        }
+        .admin-stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #4a90e2, #50c878, #ffa500, #9b59b6);
+            background-size: 200% 100%;
+            animation: mimic-shimmer 3s infinite;
+        }
+        @keyframes mimic-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .admin-stat-icon { font-size: 3.5rem; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); opacity: 0.08; }
+        .admin-stat-card:hover .admin-stat-icon { opacity: 0.15; transform: translateY(-50%) scale(1.12) rotate(5deg); }
+        .admin-stat-value { font-size: 2.2rem; font-weight: 800; background: linear-gradient(135deg, rgba(74,144,226,0.95) 0%, rgba(80,200,120,0.9) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; margin-bottom: 0.25rem; }
+        .admin-stat-label { font-size: 0.9375rem; color: var(--text-main); font-weight: 600; margin-bottom: 0.25rem; }
+        .admin-stat-sublabel { font-size: 0.8125rem; color: var(--text-muted); font-weight: 500; }
+        </style>
+        <style>
         /* Compact-mode transition and global compact styles (applies when user enables compact view) */
         .compact-mode .users-table-compact th,
         .compact-mode .users-table-compact td {
