@@ -85,6 +85,72 @@ $inactiveUsers = $userClass->getMostInactiveUsers(10, $sortBy, $sortDir);
 // Recent activity
 $recentActivity = $logger->getActivityLogs([], 10, 0);
 
+// Operational metrics
+$queuedNotifications = 0;
+$failedNotifications = 0;
+$processingNotifications = 0;
+$smtpFailures24 = 0;
+$failedLogins24 = 0;
+$topFailedIps = [];
+$orphanFilesCount = 0;
+$workerCount = 0;
+try {
+    // Notification job counts (if table exists)
+    $queuedNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'pending'")->fetchColumn();
+    $failedNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'failed'")->fetchColumn();
+    $processingNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'processing'")->fetchColumn();
+} catch (Exception $e) {
+    // Table may not exist on older installs
+}
+
+// Count SMTP failures in last 24 hours by parsing smtp_debug.log (best-effort)
+$smtpLogPath = __DIR__ . '/../../storage/logs/smtp_debug.log';
+if (file_exists($smtpLogPath) && is_readable($smtpLogPath)) {
+    $fp = fopen($smtpLogPath, 'r');
+    if ($fp) {
+        while (($line = fgets($fp)) !== false) {
+            // Look for '535' response within ISO timestamped lines
+            if (strpos($line, '535') !== false) {
+                // Try to extract ISO timestamp at start
+                if (preg_match('/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/', $line, $m)) {
+                    $ts = strtotime($m[1]);
+                    if ($ts !== false && $ts >= time() - 86400) {
+                        $smtpFailures24++;
+                    }
+                } else {
+                    // If no timestamp, count conservatively
+                    $smtpFailures24++;
+                }
+            }
+        }
+        fclose($fp);
+    }
+}
+
+try {
+    // Failed login attempts in last 24h
+    $failedLogins24 = (int)$db->query("SELECT COUNT(*) FROM security_events WHERE event_type = 'failed_login' AND created_at >= (NOW() - INTERVAL 24 HOUR)")->fetchColumn();
+
+    // Top failed login IPs
+    $stmt = $db->prepare("SELECT ip_address, COUNT(*) as attempts FROM security_events WHERE event_type = 'failed_login' AND created_at >= (NOW() - INTERVAL 24 HOUR) GROUP BY ip_address ORDER BY attempts DESC LIMIT 5");
+    $stmt->execute();
+    $topFailedIps = $stmt->fetchAll();
+} catch (Exception $e) {
+    // security_events may not exist
+}
+
+try {
+    $orphanFilesCount = (int)$fileClass->countOrphans();
+} catch (Exception $e) {
+    $orphanFilesCount = 0;
+}
+
+// Count running notification_worker processes (best-effort via shell)
+$workerCount = 0;
+$proc = trim(shell_exec("pgrep -af notification_worker.php | wc -l 2>/dev/null"));
+if (is_numeric($proc)) $workerCount = (int)$proc;
+
+
 // Top users by storage
 $topUsers = $db->query("
     SELECT u.username, u.full_name, 
@@ -391,6 +457,63 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
         </div>
     </div>
     
+    <!-- Operational Overview -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Cola de Notificaciones</div>
+                <div class="admin-stat-value"><?php echo number_format($queuedNotifications); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-hourglass-start"></i> En cola</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-bell"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Notificaciones Fallidas (24h)</div>
+                <div class="admin-stat-value"><?php echo number_format($failedNotifications); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-exclamation-triangle"></i> Intentos fallidos</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-bell-slash"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Errores SMTP (24h)</div>
+                <div class="admin-stat-value"><?php echo number_format($smtpFailures24); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-envelope-open-text"></i> Autenticación</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-envelope"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Intentos Login Fallidos (24h)</div>
+                <div class="admin-stat-value"><?php echo number_format($failedLogins24); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-user-lock"></i> Seguridad</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-user-shield"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Archivos Huérfanos</div>
+                <div class="admin-stat-value"><?php echo number_format($orphanFilesCount); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-question-circle"></i> Revisar</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-file-alt"></i></div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Workers</div>
+                <div class="admin-stat-value"><?php echo number_format($workerCount); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-play-circle"></i> notification_worker</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-server"></i></div>
+        </div>
+    </div>
+
     <!-- Gráficos -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
         <div class="card">
