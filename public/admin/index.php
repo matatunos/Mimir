@@ -42,14 +42,31 @@ try {
 }
 
 // Advanced statistics
-// Get period from query parameter (default 30 days)
-$period = isset($_GET['period']) ? (int)$_GET['period'] : 30;
-$allowedPeriods = [30, 90, 365, 730, 1095]; // 30 días, 3 meses, 1 año, 2 años, 3 años
+// Get period from query parameter (default 7 days)
+$period = isset($_GET['period']) ? (int)$_GET['period'] : 7;
+$allowedPeriods = [7]; // only last week fixed shortcut
 if (!in_array($period, $allowedPeriods)) {
     $period = 30;
 }
 
-$dailyUploads = $userClass->getSystemDailyUploads($period);
+$fromDate = $_GET['from'] ?? null;
+$toDate = $_GET['to'] ?? null;
+
+$customRange = false;
+if ($fromDate && $toDate) {
+    $d1 = DateTime::createFromFormat('Y-m-d', $fromDate);
+    $d2 = DateTime::createFromFormat('Y-m-d', $toDate);
+    if ($d1 && $d2 && $d1 <= $d2) {
+        $customRange = true;
+        $dailyUploads = $userClass->getSystemUploadsBetween($fromDate, $toDate);
+        // compute effective period in days
+        $period = (int)$d1->diff($d2)->days + 1;
+    } else {
+        $dailyUploads = $userClass->getSystemDailyUploads($period);
+    }
+} else {
+    $dailyUploads = $userClass->getSystemDailyUploads($period);
+}
 $weeklyUploads = $userClass->getSystemWeeklyUploads(52); // 1 año de semanas
 $activityByDayOfWeek = $userClass->getActivityByDayOfWeek($period);
 $weekendVsWeekday = $userClass->getWeekendVsWeekdayStats($period);
@@ -86,6 +103,64 @@ $dailyLabels = [];
 $dailyCounts = [];
 $dailySizes = [];
 $dailyUsers = [];
+
+// If custom date range selected, build labels between dates, otherwise use period
+if ($customRange) {
+    $dateFormat = 'd/m';
+    if ($period > 90) $dateFormat = 'M y';
+
+    $start = new DateTime($fromDate);
+    $end = new DateTime($toDate);
+    $interval = new DateInterval('P1D');
+    $periodIter = new DatePeriod($start, $interval, $end->modify('+1 day'));
+    foreach ($periodIter as $dt) {
+        $d = $dt->format('Y-m-d');
+        $dailyLabels[] = $dt->format($dateFormat);
+        $dailyCounts[$d] = 0;
+        $dailySizes[$d] = 0;
+        $dailyUsers[$d] = 0;
+    }
+
+    foreach ($dailyUploads as $upload) {
+        $dailyCounts[$upload['date']] = (int)$upload['count'];
+        $dailySizes[$upload['date']] = (float)$upload['total_size'];
+        $dailyUsers[$upload['date']] = (int)$upload['unique_users'];
+    }
+} else {
+    // Date format depends on period
+    $dateFormat = 'd/m';
+    if ($period > 90) {
+        $dateFormat = 'M y'; // Short month + year for long periods
+    }
+
+    for ($i = $period - 1; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-$i days"));
+        $dailyLabels[] = date($dateFormat, strtotime($date));
+        $dailyCounts[$date] = 0;
+        $dailySizes[$date] = 0;
+        $dailyUsers[$date] = 0;
+    }
+
+    foreach ($dailyUploads as $upload) {
+        $dailyCounts[$upload['date']] = (int)$upload['count'];
+        $dailySizes[$upload['date']] = (float)$upload['total_size'];
+        $dailyUsers[$upload['date']] = (int)$upload['unique_users'];
+    }
+}
+$dailyCounts = [];
+$dailySizes = [];
+$dailyUsers = [];
+
+// Totals for the last week (7 days)
+$lastWeekUploadsRaw = $userClass->getSystemDailyUploads(7);
+$lastWeekCount = 0;
+$lastWeekSize = 0;
+$lastWeekUsers = 0;
+foreach ($lastWeekUploadsRaw as $up) {
+    $lastWeekCount += (int)$up['count'];
+    $lastWeekSize += (float)$up['total_size'];
+    $lastWeekUsers += (int)$up['unique_users'];
+}
 
 // Date format depends on period
 $dateFormat = 'd/m';
@@ -272,6 +347,15 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
         
         <div class="admin-stat-card">
             <div style="position: relative; z-index: 1;">
+                <div class="admin-stat-label">Subidas (Última semana)</div>
+                <div class="admin-stat-value"><?php echo number_format($lastWeekCount); ?></div>
+                <div class="admin-stat-sublabel"><i class="fas fa-database"></i> <?php echo number_format(round($lastWeekSize / 1024 / 1024, 2)); ?> MB</div>
+            </div>
+            <div class="admin-stat-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div style="position: relative; z-index: 1;">
                 <div class="admin-stat-label">Almacenamiento</div>
                 <div class="admin-stat-value"><?php echo number_format($storageGB, 1); ?></div>
                 <div class="admin-stat-sublabel">GB utilizados</div>
@@ -312,12 +396,15 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
         <div class="card">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                 <h3 class="card-title"><i class="fas fa-chart-area"></i> Actividad de Subidas</h3>
-                <div class="period-selector" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <button class="period-btn <?php echo $period === 30 ? 'active' : ''; ?>" data-period="30">30 días</button>
-                    <button class="period-btn <?php echo $period === 90 ? 'active' : ''; ?>" data-period="90">3 meses</button>
-                    <button class="period-btn <?php echo $period === 365 ? 'active' : ''; ?>" data-period="365">1 año</button>
-                    <button class="period-btn <?php echo $period === 730 ? 'active' : ''; ?>" data-period="730">2 años</button>
-                    <button class="period-btn <?php echo $period === 1095 ? 'active' : ''; ?>" data-period="1095">3 años</button>
+                <div class="period-selector" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <button class="period-btn <?php echo $period === 7 ? 'active' : ''; ?>" data-period="7">Últ. semana</button>
+                    <form method="GET" action="" style="display:inline-flex; gap:0.4rem; align-items:center; margin-left:0.5rem;">
+                        <label style="font-size:0.85rem; color:var(--text-muted);">Desde</label>
+                        <input type="date" name="from" value="<?php echo htmlspecialchars($fromDate ?? ''); ?>" style="padding:0.25rem; border-radius:4px; border:1px solid var(--border-color);">
+                        <label style="font-size:0.85rem; color:var(--text-muted);">Hasta</label>
+                        <input type="date" name="to" value="<?php echo htmlspecialchars($toDate ?? ''); ?>" style="padding:0.25rem; border-radius:4px; border:1px solid var(--border-color);">
+                        <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Aplicar</button>
+                    </form>
                 </div>
             </div>
             <div class="card-body">

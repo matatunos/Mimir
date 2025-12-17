@@ -735,6 +735,22 @@ class User {
             return [];
         }
     }
+
+    /**
+     * Get system-wide uploads between two dates (inclusive)
+     * @param string $from YYYY-MM-DD
+     * @param string $to YYYY-MM-DD
+     */
+    public function getSystemUploadsBetween($from, $to) {
+        try {
+            $stmt = $this->db->prepare("\n                SELECT\n                    DATE(created_at) as date,\n                    COUNT(*) as count,\n                    SUM(file_size) as total_size,\n                    COUNT(DISTINCT user_id) as unique_users\n                FROM files\n                WHERE DATE(created_at) BETWEEN ? AND ?\n                GROUP BY DATE(created_at)\n                ORDER BY date ASC\n            ");
+            $stmt->execute([$from, $to]);
+            return $stmt->fetchAll();
+        } catch (Exception $e) {
+            error_log("System uploads between error: " . $e->getMessage());
+            return [];
+        }
+    }
     
     /**
      * Get system-wide file type distribution
