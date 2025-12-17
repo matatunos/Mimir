@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/User.php';
 require_once __DIR__ . '/../../classes/Logger.php';
+require_once __DIR__ . '/../../classes/Config.php';
 
 $auth = new Auth();
 $auth->requireLogin();
@@ -15,31 +16,53 @@ $logger = new Logger();
 $error = '';
 $success = '';
 
+$config = new Config();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Token de seguridad inválido';
-    } elseif ($user['is_ldap']) {
-        $error = 'Los usuarios LDAP no pueden cambiar su contraseña aquí';
-    } else {
-        $currentPassword = $_POST['current_password'] ?? '';
-        $newPassword = $_POST['new_password'] ?? '';
-        $confirmPassword = $_POST['confirm_password'] ?? '';
-        
-        if (empty($currentPassword) || empty($newPassword)) {
-            $error = 'Todos los campos son obligatorios';
-        } elseif ($newPassword !== $confirmPassword) {
-            $error = 'Las contraseñas nuevas no coinciden';
-        } elseif (strlen($newPassword) < 6) {
-            $error = 'La contraseña debe tener al menos 6 caracteres';
-        } elseif (!password_verify($currentPassword, $user['password'])) {
-            $error = 'La contraseña actual es incorrecta';
+    // Toggle global config protection (admin only)
+    if (isset($_POST['toggle_config_protection_action']) && $user['role'] === 'admin') {
+        $token = $_POST['csrf_token'] ?? '';
+        if (!$auth->validateCsrfToken($token)) {
+            $error = 'Token de seguridad inválido';
         } else {
-            try {
-                $userClass->changePassword($user['id'], $newPassword);
-                $logger->log($user['id'], 'password_change', 'user', $user['id'], 'Usuario cambió su contraseña');
-                $success = 'Contraseña actualizada correctamente';
-            } catch (Exception $e) {
-                $error = $e->getMessage();
+            $val = ($_POST['toggle_config_protection_action'] === 'enable') ? '1' : '0';
+            $ok = $config->set('enable_config_protection', $val, 'boolean');
+            if ($ok) {
+                $config->reload();
+                $logger->log($user['id'], 'toggle_config_protection', 'config', null, ($val === '1' ? 'enabled' : 'disabled'));
+                $success = 'Protección de configuración actualizada';
+                // refresh user object in session if needed
+            } else {
+                $error = 'No se pudo actualizar la configuración';
+            }
+        }
+    } else {
+        // Password change flow
+        if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
+            $error = 'Token de seguridad inválido';
+        } elseif ($user['is_ldap']) {
+            $error = 'Los usuarios LDAP no pueden cambiar su contraseña aquí';
+        } else {
+            $currentPassword = $_POST['current_password'] ?? '';
+            $newPassword = $_POST['new_password'] ?? '';
+            $confirmPassword = $_POST['confirm_password'] ?? '';
+            
+            if (empty($currentPassword) || empty($newPassword)) {
+                $error = 'Todos los campos son obligatorios';
+            } elseif ($newPassword !== $confirmPassword) {
+                $error = 'Las contraseñas nuevas no coinciden';
+            } elseif (strlen($newPassword) < 6) {
+                $error = 'La contraseña debe tener al menos 6 caracteres';
+            } elseif (!password_verify($currentPassword, $user['password'])) {
+                $error = 'La contraseña actual es incorrecta';
+            } else {
+                try {
+                    $userClass->changePassword($user['id'], $newPassword);
+                    $logger->log($user['id'], 'password_change', 'user', $user['id'], 'Usuario cambió su contraseña');
+                    $success = 'Contraseña actualizada correctamente';
+                } catch (Exception $e) {
+                    $error = $e->getMessage();
+                }
             }
         }
     }
@@ -118,6 +141,28 @@ renderHeader('Mi Perfil', $user);
                     
                     <button type="submit" class="btn btn-primary">Actualizar Contraseña</button>
                 </form>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <?php if ($user['role'] === 'admin'): ?>
+        <div class="card" style="margin-top:1.5rem; border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+            <div class="card-header" style="padding: 1.5rem;">
+                <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem; margin: 0;"><i class="fas fa-shield-alt"></i> Protección de Configuración</h2>
+            </div>
+            <div class="card-body">
+                <?php
+                    $currentProtection = $config->get('enable_config_protection', '0') ? true : false;
+                ?>
+                <p>Estado actual: <strong><?php echo $currentProtection ? 'Activada' : 'Desactivada'; ?></strong></p>
+                <form method="POST" style="display:inline-block; margin-right:0.5rem;">
+                    <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
+                    <input type="hidden" name="toggle_config_protection_action" value="<?php echo $currentProtection ? 'disable' : 'enable'; ?>">
+                    <button type="submit" class="btn <?php echo $currentProtection ? 'btn-danger' : 'btn-primary'; ?>">
+                        <?php echo $currentProtection ? 'Desactivar Protección' : 'Activar Protección'; ?>
+                    </button>
+                </form>
+                <p style="color:var(--text-muted); margin-top:0.75rem;">Al activar, las claves marcadas como sistema no podrán editarse desde la UI.</p>
             </div>
         </div>
         <?php endif; ?>

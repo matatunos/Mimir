@@ -62,10 +62,7 @@ function renderHeader($title, $user, $auth = null) {
                     $globalProtection = $config->get('enable_config_protection', '0');
                     ?>
                     <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
-                    <a href="#" onclick="toggleConfigProtection(event, <?php echo $globalProtection ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
-                        <i class="fas fa-shield-alt"></i>
-                        <?php echo $globalProtection ? 'Desactivar protección de configuración' : 'Activar protección de configuración'; ?>
-                    </a>
+                    <!-- Config protection toggle removed from menu; control moved to user profile -->
                 <?php endif; ?>
                 <a href="<?php echo BASE_URL; ?>/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color); text-decoration: none;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
             </div>
@@ -84,10 +81,7 @@ function renderHeader($title, $user, $auth = null) {
             $globalProtection = $config->get('enable_config_protection', '0');
             ?>
             <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
-            <a href="#" onclick="toggleConfigProtection(event, <?php echo $globalProtection ? 'false' : 'true'; ?>, '<?php echo $csrfToken; ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;">
-                <i class="fas fa-shield-alt"></i>
-                <?php echo $globalProtection ? 'Desactivar protección de configuración' : 'Activar protección de configuración'; ?>
-            </a>
+            <!-- Config protection toggle removed from menu; control moved to user profile -->
         <?php endif; ?>
         <a href="<?php echo BASE_URL; ?>/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color); text-decoration: none;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
     </div>
