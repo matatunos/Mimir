@@ -147,7 +147,6 @@ if ((isset($_REQUEST['action']) && $_REQUEST['action'] === 'test_smtp')) {
 $defaults = [
     // General / branding
     'site_name' => ['value' => 'Mimir', 'type' => 'string'],
-    'enable_config_protection' => ['value' => '0', 'type' => 'boolean'],
     'site_logo' => ['value' => '', 'type' => 'string'],
     'brand_primary_color' => ['value' => '#667eea', 'type' => 'string'],
     'brand_secondary_color' => ['value' => '#764ba2', 'type' => 'string'],
@@ -251,7 +250,6 @@ if ($db) {
 }
 
 // Description for global config protection toggle
-$descs['enable_config_protection'] = 'Si está activado, las claves marcadas como sistema (is_system) no serán editables desde la UI. Por defecto está desactivado.';
 $descs['notify_user_creation_enabled'] = 'Si está activado, el sistema enviará notificaciones cuando se cree un usuario vía invitación.';
 $descs['storage_uploads_path'] = 'Ruta física absoluta en el servidor donde se almacenan los ficheros subidos por los usuarios. Útil para montar un disco diferente (ej.: /mnt/storage/uploads).';
 $descs['notify_user_creation_emails'] = 'Lista separada por comas de direcciones de correo que recibirán notificaciones cuando se cree un usuario (por ejemplo: ops@example.com, infra@example.com). Déjalo vacío para ningún correo adicional.';
