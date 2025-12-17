@@ -4,10 +4,14 @@ require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/File.php';
+require_once __DIR__ . '/../../classes/Logger.php';
 
 $auth = new Auth();
 $auth->requireAdmin();
 $user = $auth->getUser();
+
+$fileClass = new File();
+$db = Database::getInstance()->getConnection();
 
 $logger = new Logger();
 
@@ -49,9 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         try { $failedNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'failed'")->fetchColumn(); } catch (Exception $e) {}
     }
 }
-
-$fileClass = new File();
-$db = Database::getInstance()->getConnection();
 
 // Operational metrics (same as dashboard)
 $queuedNotifications = 0;
