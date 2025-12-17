@@ -10,6 +10,7 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./database/complete_schema.sql:/docker-entrypoint-initdb.d/complete_schema.sql:ro
+      - ./docker/mysql/mimir.cnf:/etc/mysql/conf.d/mimir.cnf:ro
     ports:
       - "3307:3306"
 

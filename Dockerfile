@@ -37,6 +37,19 @@ RUN printf '%s\n' "<Directory ${APACHE_DOCUMENT_ROOT}>" \
 RUN printf '%s\n' "ServerName localhost" > /etc/apache2/conf-available/servername.conf \
  && a2enconf servername
 
+# Copy PHP tuning for lower memory usage
+COPY docker/php/00-mimir.ini /usr/local/etc/php/conf.d/00-mimir.ini
+
+# Tweak Apache MPM (prefork) to use fewer children for low-traffic instances
+RUN printf '%s
+' "<IfModule mpm_prefork_module>" \
+    "    StartServers             1" \
+    "    MinSpareServers          1" \
+    "    MaxSpareServers          2" \
+    "    MaxRequestWorkers        10" \
+    "    MaxConnectionsPerChild  1000" \
+    "</IfModule>" > /etc/apache2/mods-available/mpm_prefork.conf || true
+
 # Ensure permissions for storage and uploads
 RUN mkdir -p /var/www/html/storage /var/www/html/storage/uploads \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/public || true
