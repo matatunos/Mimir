@@ -601,6 +601,7 @@ CREATE TABLE `users` (
   `force_password_change` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Require user to change password on next login',
   `trusted_devices` text DEFAULT NULL COMMENT 'JSON array of trusted device hashes',
   `last_login` datetime DEFAULT NULL,
+  `locked_until` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
