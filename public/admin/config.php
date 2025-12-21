@@ -672,7 +672,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $willHaveUser = array_key_exists('smtp_username', $updates) ? trim((string)$updates['smtp_username']) : trim((string)$configClass->get('smtp_username'));
                 $willHavePass = array_key_exists('smtp_password', $updates) ? trim((string)$updates['smtp_password']) : trim((string)$configClass->get('smtp_password'));
                 if ($willHaveUser !== '' && $willHavePass === '') {
-                    throw new Exception('Si se configura `smtp_username`, debe proporcionarse también `smtp_password`.');
+                    // Previously this aborted the save. Relax the requirement: allow saving a username without a password.
+                    // Log the condition so admins can audit and investigate if needed.
+                    try {
+                        $logger->log($user['id'] ?? null, 'email_config_partial', 'email', null, 'SMTP username configured without password; saving without authentication', ['smtp_user' => $willHaveUser]);
+                    } catch (Throwable $e) {
+                        // best-effort logging, do not interrupt config save
+                    }
                 }
 
                 foreach ($updates as $key => $value) {
