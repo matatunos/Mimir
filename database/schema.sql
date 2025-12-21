@@ -620,7 +620,7 @@ CREATE TABLE `users` (
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 set autocommit=0;
-INSERT INTO `users` VALUES
+INSERT INTO `users` (`id`,`username`,`email`,`password`,`full_name`,`role`,`is_active`,`is_ldap`,`storage_quota`,`storage_used`,`require_2fa`,`force_password_change`,`trusted_devices`,`last_login`,`locked_until`,`created_at`) VALUES
 (1,'admin','admin@doc.favala.es','$2y$12$Izr2MVWgyhXQaTUMpUYdW.5stZPIPTNtdQjr8KbXVy5qEKw4UPI6S','Administrator','admin',1,0,NULL,0,0,0,NULL,'2025-12-17 20:57:27','2025-12-17 20:56:55','2025-12-17 20:57:27'),
 (3,'nacho','nacho@favala.es','$2y$12$gI.VXCMBqlZOJb.tmMbY6OXKyLn52jys2vll9//Ps8i2AFVreaa/m','ignacio vargas','admin',1,0,10737418240,0,0,0,NULL,NULL,'2025-12-17 21:09:25','2025-12-17 21:09:25');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
