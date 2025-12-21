@@ -463,9 +463,12 @@ EOF
 
 # Function to ensure an admin user exists (username: admin, password: admin123)
 create_admin_user() {
-    ADMIN_EMAIL="${ADMIN_USER}@${APACHE_VHOST}"
+    # Allow providing a full admin email via ADMIN_EMAIL; fallback to ADMIN_USER@APACHE_VHOST
+    if [ -z "${ADMIN_EMAIL:-}" ]; then
+        ADMIN_EMAIL="${ADMIN_USER}@${APACHE_VHOST}"
+    fi
 
-    print_info "Ensuring admin user '${ADMIN_USER}' exists..."
+    print_info "Ensuring admin user '${ADMIN_USER}' exists (email: ${ADMIN_EMAIL})..."
 
     # Generate bcrypt hash using PHP (requires php-cli)
     if ! command -v php &> /dev/null; then

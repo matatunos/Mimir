@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/Config.php';
 require_once __DIR__ . '/Logger.php';
+require_once __DIR__ . '/../includes/database.php';
 
 class Email {
     private $config;
@@ -30,7 +31,6 @@ class Email {
         // Append configured email signature (HTML) to all outgoing HTML emails
         $signature = $this->config->get('email_signature', '');
         if (!empty($signature)) {
-            // Ensure signature is wrapped so it visually separates from the message
             $body = $body . "<div style=\"margin-top:1rem; border-top:1px solid #e0e0e0; padding-top:0.75rem;\">" . $signature . "</div>";
         }
 
@@ -39,6 +39,11 @@ class Email {
             // Still attempt mail() as fallback to avoid silent failures
             $res = $this->sendMailFunction($to, $subject, $body, $options);
             $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to}" : "Failed to send email to {$to}"), ['to' => $to, 'subject' => $subject, 'method' => 'mail']);
+            try {
+                $this->auditEmailEvent($actor, $to, $subject, $res ? 'email_sent' : 'email_failed', 'mail');
+            } catch (Throwable $e) {
+                error_log('Email::send audit error: ' . $e->getMessage());
+            }
             return $res;
         }
 
@@ -47,6 +52,7 @@ class Email {
         $enc = $this->config->get('smtp_encryption', 'tls'); // 'tls'|'ssl'|''
         $user = $this->config->get('smtp_username', '');
         $pass = $this->config->get('smtp_password', '');
+        $pass_decryption_failed = false;
 
         // If password is stored encrypted (ENC:<iv>:<ciphertext>), attempt to decrypt.
         // If decryption fails, set to empty to avoid attempting an invalid auth payload.
@@ -56,21 +62,15 @@ class Email {
                 $pass = $decoded;
             } else {
                 error_log('Email::send: smtp_password decryption failed; treating as empty');
+                // mark the fact so we can provide a clearer, less alarming message later
                 $pass = '';
+                $pass_decryption_failed = true;
             }
-        }
-
-        if (empty($host)) {
-            $res = $this->sendMailFunction($to, $subject, $body, $options);
-            $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to}" : "Failed to send email to {$to}"), ['to' => $to, 'subject' => $subject, 'method' => 'mail']);
-            return $res;
         }
 
         // Prepare headers and message
         $fromEmail = $options['from_email'] ?? $this->config->get('email_from_address', '');
         $fromName = $options['from_name'] ?? $this->config->get('email_from_name', '');
-        if (empty($fromEmail)) $fromEmail = 'noreply@localhost';
-
         $headers = [];
         $headers[] = 'From: ' . ($fromName ? ($fromName . ' <' . $fromEmail . '>') : $fromEmail);
         $headers[] = 'MIME-Version: 1.0';
@@ -79,8 +79,9 @@ class Email {
 
         // Try SMTP with primary settings; on failure attempt fallback to 465/ssl once
         try {
-            $this->smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers);
+            $this->smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $pass_decryption_failed);
             $logger->log($actor, 'email_sent', 'email', null, "Sent email to {$to} via SMTP", ['to' => $to, 'subject' => $subject, 'method' => 'smtp', 'from' => $fromEmail]);
+            try { $this->auditEmailEvent($actor, $to, $subject, 'email_sent', 'smtp'); } catch (Throwable $e) {}
             return true;
         } catch (Exception $e) {
             // Try fallback SSL/465 if not already using it
@@ -88,8 +89,9 @@ class Email {
                 if (!($enc === 'ssl' || $port === 465)) {
                     $fallbackPort = 465;
                     $fallbackEnc = 'ssl';
-                    $this->smtpSendRaw($host, $fallbackPort, $fallbackEnc, $user, $pass, $fromEmail, $to, $subject, $body, $headers);
+                    $this->smtpSendRaw($host, $fallbackPort, $fallbackEnc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $pass_decryption_failed);
                     $logger->log($actor, 'email_sent', 'email', null, "Sent email to {$to} via SMTP fallback", ['to' => $to, 'subject' => $subject, 'method' => 'smtp', 'from' => $fromEmail, 'fallback' => '465/ssl']);
+                    try { $this->auditEmailEvent($actor, $to, $subject, 'email_sent', 'smtp'); } catch (Throwable $e) {}
                     return true;
                 }
             } catch (Exception $e2) {
@@ -99,6 +101,7 @@ class Email {
             // Do not fallback to mail() (sendmail); record failure and return false
             error_log('Email::send SMTP error: ' . $e->getMessage());
             $logger->log($actor, 'email_failed', 'email', null, "Failed to send email to {$to} via SMTP: " . $e->getMessage(), ['to' => $to, 'subject' => $subject, 'method' => 'smtp']);
+            try { $this->auditEmailEvent($actor, $to, $subject, 'email_failed', 'smtp', ['error' => $e->getMessage()]); } catch (Throwable $e) {}
             return false;
         }
     }
@@ -127,7 +130,7 @@ class Email {
      * Perform the low-level SMTP send using provided connection parameters.
      * Throws Exception on failure.
      */
-    private function smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers) {
+    private function smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $pass_decryption_failed = false) {
         $timeout = 10;
         $connected = false;
         $fp = null;
@@ -191,13 +194,17 @@ class Email {
             $this->smtpLog('C: ABORTING - server advertises AUTH but no SMTP password configured for user ' . $user);
             try {
                 $logger = new Logger();
-                $logger->log(null, 'email_config_missing_credentials', 'email', null, 'SMTP server requires AUTH but no password configured', ['smtp_user' => $user, 'host' => $host]);
+                $msg = 'SMTP server requires AUTH but no usable SMTP password configured';
+                if (!empty($pass_decryption_failed)) {
+                    $msg .= ' (encrypted password present but decryption failed; check .secrets/smtp_key)';
+                }
+                $logger->log(null, 'email_config_missing_credentials', 'email', null, $msg, ['smtp_user' => $user, 'host' => $host]);
             } catch (Throwable $e) {
                 error_log('Email::send logger failure: ' . $e->getMessage());
             }
             // Close connection politely
             try { $this->smtpSend($fp, 'QUIT'); @fclose($fp); } catch (Throwable $e) {}
-            throw new Exception('SMTP credentials missing: server requires AUTH but no password configured');
+            throw new Exception($msg);
         }
 
         // MAIL FROM
@@ -245,8 +252,14 @@ class Email {
         $headers .= "MIME-Version: 1.0\r\n";
         $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
         $headers .= "X-Mailer: Mimir PHP/" . phpversion();
-        $res = @mail($to, $subject, $body, $headers);
-        $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to} via mail()" : "Failed to send email to {$to} via mail()"), ['to' => $to, 'subject' => $subject, 'method' => 'mail', 'from' => $fromEmail]);
+            $res = @mail($to, $subject, $body, $headers);
+            $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to} via mail()" : "Failed to send email to {$to} via mail()"), ['to' => $to, 'subject' => $subject, 'method' => 'mail', 'from' => $fromEmail]);
+            try {
+                $this->auditEmailEvent($actor, $to, $subject, $res ? 'email_sent' : 'email_failed', 'mail');
+            } catch (Throwable $e) {
+                error_log('Email::send audit error: ' . $e->getMessage());
+            }
+            return $res;
         return $res;
     }
 
@@ -280,6 +293,53 @@ class Email {
      * Append SMTP debug lines to LOGS_PATH/smtp_debug.log
      * This is a temporary diagnostic helper; avoid logging secrets.
      */
+    /**
+     * Audit email send/failure in the security_events table.
+     * Ensures the enum supports email event types and inserts a row.
+     */
+    private function auditEmailEvent($userId, $to, $subject, $eventType, $method = 'smtp', $details = []) {
+        try {
+            $db = Database::getInstance()->getConnection();
+
+            // Ensure enum contains the event types 'email_sent' and 'email_failed'
+            $stmt = $db->prepare("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'security_events' AND COLUMN_NAME = 'event_type'");
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $colType = $row['COLUMN_TYPE'];
+                if (strpos($colType, "'email_sent'") === false || strpos($colType, "'email_failed'") === false) {
+                    preg_match_all("/'([^']+)'/", $colType, $m);
+                    $values = $m[1];
+                    if (!in_array('email_sent', $values)) $values[] = 'email_sent';
+                    if (!in_array('email_failed', $values)) $values[] = 'email_failed';
+                    $enumList = implode("','", $values);
+                    $sql = "ALTER TABLE security_events MODIFY event_type ENUM('" . $enumList . "') NOT NULL";
+                    $db->exec($sql);
+                }
+            }
+
+            $severity = ($eventType === 'email_sent') ? 'low' : 'medium';
+            $description = ($eventType === 'email_sent') ? "Email sent to {$to}" : "Email failed to send to {$to}";
+            $detailsArr = array_merge(['to' => $to, 'subject' => $subject, 'method' => $method], $details ?: []);
+
+            $ins = $db->prepare("INSERT INTO security_events (event_type, username, severity, user_id, ip_address, user_agent, description, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $ins->execute([
+                $eventType,
+                $to,
+                $severity,
+                $userId,
+                $_SERVER['REMOTE_ADDR'] ?? null,
+                $_SERVER['HTTP_USER_AGENT'] ?? null,
+                $description,
+                json_encode($detailsArr)
+            ]);
+            return true;
+        } catch (Exception $e) {
+            error_log('Email::auditEmailEvent error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     private function smtpLog($msg) {
         try {
             $path = defined('LOGS_PATH') ? LOGS_PATH : (dirname(__DIR__) . '/storage/logs');

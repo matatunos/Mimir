@@ -279,8 +279,11 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
                     <input type="checkbox" id="remember" name="remember">
                     <label for="remember">Recordarme</label>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;">Iniciar Sesión</button>
-            </form>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;">Iniciar Sesión</button>
+                    <?php if ($configClass->get('enable_email', '0')): ?>
+                        <p style="margin-top:0.75rem; text-align:center;"><a href="<?php echo BASE_URL; ?>/password_reset_request.php">¿Olvidaste tu contraseña?</a></p>
+                    <?php endif; ?>
+                </form>
         </div>
     </div>
 </body>
