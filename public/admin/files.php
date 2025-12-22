@@ -539,10 +539,10 @@ renderHeader('Gestión de Archivos', $user);
                                     <td style="white-space: nowrap;"><?php echo date('d/m/Y H:i', strtotime($file['created_at'])); ?></td>
                                     <td style="text-align: right; white-space: nowrap;">
                                         <div style="display:flex; gap:0.35rem; justify-content:flex-end;">
-                                            <a href="<?php echo BASE_URL; ?>/admin/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-outline" title="Descargar" target="_blank" rel="noopener">
+                                            <a href="<?php echo BASE_URL; ?>/admin/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-outline" title="<?php echo t('download'); ?>" target="_blank" rel="noopener">
                                                 <i class="fas fa-download"></i>
                                             </a>
-                                            <button type="button" class="btn btn-sm btn-outline" onclick="adminToggleShare(<?php echo $file['id']; ?>, <?php echo $file['is_shared'] ? 'false' : 'true'; ?>)" title="<?php echo $file['is_shared'] ? 'Desactivar compartido' : 'Marcar como compartido'; ?>">
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="adminToggleShare(<?php echo $file['id']; ?>, <?php echo $file['is_shared'] ? 'false' : 'true'; ?>)" title="<?php echo $file['is_shared'] ? t('unshare_selected') : t('mark_shared_selected'); ?>">
                                                 <?php echo $file['is_shared'] ? '<i class="fas fa-ban"></i>' : '<i class="fas fa-share"></i>'; ?>
                                             </button>
                                             <button type="button" class="btn btn-sm btn-danger" onclick="adminDeleteFile(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars(addslashes($file['original_name'])); ?>')" title="Eliminar">
@@ -561,13 +561,13 @@ renderHeader('Gestión de Archivos', $user);
                 <?php if ($totalPages > 1): ?>
                 <div style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem;">
                     <?php if ($page > 1): ?>
-                        <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="btn btn-secondary">← Anterior</a>
+                            <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="btn btn-secondary"><?php echo t('previous'); ?></a>
                     <?php endif; ?>
                     
-                    <span style="padding: 0.5rem 1rem;">Página <?php echo $page; ?> de <?php echo $totalPages; ?></span>
+                    <span style="padding: 0.5rem 1rem;"><?php echo sprintf(t('page_of'), $page, $totalPages); ?></span>
                     
                     <?php if ($page < $totalPages): ?>
-                        <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="btn btn-secondary">Siguiente →</a>
+                        <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="btn btn-secondary"><?php echo t('next'); ?></a>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
@@ -578,21 +578,21 @@ renderHeader('Gestión de Archivos', $user);
 
 <!-- Bulk Actions Bar -->
 <div class="bulk-actions-bar" id="bulkActionsBar">
-    <span id="selectedCount">0</span> archivos seleccionados
+    <span id="selectedCount">0</span> <?php echo t('selected_files'); ?>
     <button type="button" class="btn btn-danger" onclick="confirmBulkAction('delete')">
-        <i class="fas fa-trash"></i> Eliminar
+        <i class="fas fa-trash"></i> <?php echo t('delete'); ?>
     </button>
     <button type="button" class="btn btn-warning" onclick="confirmBulkAction('unshare')">
-        <i class="fas fa-ban"></i> Dejar de Compartir
+        <i class="fas fa-ban"></i> <?php echo t('unshare_selected'); ?>
     </button>
     <button type="button" class="btn btn-success" onclick="confirmBulkAction('share')">
-        <i class="fas fa-share"></i> Marcar como Compartido
+        <i class="fas fa-share"></i> <?php echo t('mark_shared_selected'); ?>
     </button>
     <button type="button" class="btn btn-primary" onclick="confirmBulkAction('download')">
-        <i class="fas fa-download"></i> Descargar seleccionados
+        <i class="fas fa-download"></i> <?php echo t('download_selected'); ?>
     </button>
     <button type="button" class="btn btn-info" onclick="openReassignModal()">
-        <i class="fas fa-user-edit"></i> Reasignar
+        <i class="fas fa-user-edit"></i> <?php echo t('reassign'); ?>
     </button>
     <button type="button" class="btn btn-secondary" onclick="clearSelection()">
         <i class="fas fa-times"></i> <?php echo htmlspecialchars(t('cancel')); ?>
@@ -600,14 +600,14 @@ renderHeader('Gestión de Archivos', $user);
 </div>
 
 <!-- Processing overlay -->
-<div id="processingOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:2147483647; align-items:center; justify-content:center;">
+    <div id="processingOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:2147483647; align-items:center; justify-content:center;">
     <style>
         .mimir-spinner { width:48px; height:48px; border:6px solid rgba(255,255,255,0.16); border-top-color: #fff; border-radius:50%; animation: mimir-spin 1s linear infinite; margin:0 auto 0.5rem; }
         @keyframes mimir-spin { to { transform: rotate(360deg); } }
     </style>
     <div style="background:transparent; color:white; text-align:center;">
         <div class="mimir-spinner" aria-hidden="true"></div>
-        <div id="processingMessage" style="font-size:1.125rem;">Procesando, por favor espere...</div>
+        <div id="processingMessage" style="font-size:1.125rem;"><?php echo t('processing_wait'); ?></div>
     </div>
 </div>
 
@@ -759,7 +759,7 @@ function confirmBulkAction(action) {
 
 // Admin single-file actions using the existing bulk form
 function adminToggleShare(fileId, makeShared) {
-    if (!confirm(makeShared ? '¿Marcar este archivo como compartido?' : '¿Quitar compartición de este archivo?')) return;
+    if (!confirm(makeShared ? <?php echo json_encode(t('confirm_mark_shared')); ?> : <?php echo json_encode(t('confirm_unshare_file')); ?>)) return;
     const form = document.getElementById('bulkForm');
     const input = document.getElementById('bulkAction');
     // Clear existing file_ids inputs
@@ -775,7 +775,7 @@ function adminToggleShare(fileId, makeShared) {
 }
 
 function adminDeleteFile(fileId, fileName) {
-    if (!confirm(`¿Eliminar "${fileName}"? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(<?php echo json_encode(t('confirm_delete_file_named')); ?>.replace('%s', fileName))) return;
     const form = document.getElementById('bulkForm');
     const input = document.getElementById('bulkAction');
     const existing = form.querySelectorAll('input[name="file_ids[]"]');
@@ -793,16 +793,16 @@ function adminDeleteFile(fileId, fileName) {
 <!-- Reassign Modal -->
 <div id="reassignModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
     <div id="reassignModalContent" style="background:white; width:520px; max-width:95%; border-radius:8px; padding:1rem; box-shadow:0 8px 32px rgba(0,0,0,0.3); position:relative; z-index:2147483647; pointer-events:auto;">
-        <h3 style="margin-top:0;">Reasignar archivos</h3>
-        <p id="reassignCount">0 archivos seleccionados</p>
+        <h3 style="margin-top:0;"><?php echo t('reassign_files'); ?></h3>
+        <p id="reassignCount"><?php echo sprintf(t('selected_files_count'), 0); ?></p>
         <div style="margin-bottom:0.5rem;">
-            <label>Buscar usuario destino</label>
-            <input type="search" id="reassignUserSearch" class="form-control" placeholder="Escribe nombre de usuario o correo..." autocomplete="off">
+            <label><?php echo t('search_user_target'); ?></label>
+            <input type="search" id="reassignUserSearch" class="form-control" placeholder="<?php echo t('search_placeholder'); ?>" autocomplete="off">
             <div id="reassignUserResults" style="max-height:200px; overflow:auto; margin-top:0.5rem;"></div>
         </div>
         <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
             <button type="button" class="btn btn-secondary" onclick="closeReassignModal()"><?php echo htmlspecialchars(t('cancel')); ?></button>
-            <button type="button" class="btn btn-primary" id="reassignConfirmBtn" onclick="confirmReassign()" disabled>Reasignar</button>
+            <button type="button" class="btn btn-primary" id="reassignConfirmBtn" onclick="confirmReassign()" disabled><?php echo t('reassign'); ?></button>
         </div>
     </div>
 </div>
