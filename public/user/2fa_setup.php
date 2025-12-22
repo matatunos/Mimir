@@ -267,7 +267,7 @@ renderHeader('Autenticación 2FA', $user);
                         <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                         <input type="hidden" name="action" value="setup_totp_generate">
                         <button type="submit" class="btn btn-primary btn-lg">Generar Código QR</button>
-                        <a href="?step=choose" class="btn btn-outline btn-outline--on-dark">Volver</a>
+                        <a href="?step=choose" class="btn btn-outline btn-outline--on-dark"><?php echo t('back'); ?></a>
                     </form>
                 </div>
             </div>
@@ -313,7 +313,7 @@ renderHeader('Autenticación 2FA', $user);
                         </div>
                         <div style="display: flex; gap: 0.75rem;">
                             <button type="submit" class="btn btn-primary btn-lg">Verificar y Activar</button>
-                            <a href="?step=choose" class="btn btn-outline btn-outline--on-dark">Cancelar</a>
+                            <a href="?step=choose" class="btn btn-outline btn-outline--on-dark"><?php echo t('cancel'); ?></a>
                         </div>
                     </form>
                 </div>
@@ -399,7 +399,7 @@ renderHeader('Autenticación 2FA', $user);
                         
                         <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
                             <button type="submit" class="btn btn-primary">Activar Duo 2FA</button>
-                            <a href="?step=choose" class="btn btn-outline btn-outline--on-dark">Volver</a>
+                            <a href="?step=choose" class="btn btn-outline btn-outline--on-dark"><?php echo t('back'); ?></a>
                         </div>
                     </form>
                 </div>

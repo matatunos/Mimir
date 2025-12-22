@@ -143,6 +143,10 @@ $LANG = [
     , 'remember_me' => 'Recordarme'
     , 'login_button' => 'Iniciar Sesión'
     , 'forgot_password' => '¿Olvidaste tu contraseña?'
+    , 'send' => 'Enviar'
+    , 'send_instructions' => 'Enviar instrucciones'
+    , 'confirm_and_send' => 'Confirmar y enviar'
+    , 'back' => 'Volver'
 ];
 
 return $LANG;

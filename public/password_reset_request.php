@@ -294,7 +294,7 @@ require_once __DIR__ . '/../includes/layout.php';
                 <label for="username">Usuario</label>
                 <input id="username" name="username" type="text" class="form-control" required autofocus>
             </div>
-            <button class="btn btn-primary">Enviar instrucciones</button>
+            <button class="btn btn-primary"><?php echo t('send_instructions'); ?></button>
         </form>
     <?php endif; ?>
     <p><a href="<?php echo BASE_URL; ?>/login.php">Volver al inicio de sesión</a></p>

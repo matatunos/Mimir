@@ -415,7 +415,7 @@ renderHeader('Comparticiones del Sistema', $user);
                             <label style="display:flex; align-items:center; gap:0.5rem; margin-right:auto; font-weight:600;">
                                 <input id="resendCreateNew" type="checkbox" style="width:16px; height:16px;"> Crear nuevo enlace (generar token nuevo)
                             </label>
-                            <button type="button" class="btn btn-primary" onclick="submitResendModal()">Enviar</button>
+                            <button type="button" class="btn btn-primary" onclick="submitResendModal()"><?php echo t('send'); ?></button>
                         </div>
                     </div>
                 </div>
@@ -451,7 +451,7 @@ renderHeader('Comparticiones del Sistema', $user);
                         <div id="resendConfirmBody" style="margin-bottom:1rem; max-height:240px; overflow:auto; padding:0.5rem; border-radius:0.375rem; background:#fbfbfb; border:1px solid var(--border-color);"></div>
                         <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
                             <button type="button" class="btn btn-outline" onclick="closeResendConfirm()"><?php echo htmlspecialchars(t('cancel')); ?></button>
-                            <button type="button" class="btn btn-primary" onclick="confirmResendAndSubmit()">Confirmar y enviar</button>
+                            <button type="button" class="btn btn-primary" onclick="confirmResendAndSubmit()"><?php echo t('confirm_and_send'); ?></button>
                         </div>
                     </div>
                 </div>
