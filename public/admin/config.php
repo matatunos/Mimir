@@ -546,11 +546,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Attempt to make background transparent (if applicable)
                     $result = makeBackgroundTransparentIfPossible($destination, $extension);
+                    // Log outcome for diagnostics
+                    $method = (class_exists('Imagick') ? 'imagick' : (extension_loaded('gd') ? 'gd' : 'none'));
                     if (!empty($result) && isset($result['path']) && $result['path'] !== $destination) {
                         // Update destination and extension to the converted PNG
                         $destination = $result['path'];
                         $extension = $result['extension'];
                         $filename = basename($destination);
+                        $logger->log($user['id'], 'logo_transparency', 'system', null, "Logo background made transparent, new file={$filename}", ['method' => $method]);
+                    } else {
+                        // Transparency not applied; record diagnostic info so admins can inspect why
+                        $logger->log($user['id'], 'logo_transparency_failed', 'system', null, "Logo background NOT made transparent for file=" . basename($destination), ['method' => $method, 'original_extension' => $extension]);
                     }
                     // Delete old logo if exists
                     $oldLogo = $configClass->get('site_logo');
