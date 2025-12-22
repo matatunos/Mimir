@@ -294,13 +294,48 @@ function makeBackgroundTransparentIfPossible($filePath, $extension) {
             $im = new Imagick($filePath);
             $im->setImageAlphaChannel(Imagick::ALPHACHANNEL_ACTIVATE);
 
-            // Sample corner pixel as background color
+            // Sample multiple pixels (corners + edges) to estimate background uniformity.
+            // If background is not uniform (high variance), skip automatic transparency to avoid artifacts.
+            $w = $im->getImageWidth();
+            $h = $im->getImageHeight();
+            $sampleCoords = [
+                [0,0], [$w-1,0], [0,$h-1], [$w-1,$h-1],
+                [(int)($w/2),0], [(int)($w/2),$h-1], [0,(int)($h/2)], [$w-1,(int)($h/2)], [(int)($w/2),(int)($h/2)]
+            ];
+            $samples = [];
+            foreach ($sampleCoords as $c) {
+                try {
+                    $p = $im->getImagePixelColor($c[0], $c[1]);
+                    $col = $p->getColor();
+                    $samples[] = [$col['r'],$col['g'],$col['b']];
+                } catch (Exception $e) {
+                    // ignore sampling errors
+                }
+            }
+            if (count($samples) === 0) return ['path' => $filePath, 'extension' => $extension];
+            $avg = [0,0,0];
+            foreach ($samples as $s) { $avg[0]+=$s[0]; $avg[1]+=$s[1]; $avg[2]+=$s[2]; }
+            $avg = [ (int)($avg[0]/count($samples)), (int)($avg[1]/count($samples)), (int)($avg[2]/count($samples)) ];
+            // compute mean squared distance
+            $msd = 0;
+            foreach ($samples as $s) {
+                $d = pow($s[0]-$avg[0],2) + pow($s[1]-$avg[1],2) + pow($s[2]-$avg[2],2);
+                $msd += $d;
+            }
+            $msd = $msd / count($samples);
+            $std = sqrt($msd);
+            // If standard deviation (color space) is high, background is not uniform — skip
+            if ($std > 20) {
+                return ['path' => $filePath, 'extension' => $extension];
+            }
+
+            // Use the corner/top-left sample as background color for transparency
             $pixel = $im->getImagePixelColor(0, 0);
             $bgColor = $pixel->getColor();
             $bgHex = sprintf('#%02x%02x%02x', $bgColor['r'], $bgColor['g'], $bgColor['b']);
 
             // Use a fuzz factor to allow near-matching colors (5% by default)
-            $fuzz = ($im->getImageWidth() + $im->getImageHeight()) / 2 * 0.01; // heuristic
+            $fuzz = ($w + $h) / 2 * 0.01; // heuristic
             // Some Imagick builds lack setImageFuzz(); guard the call to avoid fatal errors
             if (method_exists($im, 'setImageFuzz')) {
                 $im->setImageFuzz($fuzz);
