@@ -188,13 +188,15 @@ class Email {
         }
 
         // If server advertises AUTH but we have a username without a usable password,
-        // abort to avoid sending MAIL FROM unauthenticated (which can trigger 554 Access denied).
+        // previously we aborted to avoid unauthenticated MAIL FROM. That linkage between
+        // `smtp_username` and `smtp_password` is intentionally relaxed: log a warning
+        // and proceed without attempting AUTH (caller may rely on anonymous sending
+        // or relay rules on the mail server).
         if (stripos($ehlo, 'AUTH') !== false && !empty($user) && empty($pass)) {
-            // Log to smtp debug and activity log then abort to avoid unauthenticated MAIL FROM
-            $this->smtpLog('C: ABORTING - server advertises AUTH but no SMTP password configured for user ' . $user);
+            $this->smtpLog('C: WARNING - server advertises AUTH but no SMTP password configured for user ' . $user . '; proceeding without auth');
             try {
                 $logger = new Logger();
-                $msg = 'SMTP server requires AUTH but no usable SMTP password configured';
+                $msg = 'SMTP server advertises AUTH but no SMTP password configured; proceeding without authentication';
                 if (!empty($pass_decryption_failed)) {
                     $msg .= ' (encrypted password present but decryption failed; check .secrets/smtp_key)';
                 }
@@ -202,9 +204,7 @@ class Email {
             } catch (Throwable $e) {
                 error_log('Email::send logger failure: ' . $e->getMessage());
             }
-            // Close connection politely
-            try { $this->smtpSend($fp, 'QUIT'); @fclose($fp); } catch (Throwable $e) {}
-            throw new Exception($msg);
+            // continue without auth
         }
 
         // MAIL FROM

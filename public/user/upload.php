@@ -1,3 +1,12 @@
+<?php
+// Avoid emitting the overlay HTML before handling POST/AJAX requests so JSON
+// responses remain clean. Render the overlay only for non-AJAX GET/POST page loads.
+if (!(
+    $_SERVER['REQUEST_METHOD'] === 'POST' && (
+        !empty($_POST['ajax']) || (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+    )
+)):
+?>
 <!-- Upload overlay -->
 <div id="uploadOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center;">
     <div style="background:var(--bg-main); padding:1rem; border-radius:0.75rem; display:flex; gap:1rem; align-items:flex-start; box-shadow:0 8px 32px rgba(0,0,0,0.4); width:560px; max-width:calc(100% - 40px);">
@@ -11,8 +20,9 @@
     </div>
     </div>
     </div>
-    
 <?php
+endif;
+
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
@@ -63,6 +73,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!isset($_FILES['files']) || empty($_FILES['files']['tmp_name'][0])) {
         $error = 'Selecciona al menos un archivo';
     } else {
+        // If client indicates this is the start of a new batch, clear any stale upload results
+        if (!empty($_POST['start_batch'])) {
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            unset($_SESSION['upload_results']);
+            if (function_exists('session_write_close')) session_write_close();
+        }
         $uploadedCount = 0;
         $errors = [];
         $results = []; // per-file results to report back to user
@@ -526,6 +542,10 @@ document.addEventListener('DOMContentLoaded', function(){
             fd.append('parent_folder_id', form.querySelector('input[name="parent_folder_id"]').value || '');
             fd.append('ajax', '1');
             fd.append('client_file_count', total);
+            // Mark start of a new upload batch on the first file so server can clear stale session results
+            if (index === 0) {
+                fd.append('start_batch', '1');
+            }
             if (form.querySelector('input[name="allow_duplicates"]') && form.querySelector('input[name="allow_duplicates"]').checked) {
                 fd.append('allow_duplicates', '1');
             }
