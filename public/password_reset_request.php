@@ -45,19 +45,36 @@ function anonymize_email($email) {
     return $localMasked . '@' . $domainMasked;
 }
 
-function generate_fake_anonymized_email($email = null) {
+function generate_fake_anonymized_email($username = null, $email = null) {
+    // If a real email is provided and valid, anonymize it
     if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return anonymize_email($email);
     }
 
-    // Create a plausible-looking fake address: a*****z@d*****m.ext
-    $localFirst = chr(rand(97, 122));
-    $localLast = chr(rand(97, 122));
-    $localLen = rand(3, 8);
-    $localMasked = $localFirst . str_repeat('*', max(1, $localLen - 2)) . $localLast;
+    // Deterministically generate a plausible-looking fake address based on the submitted username
+    // so repeated requests for the same username return the same anonymized address.
+    $seed = $username ?? 'anonymous';
+    $h = sha1(strtolower($seed));
 
-    $domains = ['example.com','mail.example','example.org','domain.com'];
-    $d = $domains[array_rand($domains)];
+    // local part: use first and last char from username if available, otherwise derived from hash
+    $cleanUser = preg_replace('/[^a-z0-9]/i', '', (string)$username);
+    if (strlen($cleanUser) >= 2) {
+        $localFirst = strtolower($cleanUser[0]);
+        $localLast = strtolower($cleanUser[strlen($cleanUser)-1]);
+    } else {
+        $localFirst = $h[0];
+        $localLast = $h[1];
+    }
+
+    // local length between 3 and 8 based on hash
+    $localLen = 3 + (hexdec(substr($h, 0, 2)) % 6);
+    $stars = str_repeat('*', max(1, $localLen - 2));
+    $localMasked = $localFirst . $stars . $localLast;
+
+    // choose domain from deterministic list using hash
+    $domains = ['example.com','mail.example','example.org','domain.com','service.net'];
+    $domIndex = hexdec(substr($h, 2, 2)) % count($domains);
+    $d = $domains[$domIndex];
     $domParts = explode('.', $d);
     $maskedParts = [];
     foreach ($domParts as $p) {
