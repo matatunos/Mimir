@@ -309,8 +309,10 @@ function makeBackgroundTransparentIfPossible($filePath, $extension) {
             // Make the sampled color transparent
             $im->transparentPaintImage($bgHex, 0, $fuzz, false);
 
-            // Ensure output is PNG to preserve alpha
-            $im->setImageFormat('png');
+            // Ensure alpha channel is active and output as 32-bit PNG (png32) to preserve full 8-bit alpha
+            $im->setImageAlphaChannel(Imagick::ALPHACHANNEL_ACTIVATE);
+            $im->setImageBackgroundColor(new ImagickPixel('transparent'));
+            $im->setImageFormat('png32');
             $newPath = preg_replace('/\.[^.]+$/', '.png', $filePath);
             if ($im->writeImage($newPath)) {
                 $im->clear();
