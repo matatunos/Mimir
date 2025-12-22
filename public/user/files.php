@@ -157,7 +157,7 @@ renderHeader('Mis Archivos', $user);
                 <div style="max-height:220px; overflow:auto;">
                     <div style="display:flex; justify-content:space-between; gap:0.5rem; margin-bottom:0.5rem; align-items:center;">
                         <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <input id="filesResultsSearch" type="text" placeholder="Buscar archivo..." class="form-control" style="padding:0.4rem 0.6rem; width:220px;">
+                            <input id="filesResultsSearch" type="text" placeholder="<?php echo t('search'); ?>" class="form-control" style="padding:0.4rem 0.6rem; width:220px;">
                             <select id="filesResultsStatus" class="form-control" style="padding:0.35rem 0.5rem; width:160px;">
                                 <option value="all">Todos</option>
                                 <option value="ok">OK</option>
@@ -216,8 +216,8 @@ renderHeader('Mis Archivos', $user);
             <?php endif; ?>
             <form method="GET" class="mb-3">
                 <div style="display: flex; gap: 0.75rem;">
-                    <input type="text" name="search" class="form-control" placeholder="Buscar archivos..." value="<?php echo htmlspecialchars($search); ?>">
-                    <button type="submit" class="btn btn-primary">Buscar</button>
+                    <input type="text" name="search" class="form-control" placeholder="<?php echo t('search'); ?>" value="<?php echo htmlspecialchars($search); ?>">
+                    <button type="submit" class="btn btn-primary"><?php echo t('search'); ?></button>
                     <?php if ($search): ?>
                         <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark">Limpiar</a>
                     <?php endif; ?>
@@ -303,10 +303,10 @@ renderHeader('Mis Archivos', $user);
                                                     <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                                                     <input type="hidden" name="file_ids[]" value="<?php echo $file['id']; ?>">
                                                     <input type="hidden" name="action" value="unshare">
-                                                    <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('¿Desactivar el compartido de este archivo?')" title="Desactivar compartido"><i class="fas fa-ban"></i></button>
+                                                    <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm(<?php echo json_encode(t('confirm_disable_shared_file')); ?>)" title="<?php echo t('disable_shared'); ?>"><i class="fas fa-ban"></i></button>
                                                 </form>
                                             <?php endif; ?>
-                                            <a href="<?php echo BASE_URL; ?>/user/delete.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar este archivo?')" title="Eliminar"><i class="fas fa-trash"></i></a>
+                                            <a href="<?php echo BASE_URL; ?>/user/delete.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm(<?php echo json_encode(t('confirm_delete_file')); ?>)" title="<?php echo t('delete'); ?>"><i class="fas fa-trash"></i></a>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -342,7 +342,7 @@ renderHeader('Mis Archivos', $user);
                             <button type="button" class="btn btn-info" title="Desactivar compartidos" onclick="confirmUserBulkAction('unshare')">
                                 <i class="fas fa-ban"></i>
                             </button>
-                            <button type="button" class="btn btn-secondary" title="Cancelar" onclick="clearUserSelection()">
+                            <button type="button" class="btn btn-secondary" title="<?php echo t('cancel'); ?>" onclick="clearUserSelection()">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
@@ -357,7 +357,7 @@ renderHeader('Mis Archivos', $user);
                         <h3 id="bulkConfirmTitle">Confirmar acción</h3>
                         <p id="bulkConfirmBody">Se van a procesar <strong id="bulkConfirmCount">0</strong> elementos.</p>
                         <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
-                            <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="hideBulkConfirmModal()">Cancelar</button>
+                            <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="hideBulkConfirmModal()"><?php echo t('cancel'); ?></button>
                             <button type="button" class="btn btn-danger" id="bulkConfirmBtn">Confirmar</button>
                         </div>
                     </div>
@@ -395,8 +395,8 @@ renderHeader('Mis Archivos', $user);
                 <input type="text" id="folderName" class="form-control" placeholder="Mi Carpeta" required autofocus>
             </div>
             <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-                <button type="button" onclick="hideCreateFolderModal()" class="btn btn-outline btn-outline--on-dark">Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Crear Carpeta</button>
+                <button type="button" onclick="hideCreateFolderModal()" class="btn btn-outline btn-outline--on-dark"><?php echo t('cancel'); ?></button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> <?php echo t('create'); ?> <?php echo t('folder'); ?></button>
             </div>
         </form>
     </div>
@@ -584,7 +584,7 @@ function hideBulkConfirmModal() {
 }
 
 async function deleteFolder(folderId, folderName) {
-    if (!confirm(`¿Eliminar la carpeta "${folderName}" y todo su contenido?`)) {
+    if (!confirm(<?php echo json_encode(t('confirm_delete_folder_named')); ?>.replace('%s', folderName))) {
         return;
     }
     

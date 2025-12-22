@@ -547,7 +547,7 @@ renderHeader('Gestión de Autenticación 2FA', $adminUser);
                                     <?php endif; ?>
                                     
                                     <?php if ($user['has_2fa']): ?>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('¿Seguro? El usuario deberá volver a configurar 2FA.')">
+                                        <form method="POST" style="display: inline;" onsubmit="return confirm(<?php echo json_encode(t('confirm_reset_2fa_generic')); ?>)">
                                             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                                             <input type="hidden" name="action" value="reset_2fa">
                                             <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">

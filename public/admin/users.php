@@ -341,7 +341,7 @@ renderHeader('Gestión de Usuarios', $user);
             <form method="GET" id="filterForm">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
                     <div>
-                        <label>Buscar</label>
+                        <label><?php echo t('search'); ?></label>
                         <input type="text" name="search" class="form-control" placeholder="Nombre, email o usuario..." value="<?php echo htmlspecialchars($search); ?>">
                     </div>
                     <div>
@@ -427,7 +427,7 @@ renderHeader('Gestión de Usuarios', $user);
                 <button type="button" class="btn btn-primary" onclick="toggleSelectAll()">
                     <i class="fas fa-check-square"></i> Seleccionar
                 </button>
-                <a href="<?php echo BASE_URL; ?>/admin/user_create.php" class="btn btn-success"><i class="fas fa-plus"></i> Crear Usuario</a>
+                <a href="<?php echo BASE_URL; ?>/admin/user_create.php" class="btn btn-success"><i class="fas fa-plus"></i> <?php echo t('create'); ?> <?php echo t('user'); ?></a>
             </div>
         </div>
         <div class="card-body">
@@ -684,10 +684,10 @@ renderHeader('Gestión de Usuarios', $user);
                             <i class="fas fa-shield-alt"></i> Quitar 2FA Obligatorio
                         </button>
                         <button type="button" class="btn btn-sm btn-danger" onclick="executeBulkAction('delete')" title="Eliminar usuarios">
-                            <i class="fas fa-trash"></i> Eliminar
+                            <i class="fas fa-trash"></i> <?php echo t('delete'); ?>
                         </button>
                         <button type="button" class="btn btn-sm btn-outline" onclick="cancelBulkSelection()">
-                            <i class="fas fa-times"></i> Cancelar
+                            <i class="fas fa-times"></i> <?php echo t('cancel'); ?>
                         </button>
                     </div>
                 </div>
@@ -875,7 +875,7 @@ function resetUserPassword(userId, username) {
                 
                 <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                     <button type="button" onclick="closePasswordModal()" class="btn btn-secondary" style="background: #6c757d; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
-                        <i class="fas fa-times"></i> Cancelar
+                        <i class="fas fa-times"></i> <?php echo t('cancel'); ?>
                     </button>
                     <button type="button" onclick="executePasswordReset(${userId}, '${username}')" class="btn btn-primary" style="background: #4a90e2; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
                         <i class="fas fa-check"></i> Resetear
@@ -950,7 +950,7 @@ function executePasswordReset(userId, username) {
 }
 
 function deleteUser(userId, username) {
-    if (!confirm(`¿ELIMINAR definitivamente al usuario "${username}"?\n\n⚠️ Esta acción no se puede deshacer.\n\nEl usuario no debe tener archivos.`)) {
+    if (!confirm(<?php echo json_encode(t('confirm_delete_user_named')); ?>.replace('%s', username))) {
         return;
     }
     
@@ -985,7 +985,7 @@ function deleteUser(userId, username) {
 }
 
 function setup2FA(userId, method, username) {
-    if (!confirm(`¿Configurar 2FA ${method.toUpperCase()} para "${username}"?`)) {
+    if (!confirm(<?php echo json_encode(t('confirm_setup_2fa')); ?>.replace('{method}', method.toUpperCase()).replace('{username}', username))) {
         return;
     }
     
@@ -1110,7 +1110,7 @@ function closeTOTPModal() {
 }
 
 function reset2FA(userId, username) {
-    if (!confirm(`¿Desactivar 2FA para "${username}"?\n\n⚠️ El usuario deberá configurar 2FA nuevamente si es requerido.`)) {
+    if (!confirm(<?php echo json_encode(t('confirm_disable_2fa_user_named')); ?>.replace('%s', username))) {
         return;
     }
     
@@ -1144,7 +1144,7 @@ function reset2FA(userId, username) {
 }
 
 function send2FAEmail(userId, username) {
-    if (!confirm(`¿Enviar código QR por email a "${username}"?`)) {
+    if (!confirm(<?php echo json_encode(t('confirm_send_qr_user_named')); ?>.replace('%s', username))) {
         return;
     }
     

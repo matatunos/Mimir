@@ -149,7 +149,7 @@ renderHeader('Archivos Huérfanos', $user);
                     <input type="text" name="search" placeholder="Buscar por nombre..." 
                            value="<?php echo htmlspecialchars($search); ?>" 
                            class="form-control" style="width: 250px;">
-                    <button type="submit" class="btn btn-primary">🔍 Buscar</button>
+                        <button type="submit" class="btn btn-primary">🔍 <?php echo t('search'); ?></button>
                     <?php if ($search): ?>
                         <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="btn btn-outline">✖ Limpiar</a>
                     <?php endif; ?>
@@ -176,6 +176,7 @@ renderHeader('Archivos Huérfanos', $user);
                     </button>
                     <button class="btn btn-danger btn-sm" onclick="bulkDelete()" id="bulkDeleteBtn" disabled>
                         🗑️ Eliminar seleccionados
+                            🗑️ <?php echo t('delete_selected'); ?>
                     </button>
                 </div>
                 <div id="selectAllNotice" style="display:none; padding:0.5rem 1rem; background:#fffbe6; border:1px solid #ffe58f; color:#ad8b00; margin-bottom:1rem; border-radius:0.25rem;">
@@ -229,6 +230,7 @@ renderHeader('Archivos Huérfanos', $user);
                                         <button class="btn btn-danger btn-sm" 
                                                 onclick="deleteOrphan(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
                                             🗑️ Eliminar
+                                                🗑️ <?php echo t('delete'); ?>
                                         </button>
                                     </div>
                                 </td>
@@ -521,7 +523,7 @@ function assignToUser(userId) {
 }
 
 function deleteOrphan(fileId, fileName) {
-    if (!confirm(`¿Seguro que quieres eliminar "${fileName}"? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(<?php echo json_encode(t('confirm_delete_file_named')); ?>.replace('%s', fileName))) return;
 
     // Always process via batch pipeline for consistent UX (single id becomes single-chunk)
     const ids = [parseInt(fileId)];
@@ -567,7 +569,7 @@ function bulkDelete() {
     if (!allFilesSelected && selected.length === 0) return;
 
     const count = allFilesSelected ? totalOrphans : selected.length;
-    if (!confirm(`¿Seguro que quieres eliminar ${count} archivo(s)? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(<?php echo json_encode(t('confirm_delete_n_files')); ?>.replace('%s', count))) return;
     // Always process via batching pipeline (for select-all fetch list, otherwise use selected ids)
     const BATCH_SIZE = 50;
     if (allFilesSelected) {

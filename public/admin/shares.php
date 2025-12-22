@@ -606,7 +606,7 @@ renderHeader('Comparticiones del Sistema', $user);
                         openResendModal();
                         return;
                     }
-                    if (!confirm('¿Confirmar acción en las comparticiones seleccionadas?')) return;
+                    if (!confirm(<?php echo json_encode(t('confirm_action_shares')); ?>)) return;
                     document.getElementById('adminSharesAction').value = action;
                     document.getElementById('adminSharesForm').submit();
                 }
