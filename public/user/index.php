@@ -21,8 +21,8 @@ $stats = $userClass->getStatistics($user['id']);
 $recentActivity = $userClass->getRecentActivity($user['id'], 10);
 
 $isAdmin = ($user['role'] === 'admin');
-renderPageStart('Dashboard', 'dashboard', $isAdmin);
-renderHeader('Dashboard', $user);
+renderPageStart(t('dashboard'), 'dashboard', $isAdmin);
+renderHeader(t('dashboard'), $user);
 ?>
 
 <style>
@@ -116,7 +116,7 @@ renderHeader('Dashboard', $user);
     <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; margin-bottom: 2rem;">
         <div class="stat-card-modern">
             <div style="position: relative; z-index: 1;">
-                <div class="stat-label-modern">Mis Archivos</div>
+                <div class="stat-label-modern"><?php echo htmlspecialchars(t('my_files')); ?></div>
                 <div class="stat-value-modern"><?php echo $stats['total_files'] ?? 0; ?></div>
             </div>
             <div class="stat-icon-modern"><i class="fas fa-folder"></i></div>
@@ -124,7 +124,7 @@ renderHeader('Dashboard', $user);
         
         <div class="stat-card-modern">
             <div style="position: relative; z-index: 1;">
-                <div class="stat-label-modern">Mi Espacio Usado</div>
+                <div class="stat-label-modern"><?php echo htmlspecialchars(t('my_space_used')); ?></div>
                 <div class="stat-value-modern">
                     <?php 
                     $sizeGB = round(($stats['total_size'] ?? 0) / 1024 / 1024 / 1024, 2);
@@ -146,21 +146,21 @@ renderHeader('Dashboard', $user);
     <!-- Acciones Rápidas -->
     <div class="card" style="margin-bottom: 2rem;">
         <div class="card-header" style="padding: 1.5rem;">
-            <h2 class="card-title" style="margin: 0;"><i class="fas fa-bolt"></i> Acciones Rápidas</h2>
+            <h2 class="card-title" style="margin: 0;"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars(t('quick_actions')); ?></h2>
         </div>
         <div class="card-body" style="padding: 1.5rem;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                 <a href="<?php echo BASE_URL; ?>/user/files.php" class="quick-action-btn">
                     <span class="quick-action-icon">📂</span>
-                    <span style="font-weight: 600;">Mis Archivos</span>
+                    <span style="font-weight: 600;"><?php echo htmlspecialchars(t('my_files')); ?></span>
                 </a>
                 <a href="<?php echo BASE_URL; ?>/user/upload.php" class="quick-action-btn">
                     <span class="quick-action-icon"><i class="fas fa-upload"></i></span>
-                    <span style="font-weight: 600;">Subir Archivo</span>
+                    <span style="font-weight: 600;"><?php echo htmlspecialchars(t('upload_file')); ?></span>
                 </a>
                 <a href="<?php echo BASE_URL; ?>/user/shares.php" class="quick-action-btn">
                     <span class="quick-action-icon"><i class="fas fa-link"></i></span>
-                    <span style="font-weight: 600;">Mis Comparticiones</span>
+                    <span style="font-weight: 600;"><?php echo htmlspecialchars(t('my_shares')); ?></span>
                 </a>
             </div>
         </div>
@@ -173,19 +173,19 @@ renderHeader('Dashboard', $user);
     ?>
     <div class="card">
         <div class="card-header card-header--padded card-header--flex">
-            <h2 class="card-title" style="margin: 0;"><i class="fas fa-clock"></i> Archivos Recientes</h2>
-            <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-sm btn-outline btn-outline--on-dark">Ver todos</a>
+            <h2 class="card-title" style="margin: 0;"><i class="fas fa-clock"></i> <?php echo htmlspecialchars(t('recent_files')); ?></h2>
+            <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-sm btn-outline btn-outline--on-dark"><?php echo htmlspecialchars(t('view_all')); ?></a>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Nombre</th>
-                            <th>Tamaño</th>
-                            <th>Compartido</th>
-                            <th>Fecha</th>
-                            <th>Acciones</th>
+                            <th><?php echo htmlspecialchars(t('table_name')); ?></th>
+                            <th><?php echo htmlspecialchars(t('table_size')); ?></th>
+                            <th><?php echo htmlspecialchars(t('table_shared')); ?></th>
+                            <th><?php echo htmlspecialchars(t('table_date')); ?></th>
+                            <th><?php echo htmlspecialchars(t('table_actions')); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -195,14 +195,14 @@ renderHeader('Dashboard', $user);
                             <td><?php echo number_format($file['file_size'] / 1024 / 1024, 2); ?> MB</td>
                             <td>
                                 <?php if ($file['is_shared']): ?>
-                                    <span class="badge badge-success">Sí</span>
+                                    <span class="badge badge-success"><?php echo htmlspecialchars(t('yes')); ?></span>
                                 <?php else: ?>
-                                    <span class="badge badge-secondary">No</span>
+                                    <span class="badge badge-secondary"><?php echo htmlspecialchars(t('no')); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td><?php echo date('d/m/Y H:i', strtotime($file['created_at'])); ?></td>
                             <td>
-                                <a href="<?php echo BASE_URL; ?>/user/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary">Descargar</a>
+                                <a href="<?php echo BASE_URL; ?>/user/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary"><?php echo htmlspecialchars(t('download')); ?></a>
                             </td>
                         </tr>
                         <?php endforeach; ?>
