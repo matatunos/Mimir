@@ -29,8 +29,8 @@ $orphans = $fileClass->getOrphans($filters, $perPage, $offset);
 $totalOrphans = $fileClass->countOrphans($filters);
 $totalPages = ceil($totalOrphans / $perPage);
 
-renderPageStart('Archivos Huérfanos', 'orphan_files', true);
-renderHeader('Archivos Huérfanos', $user);
+renderPageStart(t('orphan_files'), 'orphan_files', true);
+renderHeader(t('orphan_files'), $user);
 ?>
 
 <style>
@@ -139,19 +139,19 @@ renderHeader('Archivos Huérfanos', $user);
     <div class="card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <strong><?php echo number_format($totalOrphans); ?></strong> archivos huérfanos
+                <strong><?php echo number_format($totalOrphans); ?></strong> <?php echo t('orphan_files_desc'); ?>
                 <?php if ($search): ?>
-                    (búsqueda: "<?php echo htmlspecialchars($search); ?>")
+                    (<?php echo htmlspecialchars(t('search')); ?>: "<?php echo htmlspecialchars($search); ?>")
                 <?php endif; ?>
             </div>
             <div style="display: flex; gap: 0.75rem;">
                 <form method="GET" style="display: flex; gap: 0.5rem;">
-                    <input type="text" name="search" placeholder="Buscar por nombre..." 
+                    <input type="text" name="search" placeholder="<?php echo t('search_placeholder'); ?>" 
                            value="<?php echo htmlspecialchars($search); ?>" 
                            class="form-control" style="width: 250px;">
                         <button type="submit" class="btn btn-primary">🔍 <?php echo t('search'); ?></button>
                     <?php if ($search): ?>
-                        <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="btn btn-outline">✖ Limpiar</a>
+                        <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="btn btn-outline">✖ <?php echo t('clear'); ?></a>
                     <?php endif; ?>
                 </form>
             </div>
@@ -160,23 +160,22 @@ renderHeader('Archivos Huérfanos', $user);
             <?php if (empty($orphans)): ?>
                 <div style="padding: 3rem; text-align: center; color: var(--text-muted);">
                     <?php if ($search): ?>
-                        No se encontraron archivos huérfanos con ese criterio
+                        <?php echo t('no_orphans_search'); ?>
                     <?php else: ?>
-                        ✅ No hay archivos huérfanos en este momento
+                        <?php echo t('no_orphans'); ?>
                     <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 1rem; align-items: center;">
                     <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
                         <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
-                        <span>Seleccionar todos</span>
+                        <span><?php echo t('select_all'); ?></span>
                     </label>
                     <button class="btn btn-primary btn-sm" onclick="bulkAssign()" id="bulkAssignBtn" disabled>
-                        👤 Asignar seleccionados
+                        👤 <?php echo t('assign_selected'); ?>
                     </button>
                     <button class="btn btn-danger btn-sm" onclick="bulkDelete()" id="bulkDeleteBtn" disabled>
-                        🗑️ Eliminar seleccionados
-                            🗑️ <?php echo t('delete_selected'); ?>
+                        🗑️ <?php echo t('delete_selected'); ?>
                     </button>
                 </div>
                 <div id="selectAllNotice" style="display:none; padding:0.5rem 1rem; background:#fffbe6; border:1px solid #ffe58f; color:#ad8b00; margin-bottom:1rem; border-radius:0.25rem;">
@@ -224,14 +223,13 @@ renderHeader('Archivos Huérfanos', $user);
                                 <td style="text-align: right;">
                                     <div class="orphan-actions">
                                         <button class="btn btn-primary btn-sm" 
-                                                onclick="showAssignModal(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
-                                            👤 Asignar
-                                        </button>
-                                        <button class="btn btn-danger btn-sm" 
-                                                onclick="deleteOrphan(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
-                                            🗑️ Eliminar
-                                                🗑️ <?php echo t('delete'); ?>
-                                        </button>
+                                                                onclick="showAssignModal(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
+                                                            👤 <?php echo t('assign'); ?>
+                                                        </button>
+                                                        <button class="btn btn-danger btn-sm" 
+                                                                onclick="deleteOrphan(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
+                                                            🗑️ <?php echo t('delete'); ?>
+                                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -240,17 +238,17 @@ renderHeader('Archivos Huérfanos', $user);
                 </table>
 
                 <?php if ($totalPages > 1): ?>
-                    <div class="pagination">
+                            <div class="pagination">
                         <?php if ($page > 1): ?>
                             <a href="?page=<?php echo $page - 1; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>" 
-                               class="page-link">← Anterior</a>
+                               class="page-link"><?php echo t('previous'); ?></a>
                         <?php endif; ?>
                         
-                        <span class="page-info">Página <?php echo $page; ?> de <?php echo $totalPages; ?></span>
+                        <span class="page-info"><?php echo sprintf(t('page_of'), $page, $totalPages); ?></span>
                         
                         <?php if ($page < $totalPages): ?>
                             <a href="?page=<?php echo $page + 1; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>" 
-                               class="page-link">Siguiente →</a>
+                               class="page-link"><?php echo t('next'); ?></a>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>

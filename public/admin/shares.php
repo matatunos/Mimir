@@ -358,7 +358,7 @@ renderHeader('Comparticiones del Sistema', $user);
                                 <td><?php echo $share['download_count']; ?></td>
                                 <td><?php echo date('d/m/Y', strtotime($share['created_at'])); ?></td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-info" onclick="openResendModalForShare(<?php echo $share['id']; ?>)"><i class="fas fa-envelope"></i> Reenviar</button>
+                                    <button type="button" class="btn btn-sm btn-info" onclick="openResendModalForShare(<?php echo $share['id']; ?>)"><i class="fas fa-envelope"></i> <?php echo t('resend'); ?></button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -371,16 +371,16 @@ renderHeader('Comparticiones del Sistema', $user);
                     <button type="button" class="btn btn-warning" onclick="adminSharesDoAction('unshare')"><i class="fas fa-ban"></i> Desactivar seleccionadas</button>
                     <button type="button" class="btn btn-danger" onclick="adminSharesDoAction('delete')"><i class="fas fa-trash"></i> Eliminar seleccionadas</button>
                     <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="adminSharesClearSelection()"><?php echo htmlspecialchars(t('cancel')); ?></button>
-                    <button type="button" class="btn btn-info" onclick="adminSharesDoAction('resend_notification')"><i class="fas fa-envelope"></i> Reenviar notificación</button>
+                    <button type="button" class="btn btn-info" onclick="adminSharesDoAction('resend_notification')"><i class="fas fa-envelope"></i> <?php echo t('resend_notification'); ?></button>
                 </div>
                 
                 <!-- Resend override modal -->
                 <div id="resendModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
                     <div style="background:white; width:420px; max-width:calc(100% - 40px); margin:auto; padding:1.25rem; border-radius:0.5rem; box-shadow:0 8px 30px rgba(0,0,0,0.2);">
-                        <h3 style="margin-top:0;">Reenviar notificación</h3>
-                        <p>Opcional: introduce un correo destino para reenviar el enlace. Si lo dejas vacío, se usará el email almacenado en cada compartición.</p>
+                        <h3 style="margin-top:0;"><?php echo t('resend_notification_title'); ?></h3>
+                        <p><?php echo t('resend_notification_desc'); ?></p>
                         <div style="margin-bottom:0.75rem;">
-                            <label style="display:block; font-weight:600; margin-bottom:0.25rem;">Correo destino (opcional)</label>
+                            <label style="display:block; font-weight:600; margin-bottom:0.25rem;"><?php echo t('override_recipient_label'); ?></label>
                             <input id="resendOverrideEmail" name="resend_override_email_temp" type="email" class="form-control" placeholder="destinatario@ejemplo.com" style="width:100%;" />
                         </div>
                         <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem;">
