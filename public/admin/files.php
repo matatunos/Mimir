@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && (!empty
         $tmp = sys_get_temp_dir() . '/mimir_admin_bulk_' . bin2hex(random_bytes(8)) . '.zip';
         $zip = new ZipArchive();
         if ($zip->open($tmp, ZipArchive::CREATE) !== TRUE) {
-            header('Location: ' . BASE_URL . '/admin/files.php?error=' . urlencode('No se pudo crear el archivo ZIP temporal'));
+            header('Location: ' . BASE_URL . '/admin/files.php?error=' . urlencode(t('zip_temp_failed')));
             exit;
         }
 
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && (!empty
 
         if ($added === 0) {
             @unlink($tmp);
-            header('Location: ' . BASE_URL . '/admin/files.php?error=' . urlencode('No se encontraron archivos válidos para descargar'));
+            header('Location: ' . BASE_URL . '/admin/files.php?error=' . urlencode(t('no_valid_files_for_download')));
             exit;
         }
 
@@ -154,8 +154,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && (!empty
         }
         
         $db->commit();
-        $message = "Acción completada: $success exitosos";
-        if ($errors > 0) $message .= ", $errors errores";
+        if ($errors > 0) {
+            $message = sprintf(t('action_completed_with_errors'), $success, $errors);
+        } else {
+            $message = sprintf(t('action_completed'), $success);
+        }
         header('Location: ' . BASE_URL . '/admin/files.php?success=' . urlencode($message));
         exit;
         
@@ -718,22 +721,22 @@ function confirmBulkAction(action) {
     
     switch(action) {
         case 'delete':
-            message = `¿Estás seguro de eliminar ${count} archivo(s)? Esta acción no se puede deshacer.`;
+            message = <?php echo json_encode(t('confirm_delete_n_files')); ?>.replace('%s', count);
             break;
         case 'unshare':
-            message = `¿Dejar de compartir ${count} archivo(s)?`;
+            message = <?php echo json_encode(t('confirm_unshare_n_files')); ?>.replace('%s', count);
             break;
         case 'share':
-            message = `¿Marcar ${count} archivo(s) como compartidos?`;
+            message = <?php echo json_encode(t('confirm_mark_shared_n_files')); ?>.replace('%s', count);
             break;
         case 'download':
-            message = `¿Descargar ${count} archivo(s)?`;
+            message = <?php echo json_encode(t('confirm_download_n_files')); ?>.replace('%s', count);
             break;
     }
     
     if (confirm(message)) {
         // show processing overlay while the form posts and server works
-        showProcessing('Ejecutando acción, por favor espere...');
+        showProcessing(<?php echo json_encode(t('processing_wait')); ?>);
         // If selecting all filtered, set hidden input with filters
         const bulkForm = document.getElementById('bulkForm');
         const selectAllFlag = document.getElementById('selectAllFlag');
