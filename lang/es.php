@@ -1,0 +1,37 @@
+<?php
+$LANG = [
+    'page_title' => 'Administración del sistema',
+    'system_config_header' => 'Configuración del sistema',
+    'config_protection_label' => 'Protección de configuración',
+    'enabled' => 'Habilitado',
+    'disabled' => 'Deshabilitado',
+    'save_changes' => 'Guardar cambios',
+    'cancel' => 'Cancelar',
+    'upload_results_title' => 'Resultados de la subida',
+    'upload_ok' => 'subidos correctamente',
+    'upload_error' => 'fallaron',
+    'search_placeholder' => 'Buscar…',
+    'all' => 'Todos',
+    'ok' => 'OK',
+    'error' => 'Error',
+    'test_smtp' => 'Probar SMTP',
+    'clear' => 'Limpiar',
+    'gallery' => 'Galería',
+    'help_prefix' => 'Ayuda:',
+    'logo_preview' => 'Vista previa',
+    'extract_colors' => 'Extraer colores automáticamente del logo',
+    'extract_colors_desc' => 'Extrae la paleta de colores del archivo subido para mostrar en la interfaz.',
+    'test_ldap' => 'Probar LDAP',
+    'test_connection' => 'Error cargando la vista previa',
+    'info_sendmail_missing' => 'No se encontró /usr/sbin/sendmail en el sistema; la opción de fallback a sendmail está deshabilitada.',
+    'smtp_warning_password_missing' => 'Faltan smtp_host o smtp_port o la contraseña SMTP no está configurada; las pruebas SMTP pueden fallar.',
+    'guide_quick_title' => 'Guía rápida',
+    'guide_quick_intro' => 'Pasos iniciales para configurar el sistema rápidamente.',
+    'smtp_command' => 'php tools/set_smtp_config.php --host=smtp.example.com --port=587 --encryption=tls --username=noreply@example.com',
+    'test_email_command' => 'php tools/test_email_send.php you@example.com --verbose',
+    'notify_creation_emails_label' => 'Direcciones de notificación (comas separadas)',
+    'notify_creation_help' => 'Introduce direcciones separadas por comas. Si también está activada la opción "Notificar también a administradores", se les añadirá automáticamente.',
+    'file_upload_processing' => 'Procesando la subida del logo... no cierre esta ventana.'
+];
+
+return $LANG;

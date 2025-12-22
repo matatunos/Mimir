@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/Config.php';
 require_once __DIR__ . '/../../classes/Logger.php';
+require_once __DIR__ . '/../../includes/lang.php';
 
 $auth = new Auth();
 $auth->requireAdmin();
@@ -28,7 +29,7 @@ if ((isset($_REQUEST['action']) && $_REQUEST['action'] === 'test_smtp')) {
     $timeout = isset($_REQUEST['timeout']) ? (int)$_REQUEST['timeout'] : 6;
     $debug = [];
     if (empty($host) || empty($port)) {
-        echo json_encode(['success' => false, 'message' => 'Faltan smtp_host o smtp_port.']);
+        echo json_encode(['success' => false, 'message' => t('smtp_warning_password_missing')]);
         exit;
     }
     $port = (int)$port; $enc = strtolower(trim((string)$encryption));
@@ -994,8 +995,8 @@ foreach ($promote as $cat => $wantKeys) {
     }
 }
 
-renderPageStart('Configuración', 'config', true);
-renderHeader('Configuración del Sistema', $user, $auth);
+renderPageStart(t('page_title'), 'config', true);
+renderHeader(t('system_config_header'), $user, $auth);
 ?>
 <script>
             var headers = table.tHead.rows[0].cells;
@@ -1044,20 +1045,20 @@ renderHeader('Configuración del Sistema', $user, $auth);
     ?>
     <?php if (!empty($uploadResults)): ?>
         <div class="card" style="margin-bottom:1rem;">
-            <div class="card-header"><strong>Resultado de la subida</strong></div>
+            <div class="card-header"><strong><?php echo htmlspecialchars(t('upload_results_title')); ?></strong></div>
             <div class="card-body">
                 <div style="margin-bottom:0.5rem;">
-                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']==='ok'; })); ?></strong> archivos subidos correctamente,
-                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']!=='ok'; })); ?></strong> fallaron.
-                </div>
+                        <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']==='ok'; })); ?></strong> <?php echo htmlspecialchars(t('upload_ok')); ?>,
+                        <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']!=='ok'; })); ?></strong> <?php echo htmlspecialchars(t('upload_error')); ?>.
+                    </div>
                 <div style="max-height:220px; overflow:auto;">
                     <div style="display:flex; justify-content:space-between; gap:0.5rem; margin-bottom:0.5rem; align-items:center;">
                         <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <input id="adminResultsSearch" type="text" placeholder="Buscar archivo..." class="form-control" style="padding:0.4rem 0.6rem; width:220px;">
+                            <input id="adminResultsSearch" type="text" placeholder="<?php echo htmlspecialchars(t('search_placeholder')); ?>" class="form-control" style="padding:0.4rem 0.6rem; width:220px;">
                             <select id="adminResultsStatus" class="form-control" style="padding:0.35rem 0.5rem; width:160px;">
-                                <option value="all">Todos</option>
-                                <option value="ok">OK</option>
-                                <option value="error">Error</option>
+                                <option value="all"><?php echo htmlspecialchars(t('all')); ?></option>
+                                <option value="ok"><?php echo htmlspecialchars(t('ok')); ?></option>
+                                <option value="error"><?php echo htmlspecialchars(t('error')); ?></option>
                             </select>
                         </div>
                         <div style="font-size:0.9rem; color:var(--text-muted);">Haz clic en los encabezados para ordenar</div>
@@ -1084,7 +1085,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
     <div id="adminUploadOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center;">
         <div style="background:var(--bg-main); padding:1.25rem; border-radius:0.75rem; display:flex; gap:1rem; align-items:center; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
             <div class="spinner-border" role="status" style="width:2.25rem; height:2.25rem; border-width:0.3rem;"></div>
-            <div style="font-weight:700;">Procesando la subida del logo... no cierre esta ventana.</div>
+            <div style="font-weight:700;"><?php echo htmlspecialchars(t('file_upload_processing')); ?></div>
         </div>
     </div>
 
@@ -1141,14 +1142,14 @@ renderHeader('Configuración del Sistema', $user, $auth);
                     // push current content
                     modal.history = modal.history || [];
                     modal.history.push(container.innerHTML);
-                    container.innerHTML = 'Cargando vista previa...';
-                    fetch(url, {credentials: 'same-origin'}).then(function(resp){ if(!resp.ok) throw new Error('Error cargando la vista previa'); return resp.text(); }).then(function(html){
+                    container.innerHTML = '<?php echo addslashes(htmlspecialchars(t('logo_preview'))); ?>';
+                    fetch(url, {credentials: 'same-origin'}).then(function(resp){ if(!resp.ok) throw new Error('<?php echo addslashes(htmlspecialchars(t('test_connection'))); ?>'); return resp.text(); }).then(function(html){
                         container.innerHTML = html;
                         // Add a Back button
                         var backBtn = document.createElement('button');
                         backBtn.className = 'btn btn-outline';
                         backBtn.style.marginBottom = '0.5rem';
-                        backBtn.textContent = 'Volver a galería';
+                        backBtn.textContent = '<?php echo addslashes(htmlspecialchars(t('cancel'))); ?>';
                         backBtn.addEventListener('click', function(){
                             if (modal.history && modal.history.length) {
                                 container.innerHTML = modal.history.pop();
@@ -1168,7 +1169,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
     </script>
     <!-- Global config protection indicator -->
     <div style="margin-bottom:1rem;">
-        <span style="font-weight:700;">Protección de configuración:</span>
+        <span style="font-weight:700;"><?php echo t('config_protection_label'); ?>:</span>
         <span id="configProtectionIndicator" style="margin-left:0.75rem; display:inline-flex; align-items:center; gap:0.5rem;">
             <?php if ((bool)$globalConfigProtection): ?>
                 <i class="fas fa-lock" style="color:#dc2626; font-size:1.05rem;"></i>
@@ -1193,7 +1194,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
                     <?php if ($catKey === 'ldap' || $catKey === 'ad'): ?>
                     <div style="margin-bottom:1rem;">
                         <button type="button" class="btn btn-info" onclick="testLdap('<?php echo $catKey; ?>')">
-                            <i class="fas fa-vial"></i> TEST conexión <?php echo strtoupper($catKey); ?> 
+                            <i class="fas fa-vial"></i> <?php echo t('test_ldap'); ?> <?php echo strtoupper($catKey); ?> 
                         </button>
                         <span id="testLdapResult_<?php echo $catKey; ?>" style="margin-left:1rem;font-weight:bold;"></span>
                     </div>
@@ -1201,24 +1202,24 @@ renderHeader('Configuración del Sistema', $user, $auth);
                     <?php if ($catKey === 'email'): ?>
                     <div style="margin-bottom:1rem;">
                         <button type="button" class="btn btn-info" onclick="testSmtp()">
-                            <i class="fas fa-paper-plane"></i> TEST correo
+                            <i class="fas fa-paper-plane"></i> <?php echo t('test_smtp'); ?>
                         </button>
                         <span id="testSmtpResult" style="margin-left:1rem;font-weight:bold;"></span>
                     </div>
                     <?php if (!$smtpPasswordPresent): ?>
                     <div class="alert alert-warning" style="margin-bottom:1rem;">
-                        <strong>Aviso:</strong> No hay contraseña SMTP configurada; los envíos SMTP pueden fallar si el servidor requiere autenticación.
+                        <strong><?php echo htmlspecialchars(t('smtp_warning_password_missing')); ?></strong>
                     </div>
                     <?php endif; ?>
                     <?php if (!$sendmailAvailable): ?>
                     <div class="alert alert-info" style="margin-bottom:1rem;">
-                        <strong>Info:</strong> No se encontró /usr/sbin/sendmail en el sistema; la opción de fallback a sendmail está deshabilitada.
+                        <strong><?php echo htmlspecialchars(t('info_sendmail_missing')); ?></strong>
                     </div>
                     <?php endif; ?>
                     <!-- Helpful guidance about unified email handling -->
                     <div style="margin-bottom:1rem;">
                         <details>
-                            <summary style="cursor:pointer; font-weight:700;">Guía rápida: Envíos de correo (API unificada)</summary>
+                            <summary style="cursor:pointer; font-weight:700;"><?php echo htmlspecialchars(t('guide_quick_title')); ?>: Envíos de correo (API unificada)</summary>
                             <div style="margin-top:0.5rem;">
                                 <p style="margin:0 0 0.5rem 0;">La aplicación usa una API unificada `Notification` para enviar correos. Internamente `Notification` utiliza `classes/Email.php` como implementación SMTP.</p>
                                 <ul style="margin:0 0 0.5rem 1rem;">
@@ -1304,21 +1305,21 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                         onchange="previewLogo(this)"
                                     >
                                     <button type="button" onclick="document.getElementById('site_logo_file').value=''; document.getElementById('logo_preview').style.display='none';" class="btn btn-outline btn-outline--on-dark" style="white-space: nowrap;">
-                                        <i class="fas fa-times"></i> Limpiar
+                                        <i class="fas fa-times"></i> <?php echo htmlspecialchars(t('clear')); ?>
                                     </button>
                                     <a href="/admin/logo_gallery.php?embed=1" class="btn btn-outline open-logo-gallery" style="white-space: nowrap;">
-                                        <i class="fas fa-images"></i> Galería de logos
+                                        <i class="fas fa-images"></i> <?php echo htmlspecialchars(t('gallery')); ?>
                                     </a>
                                 </div>
                                 <div id="logo_preview" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius-md); display: inline-block;">
-                                    <p style="margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">Vista previa:</p>
+                                    <p style="margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;"><?php echo htmlspecialchars(t('logo_preview')); ?>:</p>
                                     <img id="logo_preview_img" style="max-width: 200px; max-height: 100px; display: block;">
                                 </div>
                                 <div style="margin-top: 1rem; padding: 1rem; background: #e0f2fe; border-left: 4px solid #0ea5e9; border-radius: var(--radius-md);">
                                     <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin: 0;">
                                         <input type="checkbox" name="auto_extract_colors" value="1" checked style="width: 18px; height: 18px; cursor: pointer;">
                                         <span style="color: #0c4a6e; font-weight: 600;">
-                                            <i class="fas fa-magic"></i> Extraer colores automáticamente del logo
+                                            <i class="fas fa-magic"></i> <?php echo htmlspecialchars(t('extract_colors')); ?>
                                         </span>
                                     </label>
                                     <p style="margin: 0.5rem 0 0 1.75rem; color: #075985; font-size: 0.8125rem;">
@@ -1368,7 +1369,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 <?php echo (bool)$globalConfigProtection ? 'readonly style="color:#6b6b6b;"' : ''; ?>
                             ><?php echo htmlspecialchars($cfg['config_value']); ?></textarea>
                             <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
-                                <label style="margin:0; font-weight:600;">Vista previa:</label>
+                                <label style="margin:0; font-weight:600;"><?php echo htmlspecialchars(t('logo_preview')); ?>:</label>
                                 <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="toggleSignaturePreview()" style="padding:0.25rem 0.5rem;">Mostrar / Ocultar</button>
                             </div>
                             <div id="email_signature_preview" style="margin-top:0.75rem; padding:0.75rem; background:#fff; border:1px solid var(--border-color); border-radius:0.5rem; display:none; max-height:220px; overflow:auto;"></div>
@@ -1507,7 +1508,7 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 // Only hide help when it's identical to the label (case-insensitive).
                                 if (mb_strtolower($desc) !== mb_strtolower($labelCheck)) {
                                     $helpId = 'cfg_help_' . preg_replace('/[^a-zA-Z0-9_\-]/', '_', $cfg['config_key']);
-                                    echo '<small id="' . $helpId . '" class="form-text text-muted" style="display:block; margin-top:0.25rem;"><span style="font-weight:600; margin-right:0.35rem;">Ayuda:</span> ' . htmlspecialchars($desc) . '</small>';
+                                    echo '<small id="' . $helpId . '" class="form-text text-muted" style="display:block; margin-top:0.25rem;"><span style="font-weight:600; margin-right:0.35rem;">' . htmlspecialchars(t('help_prefix')) . '</span> ' . htmlspecialchars($desc) . '</small>';
                                 }
                             }
                         ?>
@@ -1521,8 +1522,8 @@ renderHeader('Configuración del Sistema', $user, $auth);
         <!-- Password reset detection & auto-blocking will be shown under Security category -->
 
         <div style="position: sticky; bottom: 1rem; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 100%); padding: 1.5rem; border-radius: 1rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 2px solid var(--border-color);">
-            <button type="submit" class="btn btn-primary" style="padding: 0.875rem 2rem; font-size: 1.0625rem; font-weight: 700; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);"><i class="fas fa-save"></i> Guardar Cambios</button>
-            <a href="<?php echo BASE_URL; ?>/admin/index.php" class="btn btn-outline btn-outline--on-dark" style="padding: 0.875rem 2rem; font-size: 1.0625rem; font-weight: 600;">Cancelar</a>
+            <button type="submit" class="btn btn-primary" style="padding: 0.875rem 2rem; font-size: 1.0625rem; font-weight: 700; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);"><i class="fas fa-save"></i> <?php echo htmlspecialchars(t('save_changes')); ?></button>
+            <a href="<?php echo BASE_URL; ?>/admin/index.php" class="btn btn-outline btn-outline--on-dark" style="padding: 0.875rem 2rem; font-size: 1.0625rem; font-weight: 600;"><?php echo htmlspecialchars(t('cancel')); ?></a>
         </div>
     </form>
 </div>
