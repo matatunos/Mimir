@@ -45,6 +45,34 @@ function anonymize_email($email) {
     return $localMasked . '@' . $domainMasked;
 }
 
+function generate_fake_anonymized_email($email = null) {
+    if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return anonymize_email($email);
+    }
+
+    // Create a plausible-looking fake address: a*****z@d*****m.ext
+    $localFirst = chr(rand(97, 122));
+    $localLast = chr(rand(97, 122));
+    $localLen = rand(3, 8);
+    $localMasked = $localFirst . str_repeat('*', max(1, $localLen - 2)) . $localLast;
+
+    $domains = ['example.com','mail.example','example.org','domain.com'];
+    $d = $domains[array_rand($domains)];
+    $domParts = explode('.', $d);
+    $maskedParts = [];
+    foreach ($domParts as $p) {
+        $len = strlen($p);
+        if ($len <= 2) {
+            $maskedParts[] = substr($p, 0, 1) . str_repeat('*', max(1, $len - 1));
+        } else {
+            $maskedParts[] = substr($p, 0, 1) . str_repeat('*', max(1, $len - 2)) . substr($p, -1);
+        }
+    }
+    $domainMasked = implode('.', $maskedParts);
+
+    return $localMasked . '@' . $domainMasked;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     if ($username === '' || !preg_match('/^[A-Za-z0-9_\.\-@]+$/', $username)) {
@@ -69,8 +97,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-            // Do not reveal whether user exists; generic message
-            $success = 'Si existe una cuenta asociada a ese usuario, recibirás un correo con instrucciones.';
+            // Do not reveal whether user exists; create a fake anonymized address for the confirmation message
+            $anon = generate_fake_anonymized_email();
+
+            // Log the attempt for audit (no sensitive data leaked)
+            try {
+                $stmtLog = $db->prepare("INSERT INTO security_events (event_type, username, severity, ip_address, user_agent, description, details) VALUES ('password_reset_request', ?, 'low', ?, ?, ?, ?)");
+                $detailsJson = json_encode(['username_submitted' => $username, 'time' => date('Y-m-d H:i:s')]);
+                $stmtLog->execute([$username, $_SERVER['REMOTE_ADDR'] ?? 'unknown', $_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 'Password reset requested for submitted username (user not found)', $detailsJson]);
+            } catch (Exception $e) {
+                // ignore logging errors
+            }
+
+            $success = 'Se ha enviado un correo a tu dirección ' . $anon . ' con instrucciones para restablecer la contraseña.';
         } else {
             $email = $user['email'];
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -91,7 +130,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $sent = $emailer->send($email, $subject, $body);
                 if ($sent) {
-                    $success = 'Se ha enviado un correo a tu dirección ' . anonymize_email($email) . ' con instrucciones para restablecer la contraseña.';
+                    $anon = anonymize_email($email);
+                    $success = 'Se ha enviado un correo a tu dirección ' . $anon . ' con instrucciones para restablecer la contraseña.';
                 } else {
                     $error = 'No se pudo enviar el correo. Revisa la configuración de correo del servidor.';
                 }
