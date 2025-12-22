@@ -11,7 +11,7 @@ use PDO;
 $cfg = new Config();
 if (!(bool)$cfg->get('enable_email', '0')) {
     http_response_code(403);
-    echo "Email sending is not enabled on this instance.";
+    echo t('email_sending_not_enabled');
     exit;
 }
 
@@ -95,7 +95,7 @@ function generate_fake_anonymized_email($username = null, $email = null) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     if ($username === '' || !preg_match('/^[A-Za-z0-9_\.\-@]+$/', $username)) {
-        $error = 'Introduce un nombre de usuario válido.';
+        $error = t('error_invalid_username');
     } else {
         $db = Database::getInstance()->getConnection();
 
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($isBlocked) {
                     // Show generic success message (do not reveal block)
                     $anon = generate_fake_anonymized_email($username);
-                    $success = 'Se ha enviado un correo a tu dirección ' . $anon . ' con instrucciones para restablecer la contraseña.';
+                    $success = sprintf(t('password_reset_sent_to'), $anon);
                     // Log for forensic visibility
                     try {
                         $logger = new Logger();
@@ -179,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // ignore logging errors
             }
 
-            $success = 'Se ha enviado un correo a tu dirección ' . $anon . ' con instrucciones para restablecer la contraseña.';
+            $success = sprintf(t('password_reset_sent_to'), $anon);
 
             // Detection: check if many requests for same username or from same IP in time window
             try {
@@ -244,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $email = $user['email'];
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $error = 'La cuenta indicada no tiene una dirección de correo válida configurada.';
+                $error = t('error_no_valid_email_configured');
             } else {
                 $token = bin2hex(random_bytes(24));
                 $expires = date('Y-m-d H:i:s', time() + 3600); // 1 hour
@@ -262,9 +262,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sent = $emailer->send($email, $subject, $body);
                 if ($sent) {
                     $anon = anonymize_email($email);
-                    $success = 'Se ha enviado un correo a tu dirección ' . $anon . ' con instrucciones para restablecer la contraseña.';
+                    $success = sprintf(t('password_reset_sent_to'), $anon);
                 } else {
-                    $error = 'No se pudo enviar el correo. Revisa la configuración de correo del servidor.';
+                    $error = t('error_could_not_send_email');
                 }
             }
         }
@@ -277,12 +277,12 @@ require_once __DIR__ . '/../includes/layout.php';
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Restablecer contraseña</title>
+    <title><?php echo htmlspecialchars(t('password_reset_title')); ?></title>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
 </head>
 <body>
 <div class="container" style="max-width:600px;margin:2rem auto;">
-    <h2>Restablecer contraseña</h2>
+    <h2><?php echo htmlspecialchars(t('password_reset_title')); ?></h2>
     <?php if ($error): ?>
         <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
@@ -291,13 +291,13 @@ require_once __DIR__ . '/../includes/layout.php';
     <?php else: ?>
         <form method="POST" action="">
             <div class="form-group">
-                <label for="username">Usuario</label>
+                <label for="username"><?php echo htmlspecialchars(t('label_username')); ?></label>
                 <input id="username" name="username" type="text" class="form-control" required autofocus>
             </div>
             <button class="btn btn-primary"><?php echo t('send_instructions'); ?></button>
         </form>
     <?php endif; ?>
-    <p><a href="<?php echo BASE_URL; ?>/login.php">Volver al inicio de sesión</a></p>
+    <p><a href="<?php echo BASE_URL; ?>/login.php"><?php echo htmlspecialchars(t('back_to_login')); ?></a></p>
 </div>
 </body>
 </html>

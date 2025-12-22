@@ -260,6 +260,12 @@ $LANG = [
     , 'invitation_revoked' => 'Invitación revocada'
     , 'error_revoke_invitation' => 'No se pudo revocar la invitación'
     , 'config_protection_active_html' => 'Protección de configuración: <span style="font-weight:800;">Activada</span>'
+    , 'email_sending_not_enabled' => 'El envío de correo no está habilitado en esta instancia.'
+    , 'error_invalid_username' => 'Introduce un nombre de usuario válido.'
+    , 'password_reset_sent_to' => 'Se ha enviado un correo a tu dirección %s con instrucciones para restablecer la contraseña.'
+    , 'back_to_login' => 'Volver al inicio de sesión'
+    , 'error_no_valid_email_configured' => 'La cuenta indicada no tiene una dirección de correo válida configurada.'
+    , 'error_could_not_send_email' => 'No se pudo enviar el correo. Revisa la configuración de correo del servidor.'
 ];
 
 return $LANG;
