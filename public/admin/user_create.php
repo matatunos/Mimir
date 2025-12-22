@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Throwable $e) {}
 
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Token de seguridad inválido';
+        $error = t('error_invalid_csrf');
     } else {
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
@@ -100,13 +100,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sendEmail = isset($_POST['send_email']);
         
         if (empty($username) || empty($password)) {
-            $error = 'Usuario y contraseña son obligatorios';
+            $error = t('error_user_password_required');
         } elseif (strlen($password) < 6) {
-            $error = 'La contraseña debe tener al menos 6 caracteres';
+            $error = sprintf(t('error_password_min_length'), 6);
         } elseif ($sendEmail && empty($email)) {
-            $error = 'Se requiere un email para enviar las credenciales';
+            $error = t('error_email_required_for_credentials');
         } elseif (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = 'Email inválido';
+            $error = t('error_invalid_email');
         } else {
             try {
                 $db = Database::getInstance()->getConnection();
@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'require_2fa' => $require2FA
                 ]);
                 if (!$userId) {
-                    throw new Exception('No se pudo crear el usuario. Nombre de usuario o email posiblemente ya existe.');
+                    throw new Exception(t('error_create_user_exists'));
                 }
                 
                 $logger->log($user['id'], 'user_create', 'user', $userId, "Usuario creado: $username");
@@ -292,8 +292,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-renderPageStart('Crear Usuario', 'users', true);
-renderHeader('Crear Nuevo Usuario', $user);
+renderPageStart(t('create') . ' ' . t('user'), 'users', true);
+renderHeader(t('create') . ' ' . t('new_user'), $user);
 ?>
 
 <div class="content">
@@ -383,18 +383,18 @@ renderHeader('Crear Nuevo Usuario', $user);
                     <div class="form-group">
                         <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                             <input type="checkbox" name="send_email" id="send_email" value="1" <?php echo isset($_POST['send_email']) ? 'checked' : ''; ?>>
-                            <span>Enviar credenciales por correo electrónico</span>
+                            <span><?php echo t('send_credentials_label'); ?></span>
                         </label>
-                        <small style="color: var(--text-muted); display: block; margin-left: 1.75rem;">Se enviará un email con las credenciales de acceso y el código QR de 2FA si aplica</small>
+                        <small style="color: var(--text-muted); display: block; margin-left: 1.75rem;"><?php echo t('send_credentials_help'); ?></small>
                     </div>
                     
                     <div id="email_warning" style="display: none; background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 193, 7, 0.1)); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #ff9800; margin-top: 1rem;">
-                        <p style="margin: 0; font-size: 0.875rem; color: var(--text-main);"><strong>⚠️ Atención:</strong> Asegúrate de que el campo email esté completado para poder enviar las credenciales.</p>
+                        <p style="margin: 0; font-size: 0.875rem; color: var(--text-main);"><strong>⚠️</strong> <?php echo t('attention_email_required_for_credentials'); ?></p>
                     </div>
                     
                     <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
-                        <button type="submit" class="btn btn-primary" style="padding: 0.875rem 2rem; font-weight: 700;"><i class="fas fa-plus"></i> Crear Usuario</button>
-                        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark" style="padding: 0.875rem 2rem; font-weight: 600;">Cancelar</a>
+                        <button type="submit" class="btn btn-primary" style="padding: 0.875rem 2rem; font-weight: 700;"><i class="fas fa-plus"></i> <?php echo t('create'); ?> <?php echo t('user'); ?></button>
+                        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark" style="padding: 0.875rem 2rem; font-weight: 600;"><?php echo t('cancel'); ?></a>
                     </div>
                 </form>
             </div>
