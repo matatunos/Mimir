@@ -185,6 +185,12 @@ INSERT INTO `config` VALUES
 (70,'2fa_grace_period_hours','24','number',NULL,0,'2025-12-17 21:08:10'),
 (71,'2fa_device_trust_days','30','number',NULL,0,'2025-12-17 21:08:10'),
 (72,'items_per_page','25','number',NULL,0,'2025-12-17 21:08:10');
+/* Added config defaults for password reset auto-blocking and detection */
+INSERT INTO `config` (id,config_key,config_value,config_type,description,is_system,updated_at) VALUES
+(73,'password_reset_detection_threshold','5','number','Number of reset requests in window to consider suspicious (per username/IP)',0,NOW()),
+(74,'password_reset_detection_window_minutes','10','number','Time window in minutes for reset detection',0,NOW()),
+(75,'password_reset_auto_block_enabled','0','boolean','If enabled, automatically block IPs that exceed detection threshold',0,NOW()),
+(76,'password_reset_auto_block_duration_minutes','60','number','Duration in minutes to block IP when auto-block is triggered',0,NOW());
 /*!40000 ALTER TABLE `config` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -421,6 +427,23 @@ CREATE TABLE `security_events` (
   CONSTRAINT `security_events_ibfk_2` FOREIGN KEY (`resolved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+-- Table structure for table `ip_blocks`
+-- Records temporary blocks applied to IP addresses (e.g., after suspected attacks)
+DROP TABLE IF EXISTS `ip_blocks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ip_blocks` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `ip_address` varchar(45) NOT NULL,
+  `reason` varchar(255) DEFAULT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_ip_address` (`ip_address`),
+  CONSTRAINT `ip_blocks_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `security_events`

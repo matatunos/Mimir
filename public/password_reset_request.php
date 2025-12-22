@@ -99,6 +99,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $db = Database::getInstance()->getConnection();
 
+            // If IP is currently blocked, behave as if the request succeeded (avoid info leak)
+            try {
+                $stmtBlockCheck = $db->prepare("SELECT COUNT(*) FROM ip_blocks WHERE ip_address = ? AND expires_at > NOW()");
+                $stmtBlockCheck->execute([$_SERVER['REMOTE_ADDR'] ?? '']);
+                $isBlocked = intval($stmtBlockCheck->fetchColumn() ?: 0) > 0;
+                if ($isBlocked) {
+                    // Show generic success message (do not reveal block)
+                    $anon = generate_fake_anonymized_email($username);
+                    $success = 'Se ha enviado un correo a tu dirección ' . $anon . ' con instrucciones para restablecer la contraseña.';
+                    // Log for forensic visibility
+                    try {
+                        $logger = new Logger();
+                        $logger->log(null, 'password_reset_request_blocked_ip', null, null, 'Password reset requested but IP is blocked: ' . ($_SERVER['REMOTE_ADDR'] ?? ''), ['username' => $username]);
+                        $forensic = new ForensicLogger();
+                        $forensic->logSecurityEvent('password_reset_request_blocked', 'medium', 'Password reset request received from blocked IP', ['ip' => $_SERVER['REMOTE_ADDR'] ?? '', 'username' => $username], null);
+                    } catch (Exception $e) {}
+
+                    // Render result (skip processing)
+                    require_once __DIR__ . '/../includes/layout.php';
+                    ?>
+                    <!doctype html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="utf-8">
+                        <title>Restablecer contraseña</title>
+                        <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
+                    </head>
+                    <body>
+                    <div class="container" style="max-width:600px;margin:2rem auto;">
+                        <h2>Restablecer contraseña</h2>
+                        <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
+                        <p><a href="<?php echo BASE_URL; ?>/login.php">Volver al inicio de sesión</a></p>
+                    </div>
+                    </body>
+                    </html>
+                    <?php
+                    exit;
+                }
+            } catch (Exception $e) {
+                // If ip_blocks table missing or error, fail open and continue processing
+            }
+
         // Ensure table exists (simple migration-on-demand)
         $db->exec("CREATE TABLE IF NOT EXISTS password_resets (
             id INT AUTO_INCREMENT PRIMARY KEY,
