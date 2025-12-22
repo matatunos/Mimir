@@ -138,6 +138,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $success = 'Se ha enviado un correo a tu dirección ' . $anon . ' con instrucciones para restablecer la contraseña.';
+
+            // Detection: check if many requests for same username or from same IP in time window
+            try {
+                $cfgLocal = new Config();
+                $threshold = max(3, intval($cfgLocal->get('password_reset_detection_threshold', 5)));
+                $window = max(1, intval($cfgLocal->get('password_reset_detection_window_minutes', 10)));
+
+                $stmtCount = $db->prepare("SELECT COUNT(*) FROM security_events WHERE event_type LIKE 'password_reset_request%' AND (username = ? OR ip_address = ?) AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)");
+                $stmtCount->execute([$username, $_SERVER['REMOTE_ADDR'] ?? '', $window]);
+                $cnt = intval($stmtCount->fetchColumn() ?: 0);
+                if ($cnt >= $threshold) {
+                    // escalate: forensic high and notify admins
+                    try {
+                        $forensic->logSecurityEvent('password_reset_enumeration_suspected', 'high', 'Suspected password reset enumeration attack', ['username_submitted' => $username, 'count' => $cnt, 'window_minutes' => $window, 'ip' => $_SERVER['REMOTE_ADDR'] ?? null], null);
+                        $logger->log(null, 'password_reset_attack_escalated', null, null, 'Escalated suspected password reset enumeration for ' . $username, ['count' => $cnt, 'window' => $window, 'ip' => $_SERVER['REMOTE_ADDR'] ?? null]);
+                    } catch (Exception $e) {}
+
+                    // Notify admins via email (collect admin emails from users table)
+                    try {
+                        $stmtA = $db->prepare("SELECT email FROM users WHERE role = 'admin' AND email IS NOT NULL AND email != ''");
+                        $stmtA->execute();
+                        $admins = $stmtA->fetchAll(PDO::FETCH_COLUMN, 0);
+                        $emailer = new Email();
+                        $siteName = (new Config())->get('site_name', 'Mimir');
+                        $subject = "[{$siteName}] Alerta: posible ataque de enumeración de contraseñas";
+                        $body = '<p>Se ha detectado un posible ataque de enumeración de contraseñas.</p>';
+                        $body .= '<ul>';
+                        $body .= '<li><strong>Usuario solicitado:</strong> ' . htmlspecialchars($username) . '</li>';
+                        $body .= '<li><strong>IP origen:</strong> ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . '</li>';
+                        $body .= '<li><strong>Intentos en ' . intval($window) . ' minutos:</strong> ' . intval($cnt) . '</li>';
+                        $body .= '</ul>';
+                        foreach ($admins as $a) {
+                            if ($a && filter_var($a, FILTER_VALIDATE_EMAIL)) {
+                                try { $emailer->send($a, $subject, $body); } catch (Exception $e) {}
+                            }
+                        }
+                    } catch (Exception $e) {
+                        // ignore email errors
+                    }
+                }
+            } catch (Exception $e) {
+                // ignore detection errors
+            }
         } else {
             $email = $user['email'];
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
