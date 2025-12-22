@@ -147,6 +147,18 @@ $LANG = [
     , 'send_instructions' => 'Enviar instrucciones'
     , 'confirm_and_send' => 'Confirmar y enviar'
     , 'back' => 'Volver'
+    , 'no_users_selected' => 'No hay usuarios seleccionados'
+    , 'error_change_user_state' => 'Error al cambiar el estado del usuario'
+    , 'error_reset_password' => 'Error al resetear la contraseña'
+    , 'error_delete_user' => 'Error al eliminar el usuario'
+    , 'error_configure_2fa' => 'Error al configurar 2FA'
+    , 'error_send_email' => 'Error al enviar el email'
+    , '2fa_totp_configured' => '2FA TOTP configurado correctamente'
+    , '2fa_disabled_success' => '2FA desactivado correctamente'
+    , 'email_sent_success' => 'Email enviado correctamente'
+    , 'copied_to_clipboard' => 'Enlace copiado al portapapeles'
+    , 'error_password_min_length' => 'La contraseña debe tener al menos %s caracteres'
+    , 'error_disable_2fa' => 'Error al desactivar 2FA'
 ];
 
 return $LANG;

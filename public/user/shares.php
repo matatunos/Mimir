@@ -154,13 +154,13 @@ renderHeader('Mis Enlaces Compartidos', $user);
                                             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                                             <input type="hidden" name="share_id" value="<?php echo $share['id']; ?>">
                                             <input type="hidden" name="action" value="deactivate">
-                                            <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('¿Desactivar este enlace?')" title="Desactivar"><i class="fas fa-pause"></i></button>
+                                                <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm(<?php echo json_encode(t('confirm_disable_link')); ?>)" title="<?php echo t('disable'); ?>"><i class="fas fa-pause"></i></button>
                                         </form>
                                         <form method="POST" style="display: inline;">
                                             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                                             <input type="hidden" name="share_id" value="<?php echo $share['id']; ?>">
                                             <input type="hidden" name="action" value="delete">
-                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar este enlace permanentemente?')" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm(<?php echo json_encode(t('confirm_delete_link_permanent')); ?>)" title="<?php echo t('delete'); ?>"><i class="fas fa-trash"></i></button>
                                         </form>
                                     </div>
                                 </td>
@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             try {
                 document.execCommand('copy');
-                Mimir.showAlert('Enlace copiado al portapapeles', 'success');
+                Mimir.showAlert(<?php echo json_encode(t('copied_to_clipboard')); ?>, 'success');
             } catch (err) {
                 prompt('Copia este enlace:', url);
             }

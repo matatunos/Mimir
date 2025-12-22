@@ -775,7 +775,7 @@ function executeBulkAction(action) {
     const userIds = Array.from(checkboxes).map(cb => cb.value);
     
     if (userIds.length === 0) {
-        Mimir.showAlert('No hay usuarios seleccionados', 'warning');
+        Mimir.showAlert(<?php echo json_encode(t('no_users_selected')); ?>, 'warning');
         return;
     }
     
@@ -844,7 +844,7 @@ function toggleUserStatus(userId, activate) {
         }
     })
     .catch(error => {
-        Mimir.showAlert('Error al cambiar el estado del usuario', 'error');
+        Mimir.showAlert(<?php echo json_encode(t('error_change_user_state')); ?>, 'error');
         console.error('Error:', error);
     });
 }
@@ -908,7 +908,7 @@ function executePasswordReset(userId, username) {
     
     if (passwordType === 'custom') {
         if (!customPassword || customPassword.length < 6) {
-            Mimir.showAlert('La contraseña debe tener al menos 6 caracteres', 'error');
+            Mimir.showAlert(<?php echo json_encode(t('error_password_min_length')); ?> || 'La contraseña debe tener al menos 6 caracteres', 'error');
             return;
         }
     }
@@ -944,7 +944,7 @@ function executePasswordReset(userId, username) {
         }
     })
     .catch(error => {
-        Mimir.showAlert('Error al resetear la contraseña', 'error');
+        Mimir.showAlert(<?php echo json_encode(t('error_reset_password')); ?>, 'error');
         console.error('Error:', error);
     });
 }
@@ -980,7 +980,7 @@ function deleteUser(userId, username) {
     })
     .catch(error => {
         console.error('Error:', error);
-        Mimir.showAlert('Error al eliminar el usuario', 'error');
+        Mimir.showAlert(<?php echo json_encode(t('error_delete_user')); ?>, 'error');
     });
 }
 
@@ -1014,7 +1014,7 @@ function setup2FA(userId, method, username) {
     })
     .catch(error => {
         console.error('Error:', error);
-        Mimir.showAlert('Error al configurar 2FA', 'error');
+        Mimir.showAlert(<?php echo json_encode(t('error_configure_2fa')); ?>, 'error');
     });
 }
 
@@ -1095,7 +1095,7 @@ function sendTOTPEmail(userId, username) {
     .catch(error => {
         btn.disabled = false;
         btn.innerHTML = originalText;
-        Mimir.showAlert('Error al enviar el email', 'error');
+        Mimir.showAlert(<?php echo json_encode(t('error_send_email')); ?>, 'error');
         console.error('Error:', error);
     });
 }
@@ -1103,7 +1103,7 @@ function sendTOTPEmail(userId, username) {
 function closeTOTPModal() {
     const modal = document.getElementById('totpSetupModal');
     if (modal) modal.remove();
-    Mimir.showAlert('2FA TOTP configurado correctamente', 'success');
+    Mimir.showAlert(<?php echo json_encode(t('2fa_totp_configured')); ?>, 'success');
     setTimeout(() => {
         location.reload(true); // Force reload from server
     }, 1000);
@@ -1129,7 +1129,7 @@ function reset2FA(userId, username) {
     .then(Mimir.parseJsonResponse)
     .then(data => {
         if (data.success) {
-            Mimir.showAlert('2FA desactivado correctamente', 'success');
+            Mimir.showAlert(<?php echo json_encode(t('2fa_disabled_success')); ?>, 'success');
             setTimeout(() => {
                 location.reload(true); // Force reload from server
             }, 1000);
@@ -1139,7 +1139,7 @@ function reset2FA(userId, username) {
     })
     .catch(error => {
         console.error('Error:', error);
-        Mimir.showAlert('Error al desactivar 2FA', 'error');
+        Mimir.showAlert(<?php echo json_encode(t('error_disable_2fa')); ?> || 'Error al desactivar 2FA', 'error');
     });
 }
 
@@ -1159,11 +1159,11 @@ function send2FAEmail(userId, username) {
     })
     .then(response => response.text())
     .then(text => {
-        Mimir.showAlert('Email enviado correctamente', 'success');
+        Mimir.showAlert(<?php echo json_encode(t('email_sent_success')); ?>, 'success');
     })
     .catch(error => {
         console.error('Error:', error);
-        Mimir.showAlert('Error al enviar email', 'error');
+        Mimir.showAlert(<?php echo json_encode(t('error_send_email')); ?>, 'error');
     });
 }
 
