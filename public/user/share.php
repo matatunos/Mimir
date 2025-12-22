@@ -21,14 +21,14 @@ $error = '';
 $success = '';
 
 $file = $fileClass->getById($fileId);
-if (!$file || $file['user_id'] != $user['id']) {
-    header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode('Archivo no encontrado'));
+    if (!$file || $file['user_id'] != $user['id']) {
+    header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode(t('error_file_not_found')));
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Token de seguridad inválido';
+        $error = t('error_invalid_csrf');
     } else {
         try {
             $defaultMaxDays = $config->get('default_max_share_days', DEFAULT_MAX_SHARE_DAYS);
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($validator->validateEmail($candidate)) {
                     $recipientEmail = $candidate;
                 } else {
-                    throw new Exception('Email destinatario inválido');
+                    throw new Exception(t('error_invalid_recipient_email'));
                 }
             }
             if (!empty($_POST['recipient_message'])) {
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'max_days' => $maxDays
             ]);
 
-            header('Location: ' . BASE_URL . '/user/shares.php?success=' . urlencode('Enlace creado correctamente'));
+            header('Location: ' . BASE_URL . '/user/shares.php?success=' . urlencode(t('share_link_created')));
             exit;
         } catch (Exception $e) {
             $error = $e->getMessage();
@@ -75,8 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $isAdmin = ($user['role'] === 'admin');
-renderPageStart('Compartir Archivo', 'files', $isAdmin);
-renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $user);
+renderPageStart(t('share'), 'files', $isAdmin);
+renderHeader(t('share') . ': ' . htmlspecialchars($file['original_name']), $user);
 ?>
 
 <div class="content">
@@ -90,7 +90,7 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
             <h2 class="card-title" style="margin: 0;"><?php echo t('create'); ?> <?php echo t('share'); ?></h2>
         </div>
         <div class="card-body">
-            <div class="mb-3" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                <div class="mb-3" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
                 <div style="display: flex; align-items: center; gap: 1rem;">
                     <div style="font-size: 2rem;"><i class="fas fa-file"></i></div>
                     <div style="flex: 1;">
@@ -106,28 +106,28 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
                 <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                 
                 <div class="form-group">
-                    <label>Días válido *</label>
+                    <label><?php echo htmlspecialchars(t('share_days_valid_label')); ?> *</label>
                     <?php $defaultMaxDays = $config->get('default_max_share_days', DEFAULT_MAX_SHARE_DAYS); ?>
                     <input type="number" name="max_days" class="form-control" value="<?php echo $defaultMaxDays; ?>" min="1" max="<?php echo $defaultMaxDays; ?>" required>
-                    <small style="color: var(--text-muted);">Máximo: <?php echo $defaultMaxDays; ?> días</small>
+                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars(sprintf(t('max_days_hint'), $defaultMaxDays)); ?></small>
                 </div>
 
                 <div class="form-group">
-                    <label>Descargas máximas</label>
-                    <input type="number" name="max_downloads" class="form-control" placeholder="Ilimitado" min="1">
-                    <small style="color: var(--text-muted);">Deja en blanco para ilimitado</small>
+                    <label><?php echo htmlspecialchars(t('share_max_downloads_label')); ?></label>
+                    <input type="number" name="max_downloads" class="form-control" placeholder="<?php echo htmlspecialchars(t('unlimited')); ?>" min="1">
+                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars(t('leave_blank_unlimited')); ?></small>
                 </div>
 
                 <div class="form-group">
-                    <label>Contraseña (opcional)</label>
-                    <input type="password" name="password" class="form-control" placeholder="Proteger con contraseña">
-                    <small style="color: var(--text-muted);">Si está vacío, no requerirá contraseña</small>
+                    <label><?php echo htmlspecialchars(t('share_password_optional')); ?></label>
+                    <input type="password" name="password" class="form-control" placeholder="<?php echo htmlspecialchars(t('protect_with_password')); ?>">
+                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars(t('share_password_hint')); ?></small>
                 </div>
 
                 <div class="form-group">
-                    <label>Enviar a (email destinatario, opcional)</label>
+                    <label><?php echo htmlspecialchars(t('share_send_to_email_label')); ?></label>
                     <input type="email" name="recipient_email" class="form-control" placeholder="correo@ejemplo.com">
-                    <small style="color: var(--text-muted);">Opcional: si indicas un email, se podrá informar al propietario cuando se descargue el archivo.</small>
+                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars(t('share_send_to_email_help')); ?></small>
                 </div>
 
                 <div class="form-group">
@@ -136,8 +136,8 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
                 </div>
 
                 <div style="display: flex; gap: 0.75rem;">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-link"></i> <?php echo t('create'); ?> <?php echo t('share'); ?></button>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark"><?php echo t('cancel'); ?></a>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-link"></i> <?php echo htmlspecialchars(t('create') . ' ' . t('share')); ?></button>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark"><?php echo htmlspecialchars(t('cancel')); ?></a>
                 </div>
             </form>
         </div>

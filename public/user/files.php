@@ -64,8 +64,8 @@ if (!empty($_SESSION['upload_results'])) {
 }
 
 $isAdmin = ($user['role'] === 'admin');
-renderPageStart('Mis Archivos', 'user-files', $isAdmin);
-renderHeader('Mis Archivos', $user);
+renderPageStart(t('my_files_section'), 'user-files', $isAdmin);
+renderHeader(t('my_files_section'), $user);
 ?>
 
 <style>
@@ -164,11 +164,11 @@ renderHeader('Mis Archivos', $user);
                                 <option value="error">Error</option>
                             </select>
                         </div>
-                        <div style="font-size:0.9rem; color:var(--text-muted);">Haz clic en los encabezados para ordenar</div>
+                        <div style="font-size:0.9rem; color:var(--text-muted);"><?php echo htmlspecialchars(t('click_headers_to_sort')); ?></div>
                     </div>
                     <table id="filesUploadResultsTable" class="table table-sm">
                         <thead>
-                            <tr><th>Archivo</th><th>Estado</th><th>Motivo</th></tr>
+                            <tr><th><?php echo htmlspecialchars(t('table_name')); ?></th><th><?php echo htmlspecialchars(t('table_status') ?? 'Estado'); ?></th><th><?php echo htmlspecialchars(t('reason') ?? 'Motivo'); ?></th></tr>
                         </thead>
                         <tbody>
                             <?php foreach ($uploadResults as $res): ?>
@@ -185,15 +185,15 @@ renderHeader('Mis Archivos', $user);
         </div>
     <?php endif; ?>
 
-    <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+            <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
         <div class="card-header" style="padding: 1.5rem;">
-            <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem; margin: 0;"><i class="fas fa-folder"></i> Mis Archivos (<?php echo $totalFiles; ?>)</h2>
+            <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem; margin: 0;"><i class="fas fa-folder"></i> <?php echo htmlspecialchars(t('my_files_section')); ?> (<?php echo $totalFiles; ?>)</h2>
             <div style="display: flex; gap: 0.5rem;">
                 <button onclick="showCreateFolderModal()" class="btn btn-primary" style="background: white; color: #4a90e2; border: none; font-weight: 600;">
-                    <i class="fas fa-folder-plus"></i> Nueva Carpeta
+                    <i class="fas fa-folder-plus"></i> <?php echo htmlspecialchars(t('create') . ' ' . t('folder')); ?>
                 </button>
                 <a href="<?php echo BASE_URL; ?>/user/upload.php<?php echo $currentFolderId ? '?folder=' . $currentFolderId : ''; ?>" class="btn btn-success" style="background: white; color: #50c878; border: none; font-weight: 600;">
-                    <i class="fas fa-upload"></i> Subir Archivo
+                    <i class="fas fa-upload"></i> <?php echo htmlspecialchars(t('upload_button')); ?>
                 </a>
             </div>
         </div>
@@ -216,10 +216,10 @@ renderHeader('Mis Archivos', $user);
             <?php endif; ?>
             <form method="GET" class="mb-3">
                 <div style="display: flex; gap: 0.75rem;">
-                    <input type="text" name="search" class="form-control" placeholder="<?php echo t('search'); ?>" value="<?php echo htmlspecialchars($search); ?>">
-                    <button type="submit" class="btn btn-primary"><?php echo t('search'); ?></button>
+                    <input type="text" name="search" class="form-control" placeholder="<?php echo htmlspecialchars(t('search_placeholder')); ?>" value="<?php echo htmlspecialchars($search); ?>">
+                    <button type="submit" class="btn btn-primary"><?php echo htmlspecialchars(t('search')); ?></button>
                     <?php if ($search): ?>
-                        <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark">Limpiar</a>
+                        <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark"><?php echo htmlspecialchars(t('clear')); ?></a>
                     <?php endif; ?>
                 </div>
             </form>
@@ -227,22 +227,22 @@ renderHeader('Mis Archivos', $user);
             <?php if (empty($files)): ?>
                 <div style="text-align: center; padding: 4rem; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 100%); border-radius: 1rem; border: 2px dashed var(--border-color);">
                     <div style="font-size: 5rem; margin-bottom: 1.5rem; opacity: 0.3;"><i class="fas fa-folder"></i></div>
-                    <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">No tienes archivos aún</h3>
-                    <p style="color: var(--text-muted); margin-bottom: 2rem;">Comienza subiendo tu primer archivo</p>
-                    <a href="<?php echo BASE_URL; ?>/user/upload.php<?php echo $currentFolderId ? '?folder=' . $currentFolderId : ''; ?>" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.0625rem; font-weight: 600; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);"><i class="fas fa-upload"></i> Subir tu primer archivo</a>
+                    <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;"><?php echo htmlspecialchars(t('no_files_yet')); ?></h3>
+                    <p style="color: var(--text-muted); margin-bottom: 2rem;"><?php echo htmlspecialchars(t('start_by_uploading_first')); ?></p>
+                    <a href="<?php echo BASE_URL; ?>/user/upload.php<?php echo $currentFolderId ? '?folder=' . $currentFolderId : ''; ?>" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.0625rem; font-weight: 600; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);"><i class="fas fa-upload"></i> <?php echo htmlspecialchars(t('upload_first_file')); ?></a>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
                                     <tr>
-                                        <th style="width:40px;"><input type="checkbox" id="selectAllUser" class="file-checkbox"></th>
-                                        <th>Nombre</th>
-                                        <th>Tamaño</th>
-                                        <th>Compartido</th>
-                                        <th>Fecha</th>
-                                        <th>Acciones</th>
-                                    </tr>
+                                                        <th style="width:40px;"><input type="checkbox" id="selectAllUser" class="file-checkbox"></th>
+                                                        <th><?php echo htmlspecialchars(t('table_name')); ?></th>
+                                                        <th><?php echo htmlspecialchars(t('table_size')); ?></th>
+                                                        <th><?php echo htmlspecialchars(t('table_shared')); ?></th>
+                                                        <th><?php echo htmlspecialchars(t('table_date')); ?></th>
+                                                        <th><?php echo htmlspecialchars(t('table_actions')); ?></th>
+                                                    </tr>
                                 </thead>
                         <tbody>
                                     <?php foreach ($files as $file): ?>
@@ -251,13 +251,13 @@ renderHeader('Mis Archivos', $user);
                                             <input type="checkbox" name="file_ids[]" value="<?php echo $file['id']; ?>" class="file-checkbox user-file-item">
                                         </td>
                                         <td>
-                                    <?php if ($file['is_folder']): ?>
+                                        <?php if ($file['is_folder']): ?>
                                         <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $file['id']; ?>" style="text-decoration: none; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
                                             <i class="fas fa-folder" style="color: #e9b149; font-size: 1.25rem;"></i>
                                             <div>
                                                 <div style="font-weight: 600;"><?php echo htmlspecialchars($file['original_name']); ?></div>
                                                 <div style="font-size: 0.75rem; color: var(--text-muted);">
-                                                    <?php echo $file['file_count']; ?> archivo(s), <?php echo $file['subfolder_count']; ?> carpeta(s)
+                                                    <?php echo $file['file_count']; ?> <?php echo htmlspecialchars(t('files')); ?>, <?php echo $file['subfolder_count']; ?> <?php echo htmlspecialchars(t('folder')); ?>
                                                 </div>
                                             </div>
                                         </a>
@@ -284,20 +284,20 @@ renderHeader('Mis Archivos', $user);
                                     <?php if ($file['is_folder']): ?>
                                         <span style="color: var(--text-muted);">—</span>
                                     <?php elseif ($file['is_shared']): ?>
-                                        <span class="badge badge-success"><i class="fas fa-check"></i> Compartido (<?php echo $file['share_count']; ?>)</span>
+                                        <span class="badge badge-success"><i class="fas fa-check"></i> <?php echo htmlspecialchars(t('shared_with_count', [$file['share_count']])); ?></span>
                                     <?php else: ?>
-                                        <span class="badge badge-secondary">No compartido</span>
+                                        <span class="badge badge-secondary"><?php echo htmlspecialchars(t('not_shared')); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($file['created_at'])); ?></td>
                                 <td>
                                     <div style="display: flex; gap: 0.5rem;">
-                                        <?php if ($file['is_folder']): ?>
-                                            <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="Abrir"><i class="fas fa-folder-open"></i></a>
-                                            <button onclick="deleteFolder(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars(addslashes($file['original_name'])); ?>')" class="btn btn-sm btn-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                            <?php if ($file['is_folder']): ?>
+                                            <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo htmlspecialchars(t('open')); ?>"><i class="fas fa-folder-open"></i></a>
+                                            <button onclick="deleteFolder(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars(addslashes($file['original_name'])); ?>')" class="btn btn-sm btn-danger" title="<?php echo htmlspecialchars(t('delete')); ?>"><i class="fas fa-trash"></i></button>
                                         <?php else: ?>
-                                            <a href="<?php echo BASE_URL; ?>/user/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="Descargar"><i class="fas fa-download"></i></a>
-                                            <a href="<?php echo BASE_URL; ?>/user/share.php?file_id=<?php echo $file['id']; ?>" class="btn btn-sm btn-success" title="Compartir"><i class="fas fa-link"></i></a>
+                                            <a href="<?php echo BASE_URL; ?>/user/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo htmlspecialchars(t('download')); ?>"><i class="fas fa-download"></i></a>
+                                            <a href="<?php echo BASE_URL; ?>/user/share.php?file_id=<?php echo $file['id']; ?>" class="btn btn-sm btn-success" title="<?php echo htmlspecialchars(t('share')); ?>"><i class="fas fa-link"></i></a>
                                             <?php if ($file['is_shared']): ?>
                                                 <form method="POST" action="<?php echo BASE_URL; ?>/user/bulk_action.php" style="display:inline; margin:0;">
                                                     <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
@@ -327,7 +327,7 @@ renderHeader('Mis Archivos', $user);
                 </form>
 
                 <!-- Bulk Actions Bar for users -->
-                <div class="bulk-actions-bar" id="userBulkActionsBar">
+                        <div class="bulk-actions-bar" id="userBulkActionsBar">
                         <span id="userSelectedCount">0</span>
                         <div style="display:inline-flex; align-items:center; gap:0.4rem; margin-left:0.5rem;">
                             <button type="button" class="btn btn-danger" title="Eliminar" onclick="confirmUserBulkAction('delete')">
@@ -347,7 +347,7 @@ renderHeader('Mis Archivos', $user);
                             </button>
                         </div>
                         <button type="button" class="btn btn-outline btn-outline--on-dark" id="selectAllMatchingBtn" style="margin-left:0.5rem; padding:0.35rem 0.6rem; font-size:0.85rem;">
-                            Seleccionar <?php echo $totalFiles; ?>
+                            <?php echo htmlspecialchars(t('select_all_matching', [$totalFiles])); ?>
                         </button>
                 </div>
 
@@ -357,9 +357,9 @@ renderHeader('Mis Archivos', $user);
                         <h3 id="bulkConfirmTitle">Confirmar acción</h3>
                         <p id="bulkConfirmBody">Se van a procesar <strong id="bulkConfirmCount">0</strong> elementos.</p>
                         <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
-                            <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="hideBulkConfirmModal()"><?php echo t('cancel'); ?></button>
-                            <button type="button" class="btn btn-danger" id="bulkConfirmBtn">Confirmar</button>
-                        </div>
+                                    <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="hideBulkConfirmModal()"><?php echo htmlspecialchars(t('cancel')); ?></button>
+                                    <button type="button" class="btn btn-danger" id="bulkConfirmBtn"><?php echo htmlspecialchars(t('confirm')); ?></button>
+                                </div>
                     </div>
                 </div>
 
@@ -533,15 +533,15 @@ function confirmUserBulkAction(action) {
         count = document.querySelectorAll('.user-file-item:checked').length;
     }
 
-    if (count === 0) return alert('No hay elementos seleccionados.');
+    if (count === 0) return alert(<?php echo json_encode(t('no_items_selected')); ?>);
 
     // Show modal with count and set confirm button action
     document.getElementById('bulkConfirmCount').textContent = count;
     const confirmBtn = document.getElementById('bulkConfirmBtn');
     // Reset confirm button to default state (danger) and modal title
     confirmBtn.className = 'btn btn-danger';
-    confirmBtn.textContent = 'Confirmar';
-    document.getElementById('bulkConfirmTitle').textContent = 'Confirmar acción';
+    confirmBtn.textContent = <?php echo json_encode(t('confirm')); ?>;
+    document.getElementById('bulkConfirmTitle').textContent = <?php echo json_encode(t('confirm_action')); ?>;
     confirmBtn.onclick = function() {
         // Prepare form and submit
         document.getElementById('userBulkAction').value = action;
@@ -604,20 +604,20 @@ async function deleteFolder(folderId, folderName) {
         let data;
         try {
             data = await response.json();
-        } catch (e) {
+            } catch (e) {
             const text = await deleteClone.text();
-            alert('Error parsing server response: ' + text);
+            alert(<?php echo json_encode(t('error_parsing_response')); ?> + ' ' + text);
             return;
         }
 
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert(<?php echo json_encode(t('error_colon')); ?> + ' ' + data.message);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al eliminar la carpeta');
+        alert(<?php echo json_encode(t('error_deleting_folder')); ?>);
     }
 }
 

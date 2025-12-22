@@ -19,13 +19,13 @@ $auth = new Auth();
 // For AJAX endpoints return JSON 401 instead of redirecting to login page
 if (!$auth->isLoggedIn()) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'No autenticado']);
+    echo json_encode(['success' => false, 'message' => t('error_auth_required')]);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+    echo json_encode(['success' => false, 'message' => t('error_invalid_method')]);
     exit;
 }
 
@@ -37,7 +37,7 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     if (!isset($input['folder_name']) || empty(trim($input['folder_name']))) {
-        throw new Exception("Nombre de carpeta requerido");
+        throw new Exception(t('error_folder_name_required'));
     }
     
     $folderName = trim($input['folder_name']);
@@ -50,7 +50,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Carpeta creada exitosamente',
+        'message' => t('folder_created_success'),
         'folder_id' => $folderId
     ]);
     

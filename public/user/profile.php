@@ -68,8 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-renderPageStart('Mi Perfil', 'profile', $user['role'] === 'admin');
-renderHeader('Mi Perfil', $user);
+renderPageStart(t('user_profile'), 'profile', $user['role'] === 'admin');
+renderHeader(t('user_profile'), $user);
 ?>
 
 <div class="content">
@@ -83,32 +83,32 @@ renderHeader('Mi Perfil', $user);
     <div style="max-width: 700px; margin: 0 auto;">
         <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 1.5rem;">
             <div class="card-header" style="padding: 1.5rem;">
-                <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem; margin: 0;">👤 Información de la Cuenta</h2>
+                <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem; margin: 0;"><?php echo t('account_info_title'); ?></h2>
             </div>
             <div class="card-body">
                 <div class="form-group">
-                    <label>Nombre de usuario</label>
+                    <label><?php echo t('label_username_full'); ?></label>
                     <input type="text" class="form-control" value="<?php echo htmlspecialchars($user['username']); ?>" disabled>
                 </div>
                 
                 <div class="form-group">
-                    <label>Nombre completo</label>
+                    <label><?php echo t('label_full_name'); ?></label>
                     <input type="text" class="form-control" value="<?php echo htmlspecialchars($user['full_name'] ?? ''); ?>" disabled>
                 </div>
                 
                 <div class="form-group">
-                    <label>Email</label>
+                    <label><?php echo t('label_email'); ?></label>
                     <input type="email" class="form-control" value="<?php echo htmlspecialchars($user['email'] ?? ''); ?>" disabled>
                 </div>
                 
                 <div class="form-group">
-                    <label>Rol</label>
-                    <input type="text" class="form-control" value="<?php echo $user['role'] === 'admin' ? 'Administrador' : 'Usuario'; ?>" disabled>
+                    <label><?php echo t('label_role'); ?></label>
+                    <input type="text" class="form-control" value="<?php echo $user['role'] === 'admin' ? t('role_admin') : t('role_user'); ?>" disabled>
                 </div>
                 
                 <?php if ($user['is_ldap']): ?>
                     <div class="alert alert-info">
-                        Esta cuenta está gestionada por LDAP/Active Directory
+                        <?php echo t('ldap_managed_notice'); ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -123,23 +123,23 @@ renderHeader('Mi Perfil', $user);
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                     
-                    <div class="form-group">
-                        <label>Contraseña actual *</label>
-                        <input type="password" name="current_password" class="form-control" required>
-                    </div>
+                        <div class="form-group">
+                            <label><?php echo t('label_current_password'); ?></label>
+                            <input type="password" name="current_password" class="form-control" required>
+                        </div>
                     
                     <div class="form-group">
-                        <label>Nueva contraseña *</label>
+                        <label><?php echo t('label_new_password'); ?> *</label>
                         <input type="password" name="new_password" class="form-control" required minlength="6">
-                        <small style="color: var(--text-muted);">Mínimo 6 caracteres</small>
+                        <small style="color: var(--text-muted);"><?php echo sprintf(t('password_min_hint'), 6); ?></small>
                     </div>
                     
                     <div class="form-group">
-                        <label>Confirmar nueva contraseña *</label>
+                        <label><?php echo t('label_confirm_password'); ?> *</label>
                         <input type="password" name="confirm_password" class="form-control" required minlength="6">
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">Actualizar Contraseña</button>
+                    <button type="submit" class="btn btn-primary"><?php echo t('update_password_button'); ?></button>
                 </form>
             </div>
         </div>
@@ -154,15 +154,15 @@ renderHeader('Mi Perfil', $user);
                 <?php
                     $currentProtection = (bool)$config->get('enable_config_protection', '0');
                 ?>
-                <p>Estado actual: <strong><?php echo $currentProtection ? 'Activada' : 'Desactivada'; ?></strong></p>
+                <p><?php echo t('config_protection_status'); ?>: <strong><?php echo $currentProtection ? t('enabled') : t('disabled'); ?></strong></p>
                 <form method="POST" style="display:inline-block; margin-right:0.5rem;">
                     <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                     <input type="hidden" name="toggle_config_protection_action" value="<?php echo $currentProtection ? 'disable' : 'enable'; ?>">
                     <button type="submit" class="btn <?php echo $currentProtection ? 'btn-danger' : 'btn-primary'; ?>">
-                        <?php echo $currentProtection ? 'Desactivar Protección' : 'Activar Protección'; ?>
+                        <?php echo $currentProtection ? t('disable_protection') : t('enable_protection'); ?>
                     </button>
                 </form>
-                <p style="color:var(--text-muted); margin-top:0.75rem;">Al activar, las claves marcadas como sistema no podrán editarse desde la UI.</p>
+                <p style="color:var(--text-muted); margin-top:0.75rem;"><?php echo t('config_protection_desc'); ?></p>
             </div>
         </div>
         <?php endif; ?>

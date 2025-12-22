@@ -17,13 +17,13 @@ try {
     $file = $fileClass->getById($fileId);
     
     if (!$file || $file['user_id'] != $user['id']) {
-        throw new Exception('Archivo no encontrado');
+        throw new Exception(t('error_file_not_found'));
     }
     
     $fileClass->delete($fileId, $user['id']);
     $logger->log($user['id'], 'file_delete', 'file', $fileId, 'Usuario eliminó archivo: ' . $file['original_name']);
-    
-    header('Location: ' . BASE_URL . '/user/files.php?success=' . urlencode('Archivo eliminado'));
+
+    header('Location: ' . BASE_URL . '/user/files.php?success=' . urlencode(t('file_deleted')));
     
 } catch (Exception $e) {
     header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode($e->getMessage()));

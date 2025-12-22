@@ -23,7 +23,7 @@ header('X-Robots-Tag: noindex, nofollow');
 $fileId = $security->validateInt($_GET['id'] ?? 0, 1, PHP_INT_MAX);
 
 if ($fileId === false) {
-    header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode('ID de archivo no válido'));
+    header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode(t('error_invalid_file_id')));
     exit;
 }
 
@@ -31,7 +31,7 @@ try {
     $file = $fileClass->getById($fileId);
     
     if (!$file || $file['user_id'] != $user['id']) {
-        throw new Exception('Archivo no encontrado');
+        throw new Exception(t('error_file_not_found'));
     }
     
     // Log forensic data before download
@@ -42,9 +42,9 @@ try {
     // If download returned false, handle failure (download() exits on success)
     if ($result === false) {
         if ($downloadLogId) {
-            $forensicLogger->completeDownload($downloadLogId, 0, 500, 'Descarga fallida, revisa logs');
+            $forensicLogger->completeDownload($downloadLogId, 0, 500, t('download_failed_check_logs'));
         }
-        header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode('Descarga fallida, revisa logs'));
+        header('Location: ' . BASE_URL . '/user/files.php?error=' . urlencode(t('download_failed_check_logs')));
         exit;
     }
 

@@ -69,14 +69,14 @@ $token = $security->sanitizeString($tokenRaw);
 
 // Validate token format (should be alphanumeric, 32 or 64 chars)
 if (!preg_match('/^[a-f0-9]{32}$|^[a-f0-9]{64}$/', $token)) {
-    $error = 'Token no válido';
+    $error = t('error_invalid_token');
     $token = '';
 }
 
 // Check rate limiting - max 20 download attempts per IP per hour
 $clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 if ($token && !$security->checkIPRateLimit($clientIP, 'share_download', 20, 60)) {
-    $error = 'Demasiados intentos. Por favor, espera una hora antes de intentar de nuevo.';
+    $error = t('error_too_many_attempts_share');
     $token = '';
 }
 
@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
-    <title>Descargar Archivo - <?php echo htmlspecialchars($siteName); ?></title>
+    <title><?php echo sprintf(t('download_file_title'), htmlspecialchars($siteName)); ?></title>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
 </head>
 <body>
@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php else: ?>
                     <h1><?php echo htmlspecialchars($siteName); ?></h1>
                 <?php endif; ?>
-                <p>Descargar Archivo Compartido</p>
+                <p><?php echo t('download_shared_heading'); ?></p>
             </div>
             
             <?php if (isset($error) && $error): ?>
@@ -186,17 +186,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p style="color: var(--text-muted);">
                         <?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB
                     </p>
-                    <p style="margin-top: 1rem;">Este archivo está protegido con contraseña</p>
+                    <p style="margin-top: 1rem;"><?php echo t('protected_file_notice'); ?></p>
                 </div>
                 
                 <form method="POST" class="login-form">
                     <div class="form-group">
-                        <label>Contraseña</label>
+                        <label><?php echo t('label_password'); ?></label>
                         <input type="password" name="password" class="form-control" required autofocus>
                     </div>
                     
                         <div style="margin-top: 1rem;">
-                            <button type="submit" class="btn btn-primary" style="background: <?php echo htmlspecialchars($buttonBg); ?>; color: <?php echo htmlspecialchars($buttonText); ?>; border: none; padding: 0.7rem 1.2rem; font-size: 1rem; border-radius: 6px; display: inline-block; cursor: pointer;">⬇️ Descargar</button>
+                            <button type="submit" class="btn btn-primary" style="background: <?php echo htmlspecialchars($buttonBg); ?>; color: <?php echo htmlspecialchars($buttonText); ?>; border: none; padding: 0.7rem 1.2rem; font-size: 1rem; border-radius: 6px; display: inline-block; cursor: pointer;"><?php echo t('download_button'); ?></button>
                         </div>
                 </form>
                 <?php elseif ($share && !$needsPassword): ?>
@@ -206,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p style="color: var(--text-muted);">
                             <?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB
                         </p>
-                        <p style="margin-top: 1rem;">Pulsa el botón para descargar el archivo.</p>
+                        <p style="margin-top: 1rem;"><?php echo t('press_button_to_download'); ?></p>
                     </div>
 
                     <form method="POST" class="login-form">
@@ -216,9 +216,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </form>
 
                 <?php elseif (isset($error) && $error): ?>
-                <div style="text-align: center; padding: 2rem;">
+                    <div style="text-align: center; padding: 2rem;">
                     <div style="font-size: 4rem; margin-bottom: 1rem;">❌</div>
-                    <p style="color: var(--text-muted);">No se puede acceder al archivo</p>
+                    <p style="color: var(--text-muted);"><?php echo t('cannot_access_file'); ?></p>
                 </div>
             <?php endif; ?>
         </div>

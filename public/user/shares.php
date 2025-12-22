@@ -17,28 +17,28 @@ $error = $_GET['error'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Token de seguridad inválido';
+        $error = t('error_invalid_csrf');
     } else {
-        try {
+                try {
             $shareId = intval($_POST['share_id'] ?? 0);
             $share = $shareClass->getById($shareId);
             
             if (!$share || $share['user_id'] != $user['id']) {
-                throw new Exception('Enlace no encontrado');
+                throw new Exception(t('error_link_not_found'));
             }
             
             if ($_POST['action'] === 'deactivate') {
                 $shareClass->deactivate($shareId, $user['id']);
                 $logger->log($user['id'], 'share_deactivate', 'share', $shareId, 'Usuario desactivó enlace');
-                header('Location: ' . BASE_URL . '/user/shares.php?success=' . urlencode('Enlace desactivado'));
+                header('Location: ' . BASE_URL . '/user/shares.php?success=' . urlencode(t('link_deactivated')));
                 exit;
             } elseif ($_POST['action'] === 'delete') {
                 $shareClass->delete($shareId, $user['id']);
                 $logger->log($user['id'], 'share_delete', 'share', $shareId, 'Usuario eliminó enlace');
-                header('Location: ' . BASE_URL . '/user/shares.php?success=' . urlencode('Enlace eliminado'));
+                header('Location: ' . BASE_URL . '/user/shares.php?success=' . urlencode(t('link_deleted')));
                 exit;
             }
-        } catch (Exception $e) {
+            } catch (Exception $e) {
             $error = $e->getMessage();
         }
     }
@@ -55,8 +55,8 @@ $shares = array_filter($allShares, function($share) {
 });
 
 $isAdmin = ($user['role'] === 'admin');
-renderPageStart('Mis Enlaces', 'user-shares', $isAdmin);
-renderHeader('Mis Enlaces Compartidos', $user);
+renderPageStart(t('my_shares'), 'user-shares', $isAdmin);
+renderHeader(t('my_shared_links'), $user);
 ?>
 
 <div class="content">
@@ -69,27 +69,27 @@ renderHeader('Mis Enlaces Compartidos', $user);
 
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
         <div class="card-header" style="padding: 1.5rem;">
-            <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem; margin: 0;"><i class="fas fa-link"></i> Enlaces Activos (<?php echo count($shares); ?>)</h2>
-            <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-success" style="background: white; color: #e9b149; border: none; font-weight: 600;">Ver Archivos</a>
+            <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem; margin: 0;"><i class="fas fa-link"></i> <?php echo t('active_links'); ?> (<?php echo count($shares); ?>)</h2>
+            <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-success" style="background: white; color: #e9b149; border: none; font-weight: 600;"><?php echo t('view_my_files'); ?></a>
         </div>
         <div class="card-body">
             <?php if (empty($shares)): ?>
                 <div style="text-align: center; padding: 4rem; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 100%); border-radius: 1rem; border: 2px dashed var(--border-color);">
                     <div style="font-size: 5rem; margin-bottom: 1.5rem; opacity: 0.3;"><i class="fas fa-link"></i></div>
-                    <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">No tienes enlaces activos</h3>
-                    <p style="color: var(--text-muted); margin-bottom: 2rem;">Comparte tus archivos creando enlaces seguros desde tu lista de archivos</p>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.0625rem; font-weight: 600; box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);">Ir a Archivos</a>
+                    <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;"><?php echo t('no_active_shares'); ?></h3>
+                    <p style="color: var(--text-muted); margin-bottom: 2rem;"><?php echo t('share_files_from_list'); ?></p>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.0625rem; font-weight: 600; box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);"><?php echo t('go_to_files'); ?></a>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>Archivo</th>
-                                <th>Descargas</th>
-                                <th>Expira en</th>
-                                <th>Creado</th>
-                                <th>Acciones</th>
+                                <th><?php echo t('file'); ?></th>
+                                <th><?php echo t('table_downloads'); ?></th>
+                                <th><?php echo t('table_expires_in'); ?></th>
+                                <th><?php echo t('table_created'); ?></th>
+                                <th><?php echo t('table_actions'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -106,8 +106,8 @@ renderHeader('Mis Enlaces Compartidos', $user);
                                             <div style="font-size: 0.8125rem; color: var(--text-muted);">
                                                 <?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB
                                                 <?php if ($share['password_hash']): ?>
-                                                    <span style="margin-left: 0.5rem;"><i class="fas fa-lock"></i> Protegido</span>
-                                                <?php endif; ?>
+                                                        <span style="margin-left: 0.5rem;"><i class="fas fa-lock"></i> <?php echo t('protected'); ?></span>
+                                                    <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>
@@ -115,10 +115,10 @@ renderHeader('Mis Enlaces Compartidos', $user);
                                 <td>
                                     <div style="font-weight: 600; color: var(--primary);">
                                         <?php echo $share['download_count']; ?>
-                                        <?php if ($share['max_downloads']): ?>
+                                            <?php if ($share['max_downloads']): ?>
                                             / <?php echo $share['max_downloads']; ?>
                                         <?php else: ?>
-                                            <span style="color: var(--text-muted);">/ ∞</span>
+                                            <span style="color: var(--text-muted);"><?php echo t('unlimited_symbol'); ?></span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -148,8 +148,8 @@ renderHeader('Mis Enlaces Compartidos', $user);
                                 </td>
                                 <td>
                                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                        <button type="button" class="btn btn-sm btn-primary copy-link-btn" data-url="<?php echo htmlspecialchars($shareUrl); ?>" title="Copiar enlace"><i class="fas fa-clipboard"></i> Copiar</button>
-                                        <a href="<?php echo $shareUrl; ?>" target="_blank" class="btn btn-sm btn-success" title="Abrir enlace"><i class="fas fa-link"></i> Abrir</a>
+                                        <button type="button" class="btn btn-sm btn-primary copy-link-btn" data-url="<?php echo htmlspecialchars($shareUrl); ?>" title="<?php echo t('copy'); ?>"><i class="fas fa-clipboard"></i> <?php echo t('copy'); ?></button>
+                                        <a href="<?php echo $shareUrl; ?>" target="_blank" class="btn btn-sm btn-success" title="<?php echo t('open_link'); ?>"><i class="fas fa-link"></i> <?php echo t('open_link'); ?></a>
                                         <form method="POST" style="display: inline;">
                                             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                                             <input type="hidden" name="share_id" value="<?php echo $share['id']; ?>">

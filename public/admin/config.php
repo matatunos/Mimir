@@ -374,6 +374,17 @@ if (!empty($descs) && is_array($descs) && $db) {
     }
 }
 
+// Persist translations for descriptions into `config_translations` (lang 'es').
+// This is idempotent and will upsert the Spanish text so the admin UI can show/edit per-language descriptions.
+if (!empty($descs) && is_array($descs) && $db) {
+    foreach ($descs as $k => $d) {
+        try {
+            $ins = $db->prepare("INSERT INTO config_translations (config_key, lang, text) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE text = VALUES(text)");
+            $ins->execute([$k, 'es', $d]);
+        } catch (Exception $e) { /* ignore to avoid breaking admin UI when migrations not applied */ }
+    }
+}
+
 // Determine and display warnings for email config
 $smtpPasswordPresent = false;
 $sendmailAvailable = false;
