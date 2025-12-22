@@ -259,6 +259,7 @@ $LANG = [
     , 'error_resend_invitation' => 'No se pudo reenviar la invitación'
     , 'invitation_revoked' => 'Invitación revocada'
     , 'error_revoke_invitation' => 'No se pudo revocar la invitación'
+    , 'config_protection_active_html' => 'Protección de configuración: <span style="font-weight:800;">Activada</span>'
 ];
 
 return $LANG;

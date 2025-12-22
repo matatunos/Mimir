@@ -376,7 +376,7 @@ function renderPageStart($title, $currentPage, $isAdmin = false) {
         <?php if ((bool)$config->get('enable_config_protection', '0') && $isAdmin && $currentPage === 'config'): ?>
             <div id="configProtectionFloating" class="config-protection-floating" role="status" aria-live="polite">
                 <i class="fas fa-lock" aria-hidden="true"></i>
-                <div>Protección de configuración: <span style="font-weight:800;">Activada</span></div>
+                <div><?php echo t('config_protection_active_html'); ?></div>
             </div>
         <?php endif; ?>
         <div class="app-container">
