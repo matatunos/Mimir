@@ -1,3 +1,4 @@
+    
 <?php
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/database.php';
@@ -987,6 +988,15 @@ renderHeader('Configuración del Sistema', $user, $auth);
         </div>
     </div>
 
+    <!-- Modal container for embedded logo gallery -->
+    <div id="logoGalleryModal" style="display:none; position:fixed; inset:0; z-index:2200; align-items:center; justify-content:center;">
+        <div id="logoGalleryBackdrop" style="position:absolute; inset:0; background:rgba(0,0,0,0.5);"></div>
+        <div id="logoGalleryContent" style="position:relative; max-width:1200px; width:calc(100% - 4rem); max-height:80vh; overflow:auto; background:var(--bg-main); border-radius:8px; padding:1rem; box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+            <button id="logoGalleryClose" class="btn btn-outline" style="position:absolute; right:0.75rem; top:0.75rem;"><i class="fas fa-times"></i></button>
+            <div id="logoGalleryInner">Cargando...</div>
+        </div>
+    </div>
+
     <script>
     document.addEventListener('DOMContentLoaded', function(){
         var cfgForm = document.querySelector('form[enctype="multipart/form-data"]');
@@ -998,6 +1008,62 @@ renderHeader('Configuración del Sistema', $user, $auth);
                 if (ov) ov.style.display = 'flex';
             }
         });
+        // Setup gallery modal opener
+        document.querySelectorAll('.open-logo-gallery').forEach(function(el){
+            el.addEventListener('click', function(ev){
+                ev.preventDefault();
+                var url = el.getAttribute('href');
+                var modal = document.getElementById('logoGalleryModal');
+                var inner = document.getElementById('logoGalleryInner');
+                modal.style.display = 'flex';
+                inner.innerHTML = 'Cargando...';
+                fetch(url, {credentials: 'same-origin'}).then(function(resp){
+                    if (!resp.ok) throw new Error('Error cargando la galería');
+                    return resp.text();
+                }).then(function(html){
+                    // Save current inner HTML so we can return (history stack)
+                    modal.history = modal.history || [];
+                    modal.history.push(inner.innerHTML);
+                    inner.innerHTML = html;
+                    bindGalleryModalControls(inner, modal);
+                }).catch(function(err){ inner.innerHTML = '<div class="alert alert-danger">'+err.message+'</div>'; });
+            });
+        });
+        // Bind controls for modal content (gallery <-> preview swapping)
+        function bindGalleryModalControls(container, modal) {
+            // Attach preview link handlers
+            container.querySelectorAll('a[href*="/admin/logo_preview.php"]').forEach(function(link){
+                link.addEventListener('click', function(ev){
+                    ev.preventDefault();
+                    var url = link.getAttribute('href');
+                    // ensure embed=1
+                    if (url.indexOf('embed=1') === -1) url += (url.indexOf('?') === -1 ? '?' : '&') + 'embed=1';
+                    // push current content
+                    modal.history = modal.history || [];
+                    modal.history.push(container.innerHTML);
+                    container.innerHTML = 'Cargando vista previa...';
+                    fetch(url, {credentials: 'same-origin'}).then(function(resp){ if(!resp.ok) throw new Error('Error cargando la vista previa'); return resp.text(); }).then(function(html){
+                        container.innerHTML = html;
+                        // Add a Back button
+                        var backBtn = document.createElement('button');
+                        backBtn.className = 'btn btn-outline';
+                        backBtn.style.marginBottom = '0.5rem';
+                        backBtn.textContent = 'Volver a galería';
+                        backBtn.addEventListener('click', function(){
+                            if (modal.history && modal.history.length) {
+                                container.innerHTML = modal.history.pop();
+                                bindGalleryModalControls(container, modal);
+                            }
+                        });
+                        container.insertBefore(backBtn, container.firstChild);
+                    }).catch(function(e){ container.innerHTML = '<div class="alert alert-danger">'+e.message+'</div>'; });
+                });
+            });
+        }
+        var closeBtn = document.getElementById('logoGalleryClose');
+        if (closeBtn) closeBtn.addEventListener('click', function(){ document.getElementById('logoGalleryModal').style.display = 'none'; });
+        var backdrop = document.getElementById('logoGalleryBackdrop');
+        if (backdrop) backdrop.addEventListener('click', function(){ document.getElementById('logoGalleryModal').style.display = 'none'; });
     });
     </script>
     <!-- Global config protection indicator -->
@@ -1120,6 +1186,9 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                     <button type="button" onclick="document.getElementById('site_logo_file').value=''; document.getElementById('logo_preview').style.display='none';" class="btn btn-outline btn-outline--on-dark" style="white-space: nowrap;">
                                         <i class="fas fa-times"></i> Limpiar
                                     </button>
+                                    <a href="/admin/logo_gallery.php?embed=1" class="btn btn-outline open-logo-gallery" style="white-space: nowrap;">
+                                        <i class="fas fa-images"></i> Galería de logos
+                                    </a>
                                 </div>
                                 <div id="logo_preview" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius-md); display: inline-block;">
                                     <p style="margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">Vista previa:</p>
