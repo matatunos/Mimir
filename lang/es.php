@@ -62,6 +62,22 @@ $LANG = [
     , 'home' => 'Inicio'
     , 'my_files' => 'Mis Archivos'
     , 'my_shares' => 'Mis Comparticiones'
+    , 'login_title' => 'Iniciar sesión - %s'
+    , 'login_prompt' => 'Inicia sesión para continuar'
+    , 'error_enter_username_password' => 'Por favor, introduce usuario y contraseña'
+    , 'error_too_many_attempts' => 'Demasiados intentos fallidos desde tu IP (bloqueo temporal por IP). Por favor, espera %d minutos antes de intentar de nuevo.'
+    , 'error_invalid_input' => 'Entrada no válida detectada'
+    , 'error_account_locked_until' => 'Cuenta bloqueada hasta %s'
+    , 'error_trusted_device_login' => 'Error al iniciar sesión en dispositivo confiable.'
+    , 'error_2fa_enabled_no_config_debug' => 'ERROR DEBUG: 2FA habilitado pero sin configuración. User ID: %s'
+    , 'error_duo_auth' => 'Error al iniciar autenticación Duo'
+    , 'error_login_try_again' => 'Error al iniciar sesión. Por favor, inténtalo de nuevo.'
+    , 'error_invalid_credentials' => 'Usuario o contraseña incorrectos'
+    , 'label_username' => 'Usuario'
+    , 'label_password' => 'Contraseña'
+    , 'remember_me' => 'Recordarme'
+    , 'login_button' => 'Iniciar Sesión'
+    , 'forgot_password' => '¿Olvidaste tu contraseña?'
 ];
 
 return $LANG;

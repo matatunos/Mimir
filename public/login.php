@@ -40,13 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
     if (empty($username) || empty($password)) {
-        $error = 'Por favor, introduce usuario y contraseña';
+        $error = t('error_enter_username_password');
     } else {
         // Check rate limiting - configurable attempts per IP in X minutes
         if (!$security->checkIPRateLimit($clientIP, 'failed_login', $ipRateThreshold, $ipRateWindow)) {
-            $error = 'Demasiados intentos fallidos desde tu IP (bloqueo temporal por IP). Por favor, espera ' . intval($ipRateWindow) . ' minutos antes de intentar de nuevo.';
+            $error = t('error_too_many_attempts', [intval($ipRateWindow)]);
         } elseif ($security->detectSQLInjection($username)) {
-            $error = 'Entrada no válida detectada';
+            $error = t('error_invalid_input');
         } else {
             // First, verify username and password against local DB
             $db = Database::getInstance()->getConnection();
@@ -55,10 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             // If user exists, check locked_until
-            if ($user && !empty($user['locked_until'])) {
+                if ($user && !empty($user['locked_until'])) {
                 $lockedUntil = strtotime($user['locked_until']);
                 if ($lockedUntil > time()) {
-                    $error = 'Cuenta bloqueada hasta ' . date('Y-m-d H:i:s', $lockedUntil);
+                    $error = t('error_account_locked_until', [date('Y-m-d H:i:s', $lockedUntil)]);
                     // Skip further verification
                     goto RENDER_LOGIN;
                 } else {
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             header('Location: ' . BASE_URL . '/index.php');
                             exit;
                         } else {
-                            $error = 'Error al iniciar sesión en dispositivo confiable.';
+                            $error = t('error_trusted_device_login');
                         }
                     } else {
                         // 2FA is enabled, set pending state
@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $config = $twoFactor->getUserConfig($user['id']);
 
                         if (!$config) {
-                            $error = 'ERROR DEBUG: 2FA habilitado pero sin configuración. User ID: ' . $user['id'];
+                            $error = t('error_2fa_enabled_no_config_debug', [$user['id']]);
                         } elseif ($config['method'] === 'totp') {
                             // Redirect to TOTP verification
                             header('Location: ' . BASE_URL . '/login_2fa_totp.php');
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 header('Location: ' . $authUrl);
                                 exit;
                             } else {
-                                $error = 'Error al iniciar autenticación Duo';
+                                $error = t('error_duo_auth');
                             }
                         }
                     }
@@ -133,14 +133,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             } else {
                 // Local auth failed — try external auth (AD/LDAP)
-                if ($auth->login($username, $password)) {
+                    if ($auth->login($username, $password)) {
                     // If 2FA was set as pending by the Auth layer (e.g. AD/LDAP users), handle it here
                     if (!empty($_SESSION['2fa_pending']) && !empty($_SESSION['2fa_user_id'])) {
                         $twoFactor = new TwoFactor();
                         $config = $twoFactor->getUserConfig($_SESSION['2fa_user_id']);
 
                         if (!$config) {
-                            $error = 'ERROR DEBUG: 2FA habilitado pero sin configuración. User ID: ' . $_SESSION['2fa_user_id'];
+                            $error = t('error_2fa_enabled_no_config_debug', [$_SESSION['2fa_user_id']]);
                         } elseif ($config['method'] === 'totp') {
                             header('Location: ' . BASE_URL . '/login_2fa_totp.php');
                             exit;
@@ -154,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 header('Location: ' . $authUrl);
                                 exit;
                             } else {
-                                $error = 'Error al iniciar autenticación Duo';
+                                $error = t('error_duo_auth');
                             }
                         }
 
@@ -199,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                $error = 'Usuario o contraseña incorrectos';
+                $error = t('error_invalid_credentials');
                 // Sleep to slow down brute force attacks
                 sleep(2);
             }
@@ -225,7 +225,7 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - <?php echo htmlspecialchars($siteName); ?></title>
+    <title><?php echo htmlspecialchars(t('login_title', [$siteName])); ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
     <style>
@@ -261,27 +261,27 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
                 <?php if (!$logo): ?>
                     <h1><?php echo htmlspecialchars($siteName); ?></h1>
                 <?php endif; ?>
-                <p style="margin-top: 0.5rem; color: var(--text-muted);">Inicia sesión para continuar</p>
+                <p style="margin-top: 0.5rem; color: var(--text-muted);"><?php echo htmlspecialchars(t('login_prompt')); ?></p>
             </div>
             <?php if ($error): ?>
                 <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             <form method="POST" action="">
                 <div class="form-group">
-                    <label for="username" class="form-label required">Usuario</label>
+                    <label for="username" class="form-label required"><?php echo htmlspecialchars(t('label_username')); ?></label>
                     <input type="text" id="username" name="username" class="form-control" required autofocus value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
                 </div>
                 <div class="form-group">
-                    <label for="password" class="form-label required">Contraseña</label>
+                    <label for="password" class="form-label required"><?php echo htmlspecialchars(t('label_password')); ?></label>
                     <input type="password" id="password" name="password" class="form-control" required>
                 </div>
                 <div class="form-check">
                     <input type="checkbox" id="remember" name="remember">
-                    <label for="remember">Recordarme</label>
+                    <label for="remember"><?php echo htmlspecialchars(t('remember_me')); ?></label>
                 </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;">Iniciar Sesión</button>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;"><?php echo htmlspecialchars(t('login_button')); ?></button>
                     <?php if ((bool)$configClass->get('enable_email', '0')): ?>
-                        <p style="margin-top:0.75rem; text-align:center;"><a href="<?php echo BASE_URL; ?>/password_reset_request.php">¿Olvidaste tu contraseña?</a></p>
+                        <p style="margin-top:0.75rem; text-align:center;"><a href="<?php echo BASE_URL; ?>/password_reset_request.php"><?php echo htmlspecialchars(t('forgot_password')); ?></a></p>
                     <?php endif; ?>
                 </form>
         </div>
