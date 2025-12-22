@@ -595,7 +595,7 @@ renderHeader('Gestión de Archivos', $user);
         <i class="fas fa-user-edit"></i> Reasignar
     </button>
     <button type="button" class="btn btn-secondary" onclick="clearSelection()">
-        <i class="fas fa-times"></i> Cancelar
+        <i class="fas fa-times"></i> <?php echo htmlspecialchars(t('cancel')); ?>
     </button>
 </div>
 
@@ -801,7 +801,7 @@ function adminDeleteFile(fileId, fileName) {
             <div id="reassignUserResults" style="max-height:200px; overflow:auto; margin-top:0.5rem;"></div>
         </div>
         <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
-            <button type="button" class="btn btn-secondary" onclick="closeReassignModal()">Cancelar</button>
+            <button type="button" class="btn btn-secondary" onclick="closeReassignModal()"><?php echo htmlspecialchars(t('cancel')); ?></button>
             <button type="button" class="btn btn-primary" id="reassignConfirmBtn" onclick="confirmReassign()" disabled>Reasignar</button>
         </div>
     </div>

@@ -92,7 +92,7 @@ echo "<th>Token</th>\n";
 echo "<th>Tamaño (bytes)</th>\n";
 echo "<th>Descarga Completa</th>\n";
 echo "<th>Bytes Transferidos</th>\n";
-echo "<th>Inicio Descarga</th>\n";
+echo "<th>" . htmlspecialchars(t('download_start')) . "</th>\n";
 echo "<th>Fin Descarga</th>\n";
 echo "<th>Duración (segundos)</th>\n";
 echo "<th>User Agent</th>\n";

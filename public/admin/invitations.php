@@ -180,7 +180,7 @@ renderHeader('Invitaciones', $user);
 
                     <div style="display:flex;gap:0.75rem;margin-top:1rem;">
                         <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Crear Invitación</button>
-                        <a href="<?php echo BASE_URL; ?>/admin" class="btn btn-outline">Cancelar</a>
+                        <a href="<?php echo BASE_URL; ?>/admin" class="btn btn-outline"><?php echo htmlspecialchars(t('cancel')); ?></a>
                     </div>
                 </form>
             </div>

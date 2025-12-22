@@ -77,6 +77,7 @@ $LANG = [
     , 'options' => 'Opciones'
     , 'label_user_active' => 'Usuario activo'
     , 'label_require_2fa' => 'Requerir autenticación 2FA'
+    , 'download_start' => 'Inicio Descarga'
     , 'login_title' => 'Iniciar sesión - %s'
     , 'login_prompt' => 'Inicia sesión para continuar'
     , 'error_enter_username_password' => 'Por favor, introduce usuario y contraseña'

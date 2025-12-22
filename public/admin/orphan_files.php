@@ -277,7 +277,7 @@ renderHeader('Archivos Huérfanos', $user);
                 </select>
             </div>
             <div style="margin-top:1rem; display:flex; gap:0.5rem; justify-content:flex-end;">
-                <button class="btn btn-outline" onclick="closeAssignModal()">Cancelar</button>
+                <button class="btn btn-outline" onclick="closeAssignModal()"><?php echo htmlspecialchars(t('cancel')); ?></button>
                 <button class="btn btn-primary" id="assignConfirmBtn" onclick="confirmAssign()">Asignar</button>
             </div>
         </div>

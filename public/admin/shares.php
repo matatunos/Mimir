@@ -370,7 +370,7 @@ renderHeader('Comparticiones del Sistema', $user);
                     <span id="adminSharesCount">0</span> comparticiones seleccionadas
                     <button type="button" class="btn btn-warning" onclick="adminSharesDoAction('unshare')"><i class="fas fa-ban"></i> Desactivar seleccionadas</button>
                     <button type="button" class="btn btn-danger" onclick="adminSharesDoAction('delete')"><i class="fas fa-trash"></i> Eliminar seleccionadas</button>
-                    <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="adminSharesClearSelection()">Cancelar</button>
+                    <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="adminSharesClearSelection()"><?php echo htmlspecialchars(t('cancel')); ?></button>
                     <button type="button" class="btn btn-info" onclick="adminSharesDoAction('resend_notification')"><i class="fas fa-envelope"></i> Reenviar notificación</button>
                 </div>
                 
@@ -411,7 +411,7 @@ renderHeader('Comparticiones del Sistema', $user);
                             </div>
                         </div>
                         <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
-                            <button type="button" class="btn btn-outline" onclick="closeResendModal()">Cancelar</button>
+                            <button type="button" class="btn btn-outline" onclick="closeResendModal()"><?php echo htmlspecialchars(t('cancel')); ?></button>
                             <label style="display:flex; align-items:center; gap:0.5rem; margin-right:auto; font-weight:600;">
                                 <input id="resendCreateNew" type="checkbox" style="width:16px; height:16px;"> Crear nuevo enlace (generar token nuevo)
                             </label>
@@ -450,7 +450,7 @@ renderHeader('Comparticiones del Sistema', $user);
                         <p style="margin:0 0 0.75rem 0; color:var(--text-muted);">Revise los parámetros del nuevo enlace antes de crear y enviar el correo.</p>
                         <div id="resendConfirmBody" style="margin-bottom:1rem; max-height:240px; overflow:auto; padding:0.5rem; border-radius:0.375rem; background:#fbfbfb; border:1px solid var(--border-color);"></div>
                         <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
-                            <button type="button" class="btn btn-outline" onclick="closeResendConfirm()">Cancelar</button>
+                            <button type="button" class="btn btn-outline" onclick="closeResendConfirm()"><?php echo htmlspecialchars(t('cancel')); ?></button>
                             <button type="button" class="btn btn-primary" onclick="confirmResendAndSubmit()">Confirmar y enviar</button>
                         </div>
                     </div>

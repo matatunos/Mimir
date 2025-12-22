@@ -512,7 +512,7 @@ function buildQuery(array $overrides = []) {
                         <h4 id="confirmTitle">Confirmar acción</h4>
                         <p id="confirmBody">¿Estás seguro?</p>
                         <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
-                            <button id="confirmCancel" class="btn btn-secondary">Cancelar</button>
+                            <button id="confirmCancel" class="btn btn-secondary"><?php echo htmlspecialchars(t('cancel')); ?></button>
                             <button id="confirmProceed" class="btn btn-primary">Confirmar</button>
                         </div>
                     </div>
