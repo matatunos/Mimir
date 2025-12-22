@@ -87,7 +87,7 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
     <div class="card">
 
     <div class="card-header" style="padding: 1.5rem;">
-            <h2 class="card-title" style="margin: 0;">Crear Enlace de Compartición</h2>
+            <h2 class="card-title" style="margin: 0;"><?php echo t('create'); ?> <?php echo t('share'); ?></h2>
         </div>
         <div class="card-body">
             <div class="mb-3" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
@@ -136,8 +136,8 @@ renderHeader('Compartir Archivo: ' . htmlspecialchars($file['original_name']), $
                 </div>
 
                 <div style="display: flex; gap: 0.75rem;">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-link"></i> Crear Enlace</button>
-                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark">Cancelar</a>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-link"></i> <?php echo t('create'); ?> <?php echo t('share'); ?></button>
+                    <a href="<?php echo BASE_URL; ?>/user/files.php" class="btn btn-outline btn-outline--on-dark"><?php echo t('cancel'); ?></a>
                 </div>
             </form>
         </div>

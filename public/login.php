@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         header('Location: ' . BASE_URL . '/index.php');
                         exit;
                     } else {
-                        $error = 'Error al iniciar sesión. Por favor, inténtalo de nuevo.';
+                        $error = t('error_login_try_again');
                     }
                 }
 
@@ -221,7 +221,7 @@ $accentColor = $configClass->get('brand_accent_color', '#0ea5e9');
 $primaryTextColor = getTextColorForBackground($primaryColor);
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?php echo htmlspecialchars($_SESSION['lang'] ?? 'es'); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

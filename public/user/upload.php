@@ -12,8 +12,8 @@ if (!(
     <div style="background:var(--bg-main); padding:1rem; border-radius:0.75rem; display:flex; gap:1rem; align-items:flex-start; box-shadow:0 8px 32px rgba(0,0,0,0.4); width:560px; max-width:calc(100% - 40px);">
     <div class="spinner-border" role="status" style="width:3rem; height:3rem; border-width:0.35rem; flex:0 0 auto;"></div>
     <div style="flex:1 1 auto; min-width:0;">
-            <div id="uploadOverlayText" style="font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Subiendo archivos...</div>
-            <div style="font-size:0.9rem; color:var(--text-muted);">No cierres esta ventana hasta que termine la subida.</div>
+            <div id="uploadOverlayText" style="font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?php echo htmlspecialchars(t('uploading_files')); ?></div>
+            <div style="font-size:0.9rem; color:var(--text-muted);"><?php echo htmlspecialchars(t('dont_close_window')); ?></div>
             <div id="uploadProgressList" style="margin-top:0.75rem; max-height:260px; overflow:auto; width:100%; box-sizing:border-box;">
                 <!-- per-file progress items will be injected here -->
             </div>
@@ -69,9 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $isAjax = true;
     }
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Token de seguridad inválido';
+        $error = t('error_invalid_csrf');
     } elseif (!isset($_FILES['files']) || empty($_FILES['files']['tmp_name'][0])) {
-        $error = 'Selecciona al menos un archivo';
+        $error = t('error_select_at_least_one_file');
     } else {
         // If client indicates this is the start of a new batch, clear any stale upload results
         if (!empty($_POST['start_batch'])) {
@@ -99,25 +99,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 switch ($errCode) {
                     case UPLOAD_ERR_INI_SIZE:
                     case UPLOAD_ERR_FORM_SIZE:
-                        $reason = 'El archivo excede el límite permitido por el servidor';
+                        $reason = t('upload_err_exceeds_server_limit');
                         break;
                     case UPLOAD_ERR_PARTIAL:
-                        $reason = 'Subida incompleta (parcial)';
+                        $reason = t('upload_err_partial');
                         break;
                     case UPLOAD_ERR_NO_FILE:
-                        $reason = 'No se recibió el archivo';
+                        $reason = t('upload_err_no_file');
                         break;
                     case UPLOAD_ERR_NO_TMP_DIR:
-                        $reason = 'Falta el directorio temporal en el servidor';
+                        $reason = t('upload_err_no_tmp_dir');
                         break;
                     case UPLOAD_ERR_CANT_WRITE:
-                        $reason = 'Error al escribir el archivo en disco';
+                        $reason = t('upload_err_cant_write');
                         break;
                     case UPLOAD_ERR_EXTENSION:
-                        $reason = 'Subida detenida por una extensión';
+                        $reason = t('upload_err_extension');
                         break;
                     default:
-                        $reason = 'Error al subir';
+                        $reason = t('upload_err_generic');
                 }
                 $results[] = ['name' => $origName, 'status' => 'error', 'reason' => $reason];
                 if ($errCode !== UPLOAD_ERR_NO_FILE) {
@@ -127,9 +127,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Some cases may have no error code but missing tmp_name — handle defensively
-            if (empty($_FILES['files']['tmp_name'][$i]) || !is_uploaded_file($_FILES['files']['tmp_name'][$i])) {
-                $results[] = ['name' => $origName, 'status' => 'error', 'reason' => 'Archivo temporal no disponible'];
-                $errors[] = $origName . ': Archivo temporal no disponible';
+                if (empty($_FILES['files']['tmp_name'][$i]) || !is_uploaded_file($_FILES['files']['tmp_name'][$i])) {
+                $results[] = ['name' => $origName, 'status' => 'error', 'reason' => t('upload_err_tmp_missing')];
+                $errors[] = $origName . ': ' . t('upload_err_tmp_missing');
                 continue;
             }
             
@@ -149,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $logger->log($user['id'], 'file_upload', 'file', $result, "Archivo subido: {$fileData['name']}");
                     $results[] = ['name' => $fileData['name'], 'status' => 'ok'];
                 } else {
-                    $results[] = ['name' => $fileData['name'], 'status' => 'error', 'reason' => 'No se pudo procesar'];
+                    $results[] = ['name' => $fileData['name'], 'status' => 'error', 'reason' => t('upload_err_processing')];
                 }
             } catch (Exception $e) {
                 $results[] = ['name' => $fileData['name'], 'status' => 'error', 'reason' => $e->getMessage()];
@@ -157,9 +157,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if ($uploadedCount > 0) {
-            $success = $uploadedCount === 1 ? 'Archivo subido correctamente' : "$uploadedCount archivos subidos correctamente";
+            $success = $uploadedCount === 1 ? t('upload_single_success') : t('upload_multi_success', [$uploadedCount]);
             if (!empty($errors)) {
-                $success .= ' (algunos fallaron)';
+                $success .= ' (' . t('upload_some_failed') . ')';
             }
             // Store detailed per-file results in session for display on files page (append when AJAX per-file uploads)
             appendUploadResultsToSession($results);
@@ -189,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // to grow massively. Only add placeholders/hints for non-AJAX full-form submissions
                 // where the server truly didn't receive the batch.
                 if ($isAjax) {
-                    $error = 'No se pudieron procesar todos los archivos en esta petición AJAX. Continua con la subida.' . (empty($errors) ? '' : ' ' . implode(' ', $errors));
+                    $error = t('error_not_all_processed_ajax') . (empty($errors) ? '' : ' ' . implode(' ', $errors));
                     // Append just the current results (do not fabricate placeholders)
                     appendUploadResultsToSession($results);
                     header('Content-Type: application/json');
@@ -199,13 +199,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $missing = $clientFileCount - $fileCount;
                 $phpMax = ini_get('max_file_uploads') ?: 'unknown';
-                $hint = "Se detectaron {$clientFileCount} archivos en el cliente, pero el servidor procesó {$fileCount}. " .
-                    "Esto suele indicar un límite del servidor (p.ej. PHP 'max_file_uploads' = {$phpMax}) o restricciones de Nginx/Proxy. \n" .
-                    "Sube los archivos en lotes más pequeños o aumenta 'max_file_uploads' y 'post_max_size' en el servidor.";
-                $error = 'No se pudieron subir todos los archivos. ' . (empty($errors) ? '' : implode(' ', $errors)) . ' ' . $hint;
+                $hint = t('upload_hint_missing_files', [$clientFileCount, $fileCount, $phpMax]);
+                $error = t('error_not_all_uploaded') . ' ' . (empty($errors) ? '' : implode(' ', $errors)) . ' ' . $hint;
                 // Add placeholder rows for missing files to make the table length match client expectation
                 for ($m = 1; $m <= $missing; $m++) {
-                    $results[] = ['name' => 'Archivo faltante #' . $m, 'status' => 'error', 'reason' => 'No se recibió en el servidor (posible límite de max_file_uploads)'];
+                    $results[] = ['name' => 'Archivo faltante #' . $m, 'status' => 'error', 'reason' => t('upload_err_missing_server')];
                 }
                 // update session and inline results to include placeholders (append)
                 appendUploadResultsToSession($results);
@@ -216,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
             } else {
-                $error = 'No se pudo subir ningún archivo.' . (empty($errors) ? '' : ' ' . implode(', ', $errors));
+                $error = t('error_no_files_uploaded') . (empty($errors) ? '' : ' ' . implode(', ', $errors));
                 if ($isAjax) {
                     header('Content-Type: application/json');
                     echo json_encode(['success' => false, 'message' => $error, 'results' => $results]);
@@ -239,8 +237,8 @@ $allowedExtensionsStr = $config->get('allowed_extensions', ALLOWED_EXTENSIONS);
 $allowedExtsArr = array_values(array_filter(array_map('trim', explode(',', $allowedExtensionsStr))));
 $maxFileBytes = MAX_FILE_SIZE;
 
-renderPageStart('Subir Archivos', 'upload', $user['role'] === 'admin');
-renderHeader('Subir Archivos', $user);
+renderPageStart(t('upload_page_title'), 'upload', $user['role'] === 'admin');
+renderHeader(t('upload_page_title'), $user);
 ?>
 
 <div class="content">
@@ -250,11 +248,11 @@ renderHeader('Subir Archivos', $user);
 
     <?php if (!empty($uploadResults)): ?>
         <div class="card" style="margin-bottom:1rem;">
-            <div class="card-header"><strong>Resultado de la subida</strong></div>
+            <div class="card-header"><strong><?php echo htmlspecialchars(t('upload_results_title')); ?></strong></div>
             <div class="card-body">
                 <div style="margin-bottom:0.5rem;">
-                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']==='ok'; })); ?></strong> archivos subidos correctamente,
-                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']!=='ok'; })); ?></strong> fallaron.
+                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']==='ok'; })); ?></strong> <?php echo htmlspecialchars(t('upload_ok')); ?>,
+                    <strong><?php echo count(array_filter($uploadResults, function($r){ return $r['status']!=='ok'; })); ?></strong> <?php echo htmlspecialchars(t('upload_error')); ?>.
                 </div>
                 <div style="max-height:220px; overflow:auto;">
                     <div style="display:flex; justify-content:space-between; gap:0.5rem; margin-bottom:0.5rem; align-items:center;">
@@ -270,13 +268,13 @@ renderHeader('Subir Archivos', $user);
                     </div>
                     <table id="uploadResultsTable" class="table table-sm">
                         <thead>
-                            <tr><th>Archivo</th><th>Estado</th><th>Motivo</th></tr>
+                            <tr><th><?php echo htmlspecialchars(t('table_name')); ?></th><th><?php echo htmlspecialchars(t('table_status') ?? 'Estado'); ?></th><th><?php echo htmlspecialchars(t('reason') ?? 'Motivo'); ?></th></tr>
                         </thead>
                         <tbody>
                             <?php foreach ($uploadResults as $res): ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($res['name']); ?></td>
-                                    <td><?php echo $res['status'] === 'ok' ? '<span class="badge badge-success">OK</span>' : '<span class="badge badge-danger">Error</span>'; ?></td>
+                                    <td><?php echo $res['status'] === 'ok' ? '<span class="badge badge-success">OK</span>' : '<span class="badge badge-danger">'.htmlspecialchars(t('error')).'</span>'; ?></td>
                                     <td><?php echo $res['status'] === 'ok' ? '-' : htmlspecialchars($res['reason']); ?></td>
                                 </tr>
                             <?php endforeach; ?>
@@ -334,11 +332,17 @@ renderHeader('Subir Archivos', $user);
         makeInteractiveTable('uploadResultsTable','uploadResultsSearch','uploadResultsStatus');
     });
     </script>
-    <script>
+    </script>
     // Server-provided upload limits
     var ALLOWED_EXTENSIONS = <?php echo json_encode(array_map('strtolower', $allowedExtsArr)); ?>;
     var MAX_FILE_SIZE_BYTES = <?php echo (int)$maxFileBytes; ?>; // bytes
     </script>
+    // Client-side translated error messages
+    var ERR_EXT_NOT_ALLOWED = <?php echo json_encode(t('error_ext_not_allowed')); ?>;
+    var ERR_FILE_EXCEEDS = <?php echo json_encode(t('error_file_exceeds_max_mb')); ?>; // expects appended size info
+    var UPLOADING_PREFIX = <?php echo json_encode(t('uploading_prefix')); ?>; // e.g. 'Subiendo '
+    var UPLOADING_BETWEEN = <?php echo json_encode(t('uploading_between')); ?>; // e.g. ' de '
+    var UPLOADING_SEP = <?php echo json_encode(t('uploading_sep')); ?>; // e.g. ' — '
 
     <div class="card">
         <div class="card-header" style="padding: 1.5rem;">
@@ -396,7 +400,7 @@ renderHeader('Subir Archivos', $user);
                     </label>
                     <div style="margin-left:auto; display:flex; gap:0.75rem;">
                         <button type="submit" class="btn btn-primary">⬆️ Subir Archivos</button>
-                        <a href="<?php echo BASE_URL; ?>/user/files.php<?php echo $currentFolderId ? '?folder=' . $currentFolderId : ''; ?>" class="btn btn-outline btn-outline--on-dark">Cancelar</a>
+                        <a href="<?php echo BASE_URL; ?>/user/files.php<?php echo $currentFolderId ? '?folder=' . $currentFolderId : ''; ?>" class="btn btn-outline btn-outline--on-dark"><?php echo t('cancel'); ?></a>
                     </div>
                 </div>
             </form>

@@ -80,7 +80,7 @@ if ($token) {
 }
 
 if (!$inv) {
-    $error = 'Token de invitación inválido o expirado.';
+    $error = t('error_token_invalid');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $inv) {
@@ -92,20 +92,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $inv) {
     $password2 = $_POST['password_confirm'] ?? '';
 
     if (empty($username) || empty($password) || empty($password2)) {
-        $error = 'Por favor rellena todos los campos obligatorios.';
+        $error = t('invite_fill_required');
     } elseif ($password !== $password2) {
-        $error = 'Las contraseñas no coinciden.';
+        $error = t('error_passwords_no_match');
     } elseif (strlen($password) < 8) {
-        $error = 'La contraseña debe tener al menos 8 caracteres.';
+        $error = t('error_password_min_length', [8]);
     } else {
         // Check username availability
         $existing = $userClass->getByUsername($username);
         if ($existing) {
             // If username was forced, instruct to contact admin; otherwise allow user to choose different
-            if ($forcedUsername) {
-                $error = 'El nombre de usuario forzado ya existe. Contacta con el administrador.';
+                if ($forcedUsername) {
+                $error = t('invite_forced_username_exists');
             } else {
-                $error = 'El usuario ya existe. Elige otro nombre de usuario.';
+                $error = t('invite_username_taken');
             }
         } else {
             // If an account already exists with the invited email, log and continue (duplicates allowed)
@@ -133,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $inv) {
             ];
 
             $newUserId = $userClass->create($data);
-            if ($newUserId) {
+                if ($newUserId) {
                 // Mark invitation used
                 $invitationClass->markUsed($inv['id'], $newUserId);
 
@@ -234,7 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $inv) {
                 }
 
                 // Attempt to log user in
-                if ($auth->login($username, $password)) {
+                    if ($auth->login($username, $password)) {
                     // If 2FA forced, redirect to setup page immediately
                     if (!empty($inv['force_2fa']) && $inv['force_2fa'] !== 'none') {
                         if ($inv['force_2fa'] === 'totp') {
@@ -249,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $inv) {
                     header('Location: ' . BASE_URL . '/index.php');
                     exit;
                 } else {
-                    $success = 'Cuenta creada correctamente. Ahora puedes iniciar sesión.';
+                    $success = t('invite_account_created_success');
                 }
             } else {
                 // Capture DB error info for debugging (temporary)
@@ -264,7 +264,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $inv) {
                     error_log("Logger failed while recording user_create_failed: " . $e->getMessage());
                 }
 
-                $error = 'Error creando la cuenta. Inténtalo de nuevo más tarde.';
+                $error = t('error_invite_create_failed');
             }
         }
     }
@@ -279,11 +279,11 @@ $accentColor = $configClass->get('brand_accent_color', '#0ea5e9');
 $primaryTextColor = getTextColorForBackground($primaryColor);
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?php echo htmlspecialchars($_SESSION['lang'] ?? 'es'); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aceptar invitación - <?php echo htmlspecialchars($siteName); ?></title>
+    <title><?php echo htmlspecialchars(t('invite_page_title', [$siteName])); ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
     <style>
@@ -306,7 +306,7 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
                     <?php endif; ?>
                 </div>
                 <h1><?php echo htmlspecialchars($siteName); ?></h1>
-                <p style="margin-top: 0.5rem; color: var(--text-muted);">Acepta la invitación para crear tu cuenta</p>
+                <p style="margin-top: 0.5rem; color: var(--text-muted);"><?php echo htmlspecialchars(t('invite_prompt')); ?></p>
             </div>
 
             <?php if ($error): ?>
@@ -321,32 +321,32 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
                     <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
                             <?php if (!empty($inv['forced_username'])): ?>
                                 <div class="form-group">
-                                    <label class="form-label required">Usuario asignado</label>
+                                            <label class="form-label required"><?php echo htmlspecialchars(t('assigned_username_label')); ?></label>
                                     <div style="padding:0.5rem 0.75rem; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:4px;"><?php echo htmlspecialchars($inv['forced_username']); ?></div>
                                     <input type="hidden" name="username" value="<?php echo htmlspecialchars($inv['forced_username']); ?>">
                                 </div>
                             <?php else: ?>
                                 <div class="form-group">
-                                    <label for="username" class="form-label required">Usuario</label>
+                                    <label for="username" class="form-label required"><?php echo htmlspecialchars(t('label_username')); ?></label>
                                     <input type="text" id="username" name="username" class="form-control" required value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
                                 </div>
                             <?php endif; ?>
                     <div class="form-group">
-                        <label for="full_name" class="form-label">Nombre completo</label>
+                        <label for="full_name" class="form-label"><?php echo htmlspecialchars(t('label_full_name')); ?></label>
                         <input type="text" id="full_name" name="full_name" class="form-control" value="<?php echo htmlspecialchars($_POST['full_name'] ?? ''); ?>">
                     </div>
                     <div class="form-group">
-                        <label for="password" class="form-label required">Contraseña</label>
+                        <label for="password" class="form-label required"><?php echo htmlspecialchars(t('label_password')); ?></label>
                         <input type="password" id="password" name="password" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label for="password_confirm" class="form-label required">Confirmar contraseña</label>
+                        <label for="password_confirm" class="form-label required"><?php echo htmlspecialchars(t('label_confirm_password')); ?></label>
                         <input type="password" id="password_confirm" name="password_confirm" class="form-control" required>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">Crear cuenta</button>
+                    <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;"><?php echo htmlspecialchars(t('create_account')); ?></button>
                 </form>
             <?php else: ?>
-                <p>El enlace de invitación no es válido o ha expirado.</p>
+                <p><?php echo htmlspecialchars(t('invite_link_invalid')); ?></p>
             <?php endif; ?>
         </div>
     </div>

@@ -398,7 +398,7 @@ function buildQuery(array $overrides = []) {
     <form method="GET" class="form-inline" style="margin-bottom:1rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
         <input type="hidden" name="sort_by" value="<?php echo htmlspecialchars($sortBy); ?>">
         <input type="hidden" name="sort_order" value="<?php echo htmlspecialchars(strtolower($sortOrder) === 'asc' ? 'asc' : 'desc'); ?>">
-        <input type="text" name="q" value="<?php echo htmlspecialchars($q); ?>" placeholder="Buscar archivo o usuario" class="form-control" />
+        <input type="text" name="q" value="<?php echo htmlspecialchars($q); ?>" placeholder="<?php echo t('search'); ?>" class="form-control" />
         <select name="filter" class="form-control">
             <option value="expired" <?php echo $filter==='expired' ? 'selected' : ''; ?>>Solo expirados</option>
             <option value="not" <?php echo $filter==='not' ? 'selected' : ''; ?>>No expirados</option>
@@ -407,7 +407,7 @@ function buildQuery(array $overrides = []) {
         </select>
         <label style="display:flex; gap:.25rem; align-items:center;">Desde: <input type="date" name="expired_from" value="<?php echo htmlspecialchars($expiredFrom); ?>" class="form-control" /></label>
         <label style="display:flex; gap:.25rem; align-items:center;">Hasta: <input type="date" name="expired_to" value="<?php echo htmlspecialchars($expiredTo); ?>" class="form-control" /></label>
-        <button class="btn btn-primary" type="submit">Buscar</button>
+        <button class="btn btn-primary" type="submit"><?php echo t('search'); ?></button>
         <div style="margin-left:auto; display:flex; gap:.5rem; align-items:center;">Per page:
             <select name="per_page" onchange="this.form.submit()">
                 <?php foreach ([10,25,50,100] as $v): ?>
@@ -734,13 +734,13 @@ function buildQuery(array $overrides = []) {
                         $('#confirmCancel').off('click').on('click', function(){ $('#confirmModal').fadeOut(100); });
                         $('#confirmProceed').off('click').on('click', function(){ $('#confirmModal').fadeOut(100); performBulkAction(action); });
                     } else {
-                        if(!confirm('Confirmar acción?')) return;
+                        if(!confirm(<?php echo json_encode(t('confirm_action')); ?>)) return;
                         performBulkAction(action);
                     }
                 }
 
                 function expiredDoActionSingle(action, id){
-                    if(!confirm('Confirmar acción?')) return;
+                    if(!confirm(<?php echo json_encode(t('confirm_action')); ?>)) return;
                     const ids = [parseInt(id)];
                     showProcessing('Ejecutando acción...', { clearLogs: true, percent: 0, status: 'Enviando' });
                     processIdsInBatches(ids, action, 50, function(){ hideProcessing(); window.location.reload(); });

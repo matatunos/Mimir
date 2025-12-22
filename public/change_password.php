@@ -29,11 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirm = $_POST['confirm_password'] ?? '';
 
     if (empty($new) || empty($confirm)) {
-        $error = 'Introduce la nueva contraseña y su confirmación.';
+        $error = t('error_enter_new_and_confirm');
     } elseif ($new !== $confirm) {
-        $error = 'Las contraseñas no coinciden.';
+        $error = t('error_passwords_no_match');
     } elseif (strlen($new) < 8) {
-        $error = 'La contraseña debe tener al menos 8 caracteres.';
+        $error = t('error_password_min_length', [8]);
     } else {
         $changed = $userClass->changePassword($currentUserId, $new);
         if ($changed) {
@@ -58,11 +58,11 @@ require_once __DIR__ . '/../includes/layout.php';
 $siteName = (new Config())->get('site_name', 'Mimir');
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?php echo htmlspecialchars($_SESSION['lang'] ?? 'es'); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cambiar contraseña - <?php echo htmlspecialchars($siteName); ?></title>
+    <title><?php echo htmlspecialchars(t('change_password_title', [$siteName])); ?></title>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
     <style>
         .change-card { max-width: 420px; margin: 3rem auto; }
@@ -70,20 +70,20 @@ $siteName = (new Config())->get('site_name', 'Mimir');
 </head>
 <body>
     <div class="change-card">
-        <h2>Cambiar contraseña</h2>
+        <h2><?php echo htmlspecialchars(t('change_password')); ?></h2>
         <?php if ($error): ?>
             <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
         <form method="POST" action="">
             <div class="form-group">
-                <label>Nueva contraseña</label>
+                <label><?php echo htmlspecialchars(t('label_new_password')); ?></label>
                 <input type="password" name="new_password" class="form-control" required>
             </div>
             <div class="form-group">
-                <label>Confirmar contraseña</label>
+                <label><?php echo htmlspecialchars(t('label_confirm_password')); ?></label>
                 <input type="password" name="confirm_password" class="form-control" required>
             </div>
-            <button class="btn btn-primary" type="submit">Cambiar contraseña</button>
+            <button class="btn btn-primary" type="submit"><?php echo htmlspecialchars(t('change_password')); ?></button>
         </form>
     </div>
 </body>
