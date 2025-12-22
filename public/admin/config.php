@@ -264,11 +264,99 @@ $descs['notify_user_creation_to_admins'] = 'Si está marcado, además se enviar�
 $descs['notify_user_creation_retry_attempts'] = 'Número máximo de reintentos para enviar notificaciones de creación de usuario antes de registrar un evento forense.';
 $descs['notify_user_creation_retry_delay_seconds'] = 'Retraso inicial en segundos entre reintentos; se aplica backoff exponencial.';
 $descs['notify_user_creation_use_background_worker'] = 'Si está activado, las notificaciones se encolarán y un worker en background las procesará (recomendado para alta latencia de SMTP).';
+// General / branding
+$descs['site_name'] = 'Nombre mostrado del sitio en cabeceras y correos.';
+$descs['site_tagline'] = 'Breve lema o descripción corta que aparece en la cabecera.';
+$descs['site_admin_email'] = 'Dirección de email usada para notificaciones administrativas y alertas.';
+$descs['site_logo'] = 'Archivo de logo usado en la interfaz y en correos (ruta relativa a la carpeta de branding).';
+// Storage / upload
+$descs['max_file_size'] = 'Tamaño máximo por fichero permitido para subidas, en bytes.';
+$descs['allowed_extensions'] = 'Lista de extensiones permitidas para subidas (coma separadas). Ejemplo: pdf,docx,jpg,png.';
+$descs['default_storage_quota'] = 'Cuota por defecto para almacenamiento de usuarios, en bytes.';
+$descs['storage_quota_per_user'] = 'Cuota por usuario si se configura específicamente (en bytes).';
+// Sharing & pagination
+$descs['default_max_share_days'] = 'Duración por defecto (en días) para los enlaces de descarga compartidos.';
+$descs['default_max_downloads'] = 'Número máximo por defecto de descargas permitidas para un enlace compartido.';
+$descs['items_per_page'] = 'Número de elementos que se muestran por página en listados de usuarios/archivos.';
+// Email / SMTP
+$descs['enable_email'] = 'Habilitar el envío de emails desde la aplicación (SMTP o sendmail local).';
+$descs['smtp_host'] = 'Host del servidor SMTP usado para enviar correos.';
+$descs['smtp_port'] = 'Puerto del servidor SMTP (por ejemplo, 25, 465, 587).';
+$descs['smtp_username'] = 'Nombre de usuario para autenticarse en el servidor SMTP.';
+$descs['smtp_password'] = 'Contraseña para autenticarse en el servidor SMTP (almacenada codificada).';
+$descs['smtp_encryption'] = "Tipo de cifrado SMTP (por ejemplo 'ssl', 'tls' o vacío para ninguno).";
+$descs['email_from_address'] = "La dirección 'From' usada en los correos salientes.";
+$descs['email_from_name'] = 'El nombre que acompaña a la dirección From en los correos.';
+$descs['email_signature'] = 'Texto que se añade al final de los correos enviados por el sistema.';
+// LDAP / AD
+$descs['enable_ldap'] = 'Habilitar autenticación vía LDAP/Active Directory.';
+$descs['ldap_host'] = 'Host del servidor LDAP/AD.';
+$descs['ldap_port'] = 'Puerto del servidor LDAP/AD.';
+$descs['ldap_base_dn'] = 'Base DN usada para búsquedas de usuarios en LDAP.';
+$descs['ldap_bind_dn'] = 'DN de enlace usado para consultas LDAP (si aplica).';
+$descs['ldap_bind_password'] = 'Contraseña para el DN de enlace LDAP.';
+$descs['ldap_search_filter'] = 'Filtro usado para buscar usuarios en LDAP; use %s donde colocar el nombre de usuario.';
+// Active Directory
+$descs['enable_ad'] = 'Habilitar sincronización/autenticación con Active Directory.';
+$descs['ad_host'] = 'Host del controlador de dominio o servidor LDAP/AD.';
+$descs['ad_port'] = 'Puerto del servidor AD (habitualmente 389 o 636 para LDAPS).';
+// 2FA / Duo
+$descs['enable_duo'] = 'Habilitar Duo Security para autenticación de segundo factor.';
+$descs['duo_client_id'] = 'ID de cliente provisto por Duo.';
+$descs['duo_client_secret'] = 'Secreto de cliente de Duo (mantener confidencial).';
+$descs['duo_api_hostname'] = 'Hostname de la API de Duo (p.ej. api-XXXXXXXX.duosecurity.com).';
+$descs['2fa_max_attempts'] = 'Número máximo de intentos de 2FA antes de bloqueo temporal.';
+$descs['2fa_lockout_minutes'] = 'Duración del bloqueo (en minutos) tras superar intentos de 2FA.';
+// Registration / account policy
+$descs['enable_registration'] = 'Permitir a usuarios registrarse por sí mismos desde la interfaz pública.';
+$descs['password_min_length'] = 'Longitud mínima requerida para las contraseñas de usuario.';
+$descs['password_require_special'] = 'Requerir al menos un carácter especial en las contraseñas.';
+// Security & forensic
+$descs['enable_config_protection'] = 'Proteger cambios críticos de configuración requiriendo confirmación adicional.';
+$descs['enable_forensic_logging'] = 'Registrar eventos forenses adicionales para auditoría y detección de abuso.';
+$descs['forensic_retention_days'] = 'Días que se conservan los registros forenses antes de purgarse automáticamente.';
+$descs['maintenance_mode'] = 'Activar modo mantenimiento; solo administradores podrán acceder temporalmente.';
+// Rate limiting
+$descs['enable_rate_limit'] = 'Habilitar límites de frecuencia para puntos críticos (login, reset, API).';
+$descs['rate_limit_requests'] = 'Número de peticiones permitidas en la ventana de tiempo configurada.';
+$descs['rate_limit_window_seconds'] = 'Ventana de tiempo (en segundos) para la limitación de tasa.';
+// Brand colors
+$descs['brand_primary_color'] = 'Color principal de la marca (hex), usado en cabeceras y botones principales.';
+$descs['brand_secondary_color'] = 'Color secundario de la marca (hex), usado en elementos complementarios.';
+$descs['brand_accent_color'] = 'Color de acento (hex) para destacar acciones y enlaces.';
+// LDAP attribute mappings
+$descs['ldap_username_attribute'] = 'Atributo LDAP que contiene el nombre de usuario (p.ej. uid, sAMAccountName).';
+$descs['ldap_email_attribute'] = 'Atributo LDAP que contiene la dirección de correo electrónico del usuario.';
+$descs['ldap_display_name_attribute'] = 'Atributo LDAP que contiene el nombre para mostrar del usuario (p.ej. cn, displayName).';
+$descs['ldap_required_group_dn'] = 'DN de grupo requerido en LDAP para permitir inicio de sesión (opcional).';
+$descs['ldap_admin_group_dn'] = 'DN de grupo en LDAP cuyos miembros se convertirán en administradores (opcional).';
+// Active Directory full settings
+$descs['ad_base_dn'] = 'Base DN para búsquedas en Active Directory.';
+$descs['ad_bind_dn'] = 'DN de enlace usado para consultas en Active Directory.';
+$descs['ad_bind_password'] = 'Contraseña para el DN de enlace de Active Directory.';
+$descs['ad_search_filter'] = 'Filtro LDAP para buscar usuarios en AD; use %s para el nombre de usuario.';
+$descs['ad_username_attribute'] = 'Atributo en AD que contiene el nombre de usuario (p.ej. sAMAccountName).';
+$descs['ad_email_attribute'] = 'Atributo en AD que contiene el email del usuario.';
+$descs['ad_display_name_attribute'] = 'Atributo en AD que contiene el nombre para mostrar del usuario.';
+$descs['ad_require_group'] = 'Filtro o DN que obliga a pertenecer a un grupo para permitir el acceso (opcional).';
+$descs['ad_group_filter'] = 'Filtro usado para comprobar pertenencia a grupos en AD; use %s para el DN del usuario.';
+$descs['ad_required_group_dn'] = 'DN de grupo requerido en AD para permitir el acceso (opcional).';
+$descs['ad_admin_group_dn'] = 'DN de grupo en AD cuyos miembros recibirán rol de administrador (opcional).';
+$descs['ad_use_ssl'] = 'Forzar uso de SSL (LDAPS) al conectarse a AD si está disponible.';
+$descs['ad_use_tls'] = 'Negociar STARTTLS en conexiones a AD si el servidor lo soporta.';
+$descs['ad_domain'] = 'Dominio de Active Directory (opcional), usado en algunos flujos de autenticación.';
+// Duo / 2FA
+$descs['duo_redirect_uri'] = 'URI de redirección registrada en Duo para la integración OAuth (si aplica).';
+$descs['2fa_grace_period_hours'] = 'Periodo en horas durante el cual un dispositivo puede considerarse de confianza sin re-autenticar 2FA.';
+$descs['2fa_device_trust_days'] = 'Días durante los cuales se recuerda un dispositivo como de confianza para evitar 2FA frecuente.';
 // Persist any default descriptions if DB connection available
 $descs['password_reset_detection_threshold'] = 'Número de solicitudes de restablecimiento en la ventana temporal que se consideran sospechosas (por nombre de usuario / IP).';
 $descs['password_reset_detection_window_minutes'] = 'Ventana de tiempo (en minutos) en la que se contabilizan solicitudes para detección de enumeración.';
 $descs['password_reset_auto_block_enabled'] = 'Si está activado, las IPs que superen el umbral serán bloqueadas automáticamente por la duración configurada.';
 $descs['password_reset_auto_block_duration_minutes'] = 'Duración (en minutos) del bloqueo automático de IP cuando se dispara el auto-block.';
+// Internal/legacy keys
+$descs['action'] = 'Clave interna usada por la interfaz para acciones temporales (no modificar manualmente).';
+$descs['filename'] = 'Nombre de archivo temporal/subido asociado a operaciones de branding/logos.';
 $db = null;
 try {
     $db = Database::getInstance()->getConnection();
@@ -909,17 +997,7 @@ foreach ($promote as $cat => $wantKeys) {
 renderPageStart('Configuración', 'config', true);
 renderHeader('Configuración del Sistema', $user, $auth);
 ?>
-<div class="content">
-    <?php if ($success): ?>
-        <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
-    <?php endif; ?>
-    <script>
-    (function(){
-        function makeInteractive(tableId, searchId, statusId){
-            var table = document.getElementById(tableId);
-            if (!table) return;
-            var tbody = table.tBodies[0];
-            var rows = Array.prototype.slice.call(tbody.rows);
+<script>
             var headers = table.tHead.rows[0].cells;
             for (let i=0;i<headers.length;i++){
                 headers[i].style.cursor='pointer';
@@ -1187,7 +1265,17 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 $friendlyLabels['notify_user_creation_retry_delay_seconds'] = 'Retraso inicial entre intentos (s)';
                                 $friendlyLabels['notify_user_creation_use_background_worker'] = 'Usar worker en background para notificaciones';
                                 $label = $friendlyLabels[$cfg['config_key']] ?? $cfg['config_key'];
-                                echo htmlspecialchars($label);
+                                // If a description exists, treat it as the field title and move the friendly label
+                                // into the help text. Preserve original friendly label in $origLabel.
+                                $origLabel = $label;
+                                $descForTitle = trim($cfg['description'] ?? '');
+                                if ($descForTitle !== '') {
+                                    $label = $descForTitle; // title comes from description
+                                    $helpText = $origLabel;
+                                } else {
+                                    $helpText = '';
+                                }
+                                echo '<strong>' . htmlspecialchars($label) . '</strong>';
                             ?>
                             <?php if ($cfg['is_system']): ?>
                                 <span class="badge badge-secondary" style="margin-left: 0.5rem;">Sistema</span>
@@ -1323,14 +1411,9 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 <input type="hidden" name="<?php echo htmlspecialchars($key); ?>_present" value="1">
                                 <label style="cursor:pointer; display:flex; align-items:center; gap:0.5rem; margin:0;">
                                     <input type="checkbox" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo $checked ? 'checked' : ''; ?> <?php echo $isReadonly ? 'disabled' : ''; ?>>
-                                    <span style="font-weight:600;"><?php echo htmlspecialchars($label ?? $cfg['config_key']); ?></span>
                                 </label>
                             </div>
-                            <?php if ($cfg['description']): ?>
-                                <small style="display:block; color: var(--text-muted); margin-top:0.25rem;">
-                                    <?php echo htmlspecialchars($cfg['description']); ?>
-                                </small>
-                            <?php endif; ?>
+                            <!-- Description for booleans is rendered in the generic description block below -->
                         <?php else: ?>
                             <?php
                             // Placeholders for text fields based on config key
@@ -1417,14 +1500,14 @@ renderHeader('Configuración del Sistema', $user, $auth);
                         <?php endif; ?>
                         
                         <?php
-                            // Show description only when it provides additional information beyond the label
+                            // Render the field help text (treat as a help/hint field rather than a formal description).
                             $desc = trim($cfg['description'] ?? '');
                             $labelCheck = isset($label) ? trim($label) : trim($cfg['config_key']);
                             if ($desc !== '') {
-                                $descLower = mb_strtolower($desc);
-                                $labelLower = mb_strtolower($labelCheck);
-                                if (strpos($descLower, $labelLower) === false) {
-                                    echo '<small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">' . htmlspecialchars($desc) . '</small>'; 
+                                // Only hide help when it's identical to the label (case-insensitive).
+                                if (mb_strtolower($desc) !== mb_strtolower($labelCheck)) {
+                                    $helpId = 'cfg_help_' . preg_replace('/[^a-zA-Z0-9_\-]/', '_', $cfg['config_key']);
+                                    echo '<small id="' . $helpId . '" class="form-text text-muted" style="display:block; margin-top:0.25rem;"><span style="font-weight:600; margin-right:0.35rem;">Ayuda:</span> ' . htmlspecialchars($desc) . '</small>';
                                 }
                             }
                         ?>
@@ -1699,6 +1782,21 @@ document.addEventListener('DOMContentLoaded', function(){
             var fd = new FormData();
             fd.append('file', blobInfo.blob(), blobInfo.filename());
             xhr.send(fd);
+        }
+    });
+});
+</script>
+
+<script>
+// Associate generated help <small> elements with the nearest input/textarea/select
+document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('small[id^="cfg_help_"]').forEach(function(help){
+        var fg = help.closest('.form-group');
+        if (!fg) return;
+        var input = fg.querySelector('input[name], textarea[name], select[name]');
+        if (input && !input.hasAttribute('aria-describedby')) {
+            var existing = input.getAttribute('aria-describedby');
+            input.setAttribute('aria-describedby', (existing ? existing + ' ' : '') + help.id);
         }
     });
 });
