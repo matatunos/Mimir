@@ -362,14 +362,15 @@ function makeBackgroundTransparentIfPossible($filePath, $extension) {
         foreach ($samples as $s) { $avg[0]+=$s[0]; $avg[1]+=$s[1]; $avg[2]+=$s[2]; }
         $avg = [ (int)($avg[0]/count($samples)), (int)($avg[1]/count($samples)), (int)($avg[2]/count($samples)) ];
 
-        // Create destination with alpha
+        // Create destination with alpha and disable blending for direct pixel writes
         $dest = imagecreatetruecolor($w, $h);
+        imagealphablending($dest, false);
         imagesavealpha($dest, true);
-        $trans = imagecolorallocatealpha($dest, 0, 0, 0, 127);
-        imagefill($dest, 0, 0, $trans);
+        $transparentIndex = imagecolorallocatealpha($dest, 0, 0, 0, 127);
+        imagefill($dest, 0, 0, $transparentIndex);
 
-        // Threshold for color distance (0-441). Use 70 as default tolerance
-        $tolerance = 70;
+        // Threshold for color distance (0-441). Use a conservative tolerance to avoid over-removal
+        $tolerance = 50;
 
         for ($y=0; $y<$h; $y++) {
             for ($x=0; $x<$w; $x++) {
@@ -378,10 +379,16 @@ function makeBackgroundTransparentIfPossible($filePath, $extension) {
                 $g = ($rgb >> 8) & 0xFF;
                 $b = $rgb & 0xFF;
                 $dist = sqrt(pow($r-$avg[0],2) + pow($g-$avg[1],2) + pow($b-$avg[2],2));
+
                 if ($dist <= $tolerance) {
-                    // keep transparent
-                    imagesetpixel($dest, $x, $y, $trans);
+                    // Compute partial transparency to preserve anti-aliased edges instead of hard cut
+                    $alphaFactor = max(0, min(1, ($tolerance - $dist) / $tolerance));
+                    // GD alpha: 0 = opaque, 127 = fully transparent
+                    $alpha = (int)round($alphaFactor * 127);
+                    $col = imagecolorallocatealpha($dest, $r, $g, $b, $alpha);
+                    imagesetpixel($dest, $x, $y, $col);
                 } else {
+                    // keep fully opaque pixel
                     $col = imagecolorallocatealpha($dest, $r, $g, $b, 0);
                     imagesetpixel($dest, $x, $y, $col);
                 }
