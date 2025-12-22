@@ -3,6 +3,8 @@ require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../classes/Config.php';
 require_once __DIR__ . '/../classes/Email.php';
+require_once __DIR__ . '/../classes/Logger.php';
+require_once __DIR__ . '/../classes/ForensicLogger.php';
 
 use PDO;
 
@@ -119,9 +121,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Log the attempt for audit (no sensitive data leaked)
             try {
+                // security_events entry (existing style)
                 $stmtLog = $db->prepare("INSERT INTO security_events (event_type, username, severity, ip_address, user_agent, description, details) VALUES ('password_reset_request', ?, 'low', ?, ?, ?, ?)");
                 $detailsJson = json_encode(['username_submitted' => $username, 'time' => date('Y-m-d H:i:s')]);
                 $stmtLog->execute([$username, $_SERVER['REMOTE_ADDR'] ?? 'unknown', $_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 'Password reset requested for submitted username (user not found)', $detailsJson]);
+
+                // activity_log entry via Logger
+                $logger = new Logger();
+                $logger->log(null, 'password_reset_request_nonexistent', null, null, 'Password reset requested for non-existent username: ' . $username, ['anon_email' => $anon]);
+
+                // Forensic log
+                $forensic = new ForensicLogger();
+                $forensic->logSecurityEvent('password_reset_request_nonexistent', 'medium', 'Password reset requested for non-existent username', ['username_submitted' => $username, 'anon_email' => $anon], null);
             } catch (Exception $e) {
                 // ignore logging errors
             }
