@@ -32,6 +32,10 @@ $LANG = [
     'notify_creation_emails_label' => 'Direcciones de notificación (comas separadas)',
     'notify_creation_help' => 'Introduce direcciones separadas por comas. Si también está activada la opción "Notificar también a administradores", se les añadirá automáticamente.',
     'file_upload_processing' => 'Procesando la subida del logo... no cierre esta ventana.'
+    , 'logo_updated_with_colors' => 'Logo actualizado correctamente. Colores extraídos automáticamente: %s'
+    , 'logo_updated_no_colors' => 'Logo actualizado correctamente (no se pudieron extraer colores automáticamente)'
+    , 'logo_updated' => 'Logo actualizado correctamente'
+    , 'eyedropper_unsupported' => 'Tu navegador no soporta la herramienta de selección de colores (EyeDropper API).\n\nPrueba con Chrome, Edge o Opera actualizado.'
 ];
 
 return $LANG;

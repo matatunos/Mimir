@@ -741,11 +741,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $colorsExtracted = true;
                             
                             $success = sprintf(
-                                'Logo actualizado correctamente. Colores extraídos automáticamente: ' .
-                                'Primario (%s), Secundario (%s), Acento (%s)',
-                                $brandColors['primary'],
-                                $brandColors['secondary'],
-                                $brandColors['accent']
+                                t('logo_updated_with_colors'),
+                                $brandColors['primary'] . ', ' . $brandColors['secondary'] . ', ' . $brandColors['accent']
                             );
                             // Generate favicons from the uploaded logo (best-effort)
                             try {
@@ -763,10 +760,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $logger->log($user['id'], 'color_extraction_failed', 'system', null, 
                                 "Error extrayendo colores: " . $e->getMessage()
                             );
-                            $success = 'Logo actualizado correctamente (no se pudieron extraer colores automáticamente)';
+                            $success = t('logo_updated_no_colors');
                         }
                     } else {
-                        $success = 'Logo actualizado correctamente';
+                        $success = t('logo_updated');
                     }
                 } else {
                     // Populate session result for failure so UI can show reason
@@ -1639,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', updateColorPreview);
 async function pickColorFromScreen(configKey) {
     // Check if EyeDropper API is supported
     if (!window.EyeDropper) {
-        alert('Tu navegador no soporta la herramienta de selección de colores (EyeDropper API).\n\nPrueba con Chrome, Edge o Opera actualizado.');
+        alert('<?php echo addslashes(htmlspecialchars(t('eyedropper_unsupported'))); ?>');
         return;
     }
     
