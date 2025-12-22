@@ -20,7 +20,7 @@ if (!$userId) {
 
 $user = $userClass->getById($userId);
 if (!$user) {
-    header('Location: ' . BASE_URL . '/admin/users.php?error=' . urlencode('Usuario no encontrado'));
+    header('Location: ' . BASE_URL . '/admin/users.php?error=' . urlencode(t('error_user_not_found')));
     exit;
 }
 
@@ -29,7 +29,7 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Token de seguridad inválido';
+        $error = t('error_invalid_csrf');
     } else {
         $username = trim($_POST['username'] ?? '');
         $email = trim($_POST['email'] ?? '');
@@ -41,11 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newPassword = $_POST['new_password'] ?? '';
         
         if (empty($username) || empty($email)) {
-            $error = 'Usuario y email son obligatorios';
+            $error = t('error_user_and_email_required');
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = 'Email inválido';
+            $error = t('error_invalid_email');
         } elseif (!in_array($role, ['admin', 'user'])) {
-            $error = 'Rol inválido';
+            $error = t('error_invalid_role');
         } else {
             try {
                 $updateData = [
@@ -63,17 +63,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 if (!empty($newPassword)) {
                     if (strlen($newPassword) < 6) {
-                        throw new Exception('La contraseña debe tener al menos 6 caracteres');
+                        throw new Exception(sprintf(t('error_password_min_length'), 6));
                     }
                     $updateData['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
                 }
                 
                 if ($userClass->update($userId, $updateData)) {
                     $logger->log($adminUser['id'], 'user_update', 'user', $userId, "Usuario {$username} actualizado por administrador");
-                    $success = 'Usuario actualizado correctamente';
+                    $success = t('user_updated_success');
                     $user = $userClass->getById($userId);
                 } else {
-                    $error = 'Error al actualizar el usuario';
+                    $error = t('error_update_user');
                 }
             } catch (Exception $e) {
                 $error = $e->getMessage();

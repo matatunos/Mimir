@@ -1134,7 +1134,7 @@ function reset2FA(userId, username) {
                 location.reload(true); // Force reload from server
             }, 1000);
         } else {
-            Mimir.showAlert(data.message || 'Error al desactivar 2FA', 'error');
+            Mimir.showAlert(data.message || <?php echo json_encode(t('error_disable_2fa')); ?>, 'error');
         }
     })
     .catch(error => {

@@ -23,7 +23,7 @@ $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Token de seguridad inválido';
+        $error = t('error_invalid_csrf');
         if ($isAjax) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'message' => $error]);
@@ -37,23 +37,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db = Database::getInstance()->getConnection();
             $stmt = $db->prepare("UPDATE users SET require_2fa = 1 WHERE id = ?");
             $stmt->execute([$userId]);
-            if ($stmt->execute()) {
+                if ($stmt->execute()) {
                 $user = $userClass->getById($userId);
                 $logger->log($adminUser['id'], '2fa_required', 'user', $userId, "2FA marcado como obligatorio para {$user['username']}");
-                $success = 'Usuario marcado para requerir 2FA';
+                $success = t('user_marked_require_2fa');
             } else {
-                $error = 'Error al actualizar usuario';
+                $error = t('error_update_user');
             }
         } elseif ($action === 'force_disable') {
             $db = Database::getInstance()->getConnection();
             $stmt = $db->prepare("UPDATE users SET require_2fa = 0 WHERE id = ?");
             $stmt->execute([$userId]);
-            if ($stmt->execute()) {
+                if ($stmt->execute()) {
                 $user = $userClass->getById($userId);
                 $logger->log($adminUser['id'], '2fa_optional', 'user', $userId, "2FA ya no es obligatorio para {$user['username']}");
-                $success = '2FA ya no es obligatorio para este usuario';
+                $success = t('user_no_longer_require_2fa');
             } else {
-                $error = 'Error al actualizar usuario';
+                $error = t('error_update_user');
             }
         } elseif ($action === 'reset_2fa') {
             if ($twoFactor->disable($userId)) {
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $user = $userClass->getById($userId);
                 $logger->log($adminUser['id'], '2fa_reset', 'user', $userId, "2FA reseteado para {$user['username']}");
-                $success = '2FA desactivado correctamente';
+                $success = t('2fa_disabled_success');
                 
                 if ($isAjax) {
                     header('Content-Type: application/json');
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
             } else {
-                $error = 'Error al resetear 2FA';
+                $error = t('error_reset_2fa_generic');
                 
                 if ($isAjax) {
                     header('Content-Type: application/json');
@@ -87,9 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt->execute()) {
                 $user = $userClass->getById($userId);
                 $logger->log($adminUser['id'], '2fa_unlock', 'user', $userId, "Bloqueo 2FA eliminado para {$user['username']}");
-                $success = 'Bloqueo eliminado correctamente';
+                $success = t('2fa_lock_cleared');
             } else {
-                $error = 'Error al eliminar bloqueo';
+                $error = t('error_clear_lockout');
             }
         } elseif ($action === 'setup_totp') {
             // Generate TOTP secret and QR for user
@@ -123,13 +123,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Check if Duo is configured
                 $duoConfig = $duoAuth->getConfig();
                 if (!$duoConfig['is_configured']) {
-                    $error = 'Duo no está configurado en el sistema';
+                    $error = t('error_duo_not_configured');
                 } else {
                     if ($twoFactor->enable($userId, 'duo', [])) {
                         $logger->log($adminUser['id'], '2fa_admin_setup', 'user', $userId, "Admin configuró 2FA Duo para {$user['username']}");
-                        $success = "Duo Security configurado para {$user['username']}. El usuario lo usará en su próximo login.";
+                        $success = sprintf(t('duo_configured_for_user'), $user['username']);
                     } else {
-                        $error = 'Error al configurar Duo';
+                        $error = t('error_configure_duo');
                     }
                 }
             }

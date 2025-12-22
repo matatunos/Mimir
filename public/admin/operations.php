@@ -20,7 +20,7 @@ $actionResult = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $token = $_POST['csrf_token'] ?? '';
     if (!$auth->validateCsrfToken($token)) {
-        $actionResult = ['type' => 'error', 'msg' => 'CSRF token inválido'];
+        $actionResult = ['type' => 'error', 'msg' => t('error_invalid_csrf')];
     } else {
         $act = $_POST['action'];
         try {
@@ -43,10 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $logger->log($user['id'], 'admin_restart_worker', 'operations', null, "Restart worker: " . trim($out));
                 $actionResult = ['type' => 'success', 'msg' => 'Intentado reiniciar worker: ' . trim($out)];
             } else {
-                $actionResult = ['type' => 'error', 'msg' => 'Acción desconocida'];
+                $actionResult = ['type' => 'error', 'msg' => t('error_unknown_action')];
             }
         } catch (Exception $e) {
-            $actionResult = ['type' => 'error', 'msg' => 'Error al ejecutar la acción: ' . $e->getMessage()];
+            $actionResult = ['type' => 'error', 'msg' => t('error_execute_action') . ': ' . $e->getMessage()];
         }
         // Refresh some metrics after action
         try { $queuedNotifications = (int)$db->query("SELECT COUNT(*) FROM notification_jobs WHERE status = 'pending'")->fetchColumn(); } catch (Exception $e) {}
@@ -207,19 +207,19 @@ renderHeader('Operaciones', $user, $auth);
         <a href="?view=notifications" class="btn btn-outline">Ver Notification Jobs</a>
         <a href="?view=failed_logins" class="btn btn-outline">Ver Fallos de Login (24h)</a>
 
-        <form method="POST" style="display:inline-block; margin-left:1rem;" onsubmit="return confirm('¿Confirmas reintentar todos los jobs fallidos?');">
+        <form method="POST" style="display:inline-block; margin-left:1rem;" onsubmit="return confirm(<?php echo json_encode(t('confirm_action')); ?>);">
             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
             <input type="hidden" name="action" value="retry_failed">
             <button class="btn btn-primary" type="submit">Reintentar jobs fallidos</button>
         </form>
 
-        <form method="POST" style="display:inline-block;" onsubmit="return confirm('¿Confirmas eliminar todos los jobs fallidos? Esta acción es irreversible.');">
+        <form method="POST" style="display:inline-block;" onsubmit="return confirm(<?php echo json_encode(t('confirm_action')); ?>);">
             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
             <input type="hidden" name="action" value="clear_failed">
             <button class="btn btn-danger" type="submit">Eliminar jobs fallidos</button>
         </form>
 
-        <form method="POST" style="display:inline-block;" onsubmit="return confirm('¿Confirmas reiniciar el worker de notificaciones?');">
+        <form method="POST" style="display:inline-block;" onsubmit="return confirm(<?php echo json_encode(t('confirm_action')); ?>);">
             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
             <input type="hidden" name="action" value="restart_worker">
             <button class="btn btn-accent" type="submit">Reiniciar worker</button>

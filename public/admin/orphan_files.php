@@ -418,9 +418,9 @@ function confirmAssign() {
                 if (data.success) {
                     window.location.href = '?success=' + encodeURIComponent((data.count || 0) + ' archivos asignados correctamente');
                 } else {
-                    alert('Error: ' + (data.message || 'No se pudo asignar'));
+                    alert('Error: ' + (data.message || <?php echo json_encode(t('error_assign_failed')); ?>));
                 }
-            }).catch(e => { alert('Error al asignar'); console.error(e); });
+            }).catch(e => { alert(<?php echo json_encode(t('error_assigning')); ?>); console.error(e); });
     } else {
         assignToUser(userId);
     }
@@ -461,7 +461,7 @@ function searchUsers() {
                         </div>
                     `).join('');
                 } else {
-                    resultsDiv.innerHTML = '<div class="search-loading">No se encontraron usuarios</div>';
+                    resultsDiv.innerHTML = '<div class="search-loading">' + <?php echo json_encode(t('no_users_found')); ?> + '</div>';
                 }
             })
             .catch(error => {

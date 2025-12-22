@@ -14,7 +14,7 @@ $adminUser = $auth->getUser();
 // If this is an API call and the user is not logged in or not admin, return JSON error
 if (!$auth->isLoggedIn() || !$auth->isAdmin()) {
     header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Autenticación requerida', 'code' => 'AUTH_REQUIRED']);
+    echo json_encode(['success' => false, 'message' => t('error_auth_required'), 'code' => 'AUTH_REQUIRED']);
     exit;
 }
 
@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $query = trim($_GET['q'] ?? '');
         
         if (strlen($query) < 2) {
-            echo json_encode(['success' => false, 'message' => 'Query too short']);
+            echo json_encode(['success' => false, 'message' => t('error_query_too_short')]);
             exit;
         }
         
@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['file_ids'])) {
             $fileIds = json_decode($_POST['file_ids'], true);
             if (!is_array($fileIds)) {
-                echo json_encode(['success' => false, 'message' => 'Formato de IDs inválido']);
+                echo json_encode(['success' => false, 'message' => t('error_invalid_id_format')]);
                 exit;
             }
             $fileIds = array_map('intval', $fileIds);
@@ -187,14 +187,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if (empty($fileIds) || !$userId) {
-            echo json_encode(['success' => false, 'message' => 'Parámetros inválidos']);
+            echo json_encode(['success' => false, 'message' => t('error_invalid_parameters')]);
             exit;
         }
         
         // Verify user exists
         $user = $userClass->getById($userId);
         if (!$user) {
-            echo json_encode(['success' => false, 'message' => 'Usuario no encontrado']);
+            echo json_encode(['success' => false, 'message' => t('error_user_not_found')]);
             exit;
         }
         
@@ -242,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             echo json_encode([
                 'success' => false, 
-                'message' => 'No se pudo asignar ningún archivo. Errores: ' . implode(', ', $failedFiles)
+                'message' => sprintf(t('error_no_assign_files'), implode(', ', $failedFiles))
             ]);
         }
         exit;
@@ -258,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['file_ids'])) {
             $fileIds = json_decode($_POST['file_ids'], true);
             if (!is_array($fileIds)) {
-                echo json_encode(['success' => false, 'message' => 'Formato de IDs inválido']);
+                echo json_encode(['success' => false, 'message' => t('error_invalid_id_format')]);
                 exit;
             }
             $fileIds = array_map('intval', $fileIds);
@@ -306,13 +306,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($fileIds) || !$userId) {
-            echo json_encode(['success' => false, 'message' => 'Parámetros inválidos']);
+            echo json_encode(['success' => false, 'message' => t('error_invalid_parameters')]);
             exit;
         }
 
         $user = $userClass->getById($userId);
         if (!$user) {
-            echo json_encode(['success' => false, 'message' => 'Usuario no encontrado']);
+            echo json_encode(['success' => false, 'message' => t('error_user_not_found')]);
             exit;
         }
 
@@ -355,7 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'message' => "Se reasignaron $successCount archivo(s), pero algunos fallaron: " . implode(', ', $failedFiles)
             ]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'No se pudo reasignar ningún archivo. Errores: ' . implode(', ', $failedFiles)]);
+            echo json_encode(['success' => false, 'message' => sprintf(t('error_no_reassign_files'), implode(', ', $failedFiles))]);
         }
         exit;
     }
@@ -364,7 +364,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fileId = intval($_POST['file_id'] ?? 0);
         
         if (!$fileId) {
-            echo json_encode(['success' => false, 'message' => 'ID de archivo inválido']);
+            echo json_encode(['success' => false, 'message' => t('error_invalid_file_id')]);
             exit;
         }
         
@@ -375,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $file = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$file) {
-            echo json_encode(['success' => false, 'message' => 'Archivo no encontrado o no es huérfano']);
+            echo json_encode(['success' => false, 'message' => t('error_file_not_found_or_not_orphan')]);
             exit;
         }
         
@@ -388,7 +388,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo json_encode(['success' => true]);
                 } else {
                     orphan_debug("  deleteFolder returned false for id={$fileId}");
-                    echo json_encode(['success' => false, 'message' => 'Error al eliminar la carpeta']);
+                    echo json_encode(['success' => false, 'message' => t('error_delete_folder')]);
                 }
                 exit;
             }
@@ -418,18 +418,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare("DELETE FROM files WHERE id = ?");
             $execOk = $stmt->execute([$fileId]);
             orphan_debug("  db_delete_result=" . ($execOk ? 'ok' : 'failed'));
-            if ($execOk) {
-                $logger->log(
-                    $adminUser['id'],
-                    'orphan_deleted',
-                    'file',
-                    $fileId,
-                    "Archivo huérfano '{$file['original_name']}' eliminado"
-                );
-                echo json_encode(['success' => true]);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Error al eliminar el archivo']);
-            }
+                if ($execOk) {
+                    $logger->log(
+                        $adminUser['id'],
+                        'orphan_deleted',
+                        'file',
+                        $fileId,
+                        "Archivo huérfano '{$file['original_name']}' eliminado"
+                    );
+                    echo json_encode(['success' => true]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => t('error_delete_file')]);
+                }
         } catch (Exception $e) {
             orphan_debug('  exception: ' . $e->getMessage());
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -468,7 +468,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($files)) {
-            echo json_encode(['success' => false, 'message' => 'No se encontraron archivos huérfanos']);
+            echo json_encode(['success' => false, 'message' => t('no_orphans_found')]);
             exit;
         }
 

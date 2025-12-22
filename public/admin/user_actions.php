@@ -23,28 +23,28 @@ $response = ['success' => false, 'message' => ''];
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        throw new Exception('Método no permitido');
+        throw new Exception(t('error_method_not_allowed'));
     }
     
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        throw new Exception('Token de seguridad inválido');
+        throw new Exception(t('error_invalid_csrf'));
     }
     
     $action = $_POST['action'] ?? '';
     $userId = intval($_POST['user_id'] ?? 0);
     
     if (!$userId) {
-        throw new Exception('ID de usuario inválido');
+        throw new Exception(t('error_invalid_user_id'));
     }
     
     // Prevent admin from deleting themselves
     if ($userId === $adminUser['id'] && in_array($action, ['delete', 'deactivate'])) {
-        throw new Exception('No puedes realizar esta acción sobre tu propio usuario');
+        throw new Exception(t('error_cannot_action_self'));
     }
     
     $targetUser = $userClass->getById($userId);
     if (!$targetUser) {
-        throw new Exception('Usuario no encontrado');
+        throw new Exception(t('error_user_not_found'));
     }
     
     switch ($action) {
@@ -60,12 +60,12 @@ try {
                     "Usuario '{$targetUser['username']}' eliminado. {$orphaned} archivos huérfanos."
                 );
                 $response['success'] = true;
-                $response['message'] = "Usuario eliminado correctamente";
+                $response['message'] = t('user_deleted_success');
                 if ($orphaned > 0) {
-                    $response['message'] .= ". {$orphaned} archivos quedaron huérfanos.";
+                    $response['message'] .= ' ' . sprintf(t('user_deleted_with_orphans'), $orphaned);
                 }
             } else {
-                throw new Exception(is_array($result) ? ($result['message'] ?? 'Error al eliminar usuario') : 'Error al eliminar usuario');
+                throw new Exception(is_array($result) ? ($result['message'] ?? t('error_delete_user')) : t('error_delete_user'));
             }
             break;
             
@@ -75,9 +75,9 @@ try {
             if ($stmt->execute([$userId])) {
                 $logger->log($adminUser['id'], 'user_activate', 'user', $userId, "Usuario '{$targetUser['username']}' activado");
                 $response['success'] = true;
-                $response['message'] = 'Usuario activado correctamente';
+                $response['message'] = t('user_activated');
             } else {
-                throw new Exception('Error al activar usuario');
+                throw new Exception(t('error_activate_user'));
             }
             break;
             
@@ -87,9 +87,9 @@ try {
             if ($stmt->execute([$userId])) {
                 $logger->log($adminUser['id'], 'user_deactivate', 'user', $userId, "Usuario '{$targetUser['username']}' desactivado");
                 $response['success'] = true;
-                $response['message'] = 'Usuario desactivado correctamente';
+                $response['message'] = t('user_deactivated');
             } else {
-                throw new Exception('Error al desactivar usuario');
+                throw new Exception(t('error_deactivate_user'));
             }
             break;
             
@@ -119,10 +119,10 @@ try {
                     "Contraseña reseteada para usuario '{$targetUser['username']}'"
                 );
                 $response['success'] = true;
-                $response['message'] = 'Contraseña actualizada correctamente';
+                $response['message'] = t('password_updated_success');
                 $response['new_password'] = $newPassword;
             } else {
-                throw new Exception('Error al actualizar la contraseña');
+                throw new Exception(t('error_update_password'));
             }
             break;
             
@@ -148,12 +148,12 @@ try {
                 );
                 
                 $response['success'] = true;
-                $response['message'] = 'TOTP configurado correctamente';
+                $response['message'] = t('2fa_totp_configured');
                 $response['username'] = $targetUser['username'];
                 $response['qr_code'] = $qrCode;
                 $response['backup_codes'] = $backupCodes;
             } else {
-                throw new Exception('Error al configurar TOTP');
+                throw new Exception(t('error_configure_2fa'));
             }
             break;
             
@@ -179,9 +179,9 @@ try {
                 );
                 
                 $response['success'] = true;
-                $response['message'] = "Duo Security configurado para {$targetUser['username']}. Lo usará en su próximo login.";
+                $response['message'] = sprintf(t('duo_configured_for_user'), $targetUser['username']);
             } else {
-                throw new Exception('Error al configurar Duo');
+                throw new Exception(t('error_configure_duo'));
             }
             break;
             
@@ -247,14 +247,14 @@ try {
                     "Email con configuración TOTP enviado a {$targetUser['email']}"
                 );
                 $response['success'] = true;
-                $response['message'] = "Email enviado correctamente a {$targetUser['email']}";
+                $response['message'] = sprintf(t('email_sent_success_to'), $targetUser['email']);
             } else {
-                throw new Exception('Error al enviar el email');
+                throw new Exception(t('error_send_email'));
             }
             break;
             
         default:
-            throw new Exception('Acción no válida');
+            throw new Exception(t('error_invalid_action'));
     }
     
 } catch (Exception $e) {

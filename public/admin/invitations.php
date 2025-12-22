@@ -17,9 +17,9 @@ $db = Database::getInstance()->getConnection();
 $error = '';
 $success = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Token de seguridad inválido';
+        $error = t('error_invalid_csrf');
     } else {
         $action = $_POST['action'] ?? '';
         try {
@@ -41,13 +41,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sendEmail = isset($_POST['send_email']);
 
                     if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $error = 'Email inválido';
+                        $error = t('error_invalid_email');
                 } else {
                     $forcedUsername = trim($_POST['forced_username'] ?? '');
 
                     // forced username is mandatory
                     if ($forcedUsername === '') {
-                        $error = 'El nombre de usuario es obligatorio.';
+                        $error = t('error_forced_username_required');
                     }
                     $force2fa = $_POST['force_2fa'] ?? 'none';
 
@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmtChk = $db->prepare('SELECT id FROM users WHERE username = ? LIMIT 1');
                         $stmtChk->execute([$forcedUsername]);
                         if ($stmtChk->fetch()) {
-                            $error = 'El nombre de usuario forzado ya existe. Elige otro o deja el campo vacío.';
+                            $error = t('error_forced_username_exists');
                         }
                     }
 
@@ -66,25 +66,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $token = false;
                     }
                     if ($token) {
-                        $success = "Invitación creada y" . ($sendEmail ? ' enviada.' : ' guardada.');
+                        $success = $sendEmail ? t('invitation_created_and_sent') : t('invitation_created_and_saved');
                         $logger->log($user['id'], 'invitation_admin_create', 'invitation', null, "Invitación creada para {$email}");
                     } else {
-                        $error = 'Error al crear la invitación';
+                        $error = t('error_create_invitation');
                     }
                 }
             } elseif ($action === 'resend') {
                 $id = intval($_POST['invitation_id'] ?? 0);
                 if ($inv->resend($id)) {
-                    $success = 'Invitación reenviada correctamente';
+                    $success = t('invitation_resent_success');
                 } else {
-                    $error = 'No se pudo reenviar la invitación';
+                    $error = t('error_resend_invitation');
                 }
             } elseif ($action === 'revoke') {
                 $id = intval($_POST['invitation_id'] ?? 0);
                 if ($inv->revoke($id, $user['id'])) {
-                    $success = 'Invitación revocada';
+                    $success = t('invitation_revoked');
                 } else {
-                    $error = 'No se pudo revocar la invitación';
+                    $error = t('error_revoke_invitation');
                 }
             }
         } catch (Exception $e) {
@@ -123,7 +123,7 @@ renderHeader('Invitaciones', $user);
 
     <div style="max-width: 800px; margin: 0 auto 1.5rem;">
         <div class="card">
-            <div class="card-header"><h2 class="card-title"><i class="fas fa-envelope-open-text"></i> Crear Invitación</h2></div>
+            <div class="card-header"><h2 class="card-title"><i class="fas fa-envelope-open-text"></i> <?php echo t('create'); ?> <?php echo t('invitation'); ?></h2></div>
             <div class="card-body">
                 <form method="POST" id="invite-form">
                     <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
@@ -179,7 +179,7 @@ renderHeader('Invitaciones', $user);
                     </div>
 
                     <div style="display:flex;gap:0.75rem;margin-top:1rem;">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Crear Invitación</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> <?php echo t('create'); ?> <?php echo t('invitation'); ?></button>
                         <a href="<?php echo BASE_URL; ?>/admin" class="btn btn-outline"><?php echo htmlspecialchars(t('cancel')); ?></a>
                     </div>
                 </form>
