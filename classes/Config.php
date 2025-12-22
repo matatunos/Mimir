@@ -153,6 +153,28 @@ class Config {
             return null;
         }
     }
+
+    /**
+     * Set or update a translated description for a config key.
+     * @param string $key
+     * @param string $text
+     * @param string|null $lang
+     * @return bool
+     */
+    public function setTranslatedDescription($key, $text, $lang = null) {
+        if (!$lang) $lang = 'es';
+        try {
+            $stmt = $this->db->prepare("INSERT INTO config_translations (config_key, lang, text) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE text = VALUES(text)");
+            $stmt->execute([$key, $lang, $text]);
+            // update cache
+            $cacheKey = $key . '::' . $lang;
+            $this->translationsCache[$cacheKey] = $text;
+            return true;
+        } catch (Exception $e) {
+            error_log("Error setting translated description: " . $e->getMessage());
+            return false;
+        }
+    }
     
     /**
      * Update multiple configurations
