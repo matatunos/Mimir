@@ -84,8 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $storageQuotaGB = (isset($user['storage_quota']) && $user['storage_quota'] !== null) ? ($user['storage_quota'] / 1024 / 1024 / 1024) : 0;
 
-renderPageStart('Editar Usuario', 'users', true);
-renderHeader('Editar Usuario', $adminUser);
+renderPageStart(t('edit_user'), 'users', true);
+renderHeader(t('edit_user'), $adminUser);
 ?>
 
 <style>
@@ -114,10 +114,10 @@ renderHeader('Editar Usuario', $adminUser);
 <div class="content">
     <div class="page-header-modern">
         <div>
-            <h1><i class="fas fa-edit"></i> Editar Usuario</h1>
-            <p>Modificar información del usuario <?php echo htmlspecialchars($user['username']); ?></p>
+            <h1><i class="fas fa-edit"></i> <?php echo htmlspecialchars(t('edit_user')); ?></h1>
+            <p><?php echo htmlspecialchars(t('edit_user_info', [htmlspecialchars($user['username'])])); ?></p>
         </div>
-        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark" style="background: white; color: #667eea; border: none; font-weight: 600;">← Volver</a>
+        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark" style="background: white; color: #667eea; border: none; font-weight: 600;">← <?php echo htmlspecialchars(t('back')); ?></a>
     </div>
 
     <?php if ($success): ?>
@@ -130,7 +130,7 @@ renderHeader('Editar Usuario', $adminUser);
 
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
         <div class="card-header" style="padding: 1.5rem;">
-            <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem;">📝 Información del Usuario</h2>
+            <h2 class="card-title" style="font-weight: 700; font-size: 1.5rem;"><?php echo htmlspecialchars(t('user_info_title')); ?></h2>
         </div>
         <div class="card-body">
             <form method="POST">
@@ -138,7 +138,7 @@ renderHeader('Editar Usuario', $adminUser);
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="username" class="form-label required">Usuario</label>
+                        <label for="username" class="form-label required"><?php echo htmlspecialchars(t('label_username')); ?></label>
                         <input type="text" id="username" name="username" class="form-control" value="<?php echo htmlspecialchars($user['username']); ?>" required <?php echo $user['is_ldap'] ? 'readonly' : ''; ?>>
                         <?php if ($user['is_ldap']): ?>
                             <small style="color: var(--text-muted);"><i class="fas fa-lock"></i> Usuario LDAP (no editable)</small>
@@ -146,58 +146,58 @@ renderHeader('Editar Usuario', $adminUser);
                     </div>
                     
                     <div class="form-group">
-                        <label for="email" class="form-label required">Email</label>
+                        <label for="email" class="form-label required"><?php echo htmlspecialchars(t('label_email')); ?></label>
                         <input type="email" id="email" name="email" class="form-control" value="<?php echo htmlspecialchars($user['email']); ?>" required>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="full_name" class="form-label">Nombre Completo</label>
+                    <label for="full_name" class="form-label"><?php echo htmlspecialchars(t('label_full_name')); ?></label>
                     <input type="text" id="full_name" name="full_name" class="form-control" value="<?php echo htmlspecialchars($user['full_name'] ?? ''); ?>">
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="role" class="form-label required">Rol</label>
+                        <label for="role" class="form-label required"><?php echo htmlspecialchars(t('label_role')); ?></label>
                         <select id="role" name="role" class="form-control" required>
-                            <option value="user" <?php echo $user['role'] === 'user' ? 'selected' : ''; ?>>Usuario</option>
-                            <option value="admin" <?php echo $user['role'] === 'admin' ? 'selected' : ''; ?>>Administrador</option>
+                            <option value="user" <?php echo $user['role'] === 'user' ? 'selected' : ''; ?>><?php echo htmlspecialchars(t('role_user')); ?></option>
+                            <option value="admin" <?php echo $user['role'] === 'admin' ? 'selected' : ''; ?>><?php echo htmlspecialchars(t('role_admin')); ?></option>
                         </select>
                     </div>
                     
                     <div class="form-group">
                         <label for="storage_quota" class="form-label required">Cuota de Almacenamiento (GB)</label>
                         <input type="number" id="storage_quota" name="storage_quota" class="form-control" value="<?php echo number_format($storageQuotaGB, 2, '.', ''); ?>" min="0" step="0.1" required>
-                        <small style="color: var(--text-muted);">Introduce 0 para cuota ilimitada.</small>
+                        <small style="color: var(--text-muted);"><?php echo htmlspecialchars(t('quota_hint')); ?></small>
                     </div>
                 </div>
 
                 <?php if (!$user['is_ldap']): ?>
                 <div class="form-group">
-                    <label for="new_password" class="form-label">Nueva Contraseña</label>
+                    <label for="new_password" class="form-label"><?php echo htmlspecialchars(t('label_new_password')); ?></label>
                     <input type="password" id="new_password" name="new_password" class="form-control" placeholder="Dejar en blanco para no cambiar">
-                    <small style="color: var(--text-muted);">Mínimo 6 caracteres</small>
+                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars(t('password_min_hint', ['6'])); ?></small>
                 </div>
                 <?php endif; ?>
 
                 <div class="form-group">
-                    <label class="form-label">Opciones</label>
+                    <label class="form-label"><?php echo htmlspecialchars(t('options')); ?></label>
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                         <div class="form-check">
                             <input type="checkbox" id="is_active" name="is_active" <?php echo $user['is_active'] ? 'checked' : ''; ?> <?php echo $userId === $adminUser['id'] ? 'disabled' : ''; ?>>
-                            <label for="is_active">Usuario activo</label>
+                            <label for="is_active"><?php echo htmlspecialchars(t('label_user_active')); ?></label>
                         </div>
                         
                         <div class="form-check">
                             <input type="checkbox" id="require_2fa" name="require_2fa" <?php echo $user['require_2fa'] ? 'checked' : ''; ?>>
-                            <label for="require_2fa">Requerir autenticación 2FA</label>
+                            <label for="require_2fa"><?php echo htmlspecialchars(t('label_require_2fa')); ?></label>
                         </div>
                     </div>
                 </div>
 
                 <div style="display: flex; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar Cambios</button>
-                    <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark">Cancelar</a>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <?php echo htmlspecialchars(t('save_changes')); ?></button>
+                    <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark"><?php echo htmlspecialchars(t('cancel')); ?></a>
                 </div>
             </form>
         </div>
