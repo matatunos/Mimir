@@ -16,10 +16,39 @@ if (!$cfg->get('enable_email', '0')) {
 $error = '';
 $success = '';
 
+function anonymize_email($email) {
+    // simple anonymization: keep first char of local, last char of local, mask middle, keep domain with partial masking
+    $parts = explode('@', $email);
+    if (count($parts) !== 2) return '****@****';
+    $local = $parts[0];
+    $domain = $parts[1];
+
+    $localLen = strlen($local);
+    if ($localLen <= 2) {
+        $localMasked = substr($local, 0, 1) . str_repeat('*', max(1, $localLen - 1));
+    } else {
+        $localMasked = substr($local, 0, 1) . str_repeat('*', max(1, $localLen - 2)) . substr($local, -1);
+    }
+
+    // mask domain except first and last label char groups
+    $domParts = explode('.', $domain);
+    foreach ($domParts as &$dp) {
+        $len = strlen($dp);
+        if ($len <= 2) {
+            $dp = substr($dp, 0, 1) . str_repeat('*', max(1, $len - 1));
+        } else {
+            $dp = substr($dp, 0, 1) . str_repeat('*', max(1, $len - 2)) . substr($dp, -1);
+        }
+    }
+    $domainMasked = implode('.', $domParts);
+
+    return $localMasked . '@' . $domainMasked;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Introduce una dirección de correo válida.';
+    $username = trim($_POST['username'] ?? '');
+    if ($username === '' || !preg_match('/^[A-Za-z0-9_\.\-@]+$/', $username)) {
+        $error = 'Introduce un nombre de usuario válido.';
     } else {
         $db = Database::getInstance()->getConnection();
 
@@ -34,32 +63,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             UNIQUE KEY (token)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-        $stmt = $db->prepare("SELECT id,username FROM users WHERE email = ? AND is_active = 1");
-        $stmt->execute([$email]);
+        // Lookup user by username
+        $stmt = $db->prepare("SELECT id,username,email FROM users WHERE username = ? AND is_active = 1");
+        $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-            // Do not reveal whether email exists
-            $success = 'Si existe una cuenta asociada a esa dirección, recibirás un correo con instrucciones.';
+            // Do not reveal whether user exists; generic message
+            $success = 'Si existe una cuenta asociada a ese usuario, recibirás un correo con instrucciones.';
         } else {
-            $token = bin2hex(random_bytes(24));
-            $expires = date('Y-m-d H:i:s', time() + 3600); // 1 hour
-            $ins = $db->prepare("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)");
-            $ins->execute([$user['id'], $token, $expires]);
-
-            $emailer = new Email();
-            $resetUrl = rtrim(BASE_URL, '/') . '/password_reset.php?token=' . urlencode($token);
-            $subject = 'Restablece tu contraseña';
-            $body = '<p>Hola ' . htmlspecialchars($user['username']) . ',</p>' .
-                '<p>Has pedido restablecer tu contraseña. Haz clic en el siguiente enlace para establecer una nueva contraseña (válido 1 hora):</p>' .
-                '<p><a href="' . htmlspecialchars($resetUrl) . '">' . htmlspecialchars($resetUrl) . '</a></p>' .
-                '<p>Si no has solicitado este cambio, puedes ignorar este correo.</p>';
-
-            $sent = $emailer->send($email, $subject, $body);
-            if ($sent) {
-                $success = 'Se ha enviado un correo con instrucciones si la cuenta existe.';
+            $email = $user['email'];
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $error = 'La cuenta indicada no tiene una dirección de correo válida configurada.';
             } else {
-                $error = 'No se pudo enviar el correo. Revisa la configuración de correo del servidor.';
+                $token = bin2hex(random_bytes(24));
+                $expires = date('Y-m-d H:i:s', time() + 3600); // 1 hour
+                $ins = $db->prepare("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)");
+                $ins->execute([$user['id'], $token, $expires]);
+
+                $emailer = new Email();
+                $resetUrl = rtrim(BASE_URL, '/') . '/password_reset.php?token=' . urlencode($token);
+                $subject = 'Restablece tu contraseña';
+                $body = '<p>Hola ' . htmlspecialchars($user['username']) . ',</p>' .
+                    '<p>Has pedido restablecer tu contraseña. Haz clic en el siguiente enlace para establecer una nueva contraseña (válido 1 hora):</p>' .
+                    '<p><a href="' . htmlspecialchars($resetUrl) . '">' . htmlspecialchars($resetUrl) . '</a></p>' .
+                    '<p>Si no has solicitado este cambio, puedes ignorar este correo.</p>';
+
+                $sent = $emailer->send($email, $subject, $body);
+                if ($sent) {
+                    $success = 'Se ha enviado un correo a tu dirección ' . anonymize_email($email) . ' con instrucciones para restablecer la contraseña.';
+                } else {
+                    $error = 'No se pudo enviar el correo. Revisa la configuración de correo del servidor.';
+                }
             }
         }
     }
@@ -85,8 +120,8 @@ require_once __DIR__ . '/../includes/layout.php';
     <?php else: ?>
         <form method="POST" action="">
             <div class="form-group">
-                <label for="email">Dirección de correo</label>
-                <input id="email" name="email" type="email" class="form-control" required>
+                <label for="username">Usuario</label>
+                <input id="username" name="username" type="text" class="form-control" required autofocus>
             </div>
             <button class="btn btn-primary">Enviar instrucciones</button>
         </form>
