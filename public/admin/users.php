@@ -628,8 +628,8 @@ renderHeader('Gestión de Usuarios', $user);
                                         
                                         <?php if (!$u['is_ldap']): ?>
                                             <button type="button" onclick="resetUserPassword(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>')" 
-                                                    class="btn btn-sm btn-outline" 
-                                                    title="Resetear contraseña">🔑</button>
+                                                                        class="btn btn-sm btn-outline" 
+                                                                        title="<?php echo t('reset'); ?>">🔑</button>
                                         <?php endif; ?>
                                         
                                         <?php if (!empty($u['email']) || $u['twofa_enabled']): ?>
@@ -671,11 +671,11 @@ renderHeader('Gestión de Usuarios', $user);
                 <div class="bulk-actions-bar" id="bulkActionsBar" style="display: none;">
                     <span id="selectedCount">0</span> usuarios seleccionados
                     <div style="display: flex; gap: 0.5rem; margin-left: auto;">
-                        <button type="button" class="btn btn-sm btn-success" onclick="executeBulkAction('activate')" title="Activar usuarios">
-                            <i class="fas fa-check-circle"></i> Activar
+                        <button type="button" class="btn btn-sm btn-success" onclick="executeBulkAction('activate')" title="<?php echo t('activate'); ?> <?php echo t('users'); ?>">
+                            <i class="fas fa-check-circle"></i> <?php echo t('activate'); ?>
                         </button>
-                        <button type="button" class="btn btn-sm btn-warning" onclick="executeBulkAction('deactivate')" title="Desactivar usuarios">
-                            <i class="fas fa-ban"></i> Desactivar
+                        <button type="button" class="btn btn-sm btn-warning" onclick="executeBulkAction('deactivate')" title="<?php echo t('deactivate'); ?> <?php echo t('users'); ?>">
+                            <i class="fas fa-ban"></i> <?php echo t('deactivate'); ?>
                         </button>
                         <button type="button" class="btn btn-sm btn-info" onclick="executeBulkAction('require_2fa')" title="Requerir 2FA">
                             <i class="fas fa-shield-alt"></i> Requerir 2FA
@@ -782,19 +782,19 @@ function executeBulkAction(action) {
     let message = '';
     switch(action) {
         case 'activate':
-            message = `¿Activar ${userIds.length} usuario(s)?`;
+            message = <?php echo json_encode(t('confirm_activate_n_users')); ?>.replace('%s', userIds.length);
             break;
         case 'deactivate':
-            message = `¿Desactivar ${userIds.length} usuario(s)?`;
+            message = <?php echo json_encode(t('confirm_deactivate_n_users')); ?>.replace('%s', userIds.length);
             break;
         case 'require_2fa':
-            message = `¿Requerir 2FA para ${userIds.length} usuario(s)?`;
+            message = <?php echo json_encode(t('confirm_require_2fa_n_users')); ?>.replace('%s', userIds.length);
             break;
         case 'unrequire_2fa':
-            message = `¿Quitar 2FA obligatorio de ${userIds.length} usuario(s)?`;
+            message = <?php echo json_encode(t('confirm_unrequire_2fa_n_users')); ?>.replace('%s', userIds.length);
             break;
         case 'delete':
-            message = `¿ELIMINAR ${userIds.length} usuario(s)? Esta acción NO se puede deshacer.`;
+            message = <?php echo json_encode(t('confirm_delete_n_users')); ?>.replace('%s', userIds.length);
             break;
     }
     
@@ -805,7 +805,7 @@ function executeBulkAction(action) {
 }
 
 function toggleUserStatus(userId, activate) {
-    if (!confirm(`¿Estás seguro de que quieres ${activate ? 'activar' : 'desactivar'} este usuario?`)) {
+    if (!confirm(activate ? <?php echo json_encode(t('confirm_activate_user')); ?> : <?php echo json_encode(t('confirm_deactivate_user')); ?>)) {
         return;
     }
     
@@ -828,13 +828,13 @@ function toggleUserStatus(userId, activate) {
                 badge.className = 'badge badge-success';
                 badge.textContent = 'Activo';
                 button.textContent = '🚫';
-                button.title = 'Desactivar';
+                button.title = '<?php echo t('deactivate'); ?>';
                 button.onclick = () => toggleUserStatus(userId, false);
             } else {
                 badge.className = 'badge badge-secondary';
                 badge.textContent = 'Inactivo';
                 button.textContent = '✅';
-                button.title = 'Activar';
+                button.title = '<?php echo t('activate'); ?>';
                 button.onclick = () => toggleUserStatus(userId, true);
             }
             

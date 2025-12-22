@@ -159,6 +159,19 @@ $LANG = [
     , 'copied_to_clipboard' => 'Enlace copiado al portapapeles'
     , 'error_password_min_length' => 'La contraseña debe tener al menos %s caracteres'
     , 'error_disable_2fa' => 'Error al desactivar 2FA'
+    , 'activate' => 'Activar'
+    , 'deactivate' => 'Desactivar'
+    , 'reset' => 'Resetear'
+    , 'force' => 'Forzar'
+    , 'optional' => 'Opcional'
+    , 'disable_shared' => 'Desactivar compartido'
+    , 'confirm_activate_n_users' => '¿Activar %s usuario(s)?'
+    , 'confirm_deactivate_n_users' => '¿Desactivar %s usuario(s)?'
+    , 'confirm_activate_user' => '¿Estás seguro de que quieres activar este usuario?'
+    , 'confirm_deactivate_user' => '¿Estás seguro de que quieres desactivar este usuario?'
+    , 'confirm_require_2fa_n_users' => '¿Requerir 2FA para %s usuario(s)?'
+    , 'confirm_unrequire_2fa_n_users' => '¿Quitar 2FA obligatorio de %s usuario(s)?'
+    , 'confirm_delete_n_users' => '¿ELIMINAR %s usuario(s)? Esta acción NO se puede deshacer.'
 ];
 
 return $LANG;
