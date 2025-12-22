@@ -18,6 +18,11 @@ if (file_exists(__DIR__ . '/../classes/SecurityHeaders.php')) {
     }
 }
 
+// Load translations helper so layout strings can use t()
+if (file_exists(__DIR__ . '/lang.php')) {
+    require_once __DIR__ . '/lang.php';
+}
+
 function renderHeader($title, $user, $auth = null) {
     // Generate CSRF token - try to get auth from parameter or create new instance
     $csrfToken = '';
@@ -48,10 +53,10 @@ function renderHeader($title, $user, $auth = null) {
                         <path d="M4 20c0-3.3137 2.6863-6 6-6h4c3.3137 0 6 2.6863 6 6" stroke="none" fill="currentColor" opacity="0.95" />
                     </svg>
                 </span>
-                <span class="sr-only">Abrir menú de usuario</span>
+                <span class="sr-only"><?php echo htmlspecialchars(t('open_user_menu')); ?></span>
             </button>
             <div id="userMenuDropdown" class="user-dropdown" style="display:none; position: absolute; right: 0.5rem; top: calc(var(--header-height) + 8px); background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 220px; z-index: 1200;">
-                <a href="<?php echo BASE_URL; ?>/user/profile.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-user"></i> Mi Perfil</a>
+                <a href="<?php echo BASE_URL; ?>/user/profile.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-user"></i> <?php echo htmlspecialchars(t('user_profile')); ?></a>
                 <?php if ($user['role'] === 'admin'): ?>
                     <?php
                     // Prefer a shared Config instance when available to avoid cache inconsistency
@@ -61,17 +66,17 @@ function renderHeader($title, $user, $auth = null) {
                     $isInMaintenance = $maintenanceMode === '1';
                     $globalProtection = (bool)$config->get('enable_config_protection', '0');
                     ?>
-                    <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
+                    <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> <?php echo htmlspecialchars(t('twofa_setup')); ?></a>
                     <?php
                     // Show config protection toggle in the user dropdown for admins
                     $globalProtection = (bool)$config->get('enable_config_protection', '0');
                     $protectionEnabled = (bool)$globalProtection;
-                    $toggleLabel = $protectionEnabled ? 'Desactivar Protección' : 'Activar Protección';
+                    $toggleLabel = $protectionEnabled ? t('disable_protection') : t('enable_protection');
                     $toggleJsFlag = $protectionEnabled ? 'false' : 'true';
                     ?>
                     <a href="#" onclick="toggleConfigProtection(event, <?php echo $toggleJsFlag; ?>, '<?php echo htmlspecialchars($csrfToken, ENT_QUOTES); ?>')" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-shield-alt"></i> <?php echo $toggleLabel; ?></a>
                 <?php endif; ?>
-                <a href="<?php echo BASE_URL; ?>/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color); text-decoration: none;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+                <a href="<?php echo BASE_URL; ?>/logout.php" style="display: block; padding: 0.75rem 1rem; color: var(--danger-color); text-decoration: none;"><i class="fas fa-sign-out-alt"></i> <?php echo htmlspecialchars(t('logout')); ?></a>
             </div>
         </div>
     </div>
@@ -105,53 +110,53 @@ function renderSidebar($currentPage, $isAdmin = false) {
             <?php if ($isAdmin): ?>
                 <!-- Admin Menu -->
                 <div class="menu-section">
-                    <div class="menu-section-title">Panel</div>
+                    <div class="menu-section-title"><?php echo htmlspecialchars(t('menu_panel')); ?></div>
                     <a href="<?php echo BASE_URL; ?>/admin/index.php" class="menu-item <?php echo $currentPage === 'dashboard' ? 'active' : ''; ?>">
-                        <i class="fas fa-chart-line"></i> Dashboard
+                        <i class="fas fa-chart-line"></i> <?php echo htmlspecialchars(t('dashboard')); ?>
                     </a>
                 </div>
                 
                 <div class="menu-section">
-                    <div class="menu-section-title">Gestión</div>
+                    <div class="menu-section-title"><?php echo htmlspecialchars(t('management')); ?></div>
                     <a href="<?php echo BASE_URL; ?>/admin/users.php" class="menu-item <?php echo $currentPage === 'users' ? 'active' : ''; ?>">
-                        <i class="fas fa-users"></i> Usuarios & 2FA
+                        <i class="fas fa-users"></i> <?php echo htmlspecialchars(t('users_2fa')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/admin/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
-                        <i class="fas fa-folder"></i> Archivos
+                        <i class="fas fa-folder"></i> <?php echo htmlspecialchars(t('files')); ?>
                     </a>
                     <!-- Almacenamiento removed from main admin menu to avoid duplicate active state -->
                     <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="menu-item <?php echo $currentPage === 'orphan_files' ? 'active' : ''; ?>">
-                        <i class="fas fa-box"></i> Archivos huérfanos
+                        <i class="fas fa-box"></i> <?php echo htmlspecialchars(t('orphan_files')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/admin/expired_files.php" class="menu-item <?php echo $currentPage === 'expired_files' ? 'active' : ''; ?>">
-                        <i class="fas fa-clock"></i> Archivos Expirados
+                        <i class="fas fa-clock"></i> <?php echo htmlspecialchars(t('expired_files')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/admin/shares.php" class="menu-item <?php echo $currentPage === 'shares' ? 'active' : ''; ?>">
-                        <i class="fas fa-share-alt"></i> Comparticiones
+                        <i class="fas fa-share-alt"></i> <?php echo htmlspecialchars(t('shares')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/admin/invitations.php" class="menu-item <?php echo $currentPage === 'invitations' ? 'active' : ''; ?>">
-                        <i class="fas fa-envelope-open-text"></i> Invitaciones
+                        <i class="fas fa-envelope-open-text"></i> <?php echo htmlspecialchars(t('invitations')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/admin/logs.php" class="menu-item <?php echo $currentPage === 'logs' ? 'active' : ''; ?>">
-                        <i class="fas fa-clipboard-list"></i> Registros
+                        <i class="fas fa-clipboard-list"></i> <?php echo htmlspecialchars(t('logs')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/admin/operations.php" class="menu-item <?php echo $currentPage === 'operations' ? 'active' : ''; ?>">
-                        <i class="fas fa-tools"></i> Operaciones
+                        <i class="fas fa-tools"></i> <?php echo htmlspecialchars(t('operations')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/admin/forensic_logs.php" class="menu-item <?php echo $currentPage === 'forensic-logs' ? 'active' : ''; ?>">
-                        <i class="fas fa-search"></i> Análisis Forense
+                        <i class="fas fa-search"></i> <?php echo htmlspecialchars(t('forensic_analysis')); ?>
                     </a>
                 </div>
                 
                 <div class="menu-section">
                     <!-- 'Sistema' section title removed per request -->
                     <a href="<?php echo BASE_URL; ?>/admin/config.php" class="menu-item <?php echo $currentPage === 'config' ? 'active' : ''; ?>">
-                        <i class="fas fa-cog"></i> Configuración
+                        <i class="fas fa-cog"></i> <?php echo htmlspecialchars(t('configuration')); ?>
                     </a>
                 </div>
                 
                 <div class="menu-section">
-                    <div class="menu-section-title">Mis Archivos</div>
+                    <div class="menu-section-title"><?php echo htmlspecialchars(t('my_files_section')); ?></div>
                     <?php
                     // Preserve folder context in sidebar links when viewing a folder
                     $folderParam = '';
@@ -160,27 +165,27 @@ function renderSidebar($currentPage, $isAdmin = false) {
                     }
                     ?>
                     <a href="<?php echo BASE_URL; ?>/user/files.php<?php echo $folderParam; ?>" class="menu-item <?php echo (!$isAdmin && $currentPage === 'files') ? 'active' : ''; ?>" style="font-size:1.03rem;">
-                            <i class="fas fa-folder-open" style="font-size:1.25rem; vertical-align:middle; margin-right:0.5rem;"></i> Ver mis archivos
+                            <i class="fas fa-folder-open" style="font-size:1.25rem; vertical-align:middle; margin-right:0.5rem;"></i> <?php echo htmlspecialchars(t('view_my_files')); ?>
                         </a>
                         <a href="<?php echo BASE_URL; ?>/user/upload.php<?php echo $folderParam; ?>" class="menu-item <?php echo (!$isAdmin && $currentPage === 'upload') ? 'active' : ''; ?>">
-                            <i class="fas fa-upload"></i> Subir archivo
+                            <i class="fas fa-upload"></i> <?php echo htmlspecialchars(t('upload_file')); ?>
                         </a>
                 </div>
             <?php else: ?>
                 <!-- User Menu -->
                 <div class="menu-section">
-                    <div class="menu-section-title">Menú</div>
+                    <div class="menu-section-title"><?php echo htmlspecialchars(t('menu_title')); ?></div>
                     <a href="<?php echo BASE_URL; ?>/user/index.php" class="menu-item <?php echo $currentPage === 'dashboard' ? 'active' : ''; ?>">
-                        <i class="fas fa-home"></i> Inicio
+                        <i class="fas fa-home"></i> <?php echo htmlspecialchars(t('home')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/user/files.php" class="menu-item <?php echo $currentPage === 'files' ? 'active' : ''; ?>">
-                        <i class="fas fa-folder"></i> Mis Archivos
+                        <i class="fas fa-folder"></i> <?php echo htmlspecialchars(t('my_files')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/user/upload.php" class="menu-item <?php echo $currentPage === 'upload' ? 'active' : ''; ?>">
-                        <i class="fas fa-cloud-upload-alt"></i> Subir Archivo
+                        <i class="fas fa-cloud-upload-alt"></i> <?php echo htmlspecialchars(t('upload_file')); ?>
                     </a>
                     <a href="<?php echo BASE_URL; ?>/user/shares.php" class="menu-item <?php echo $currentPage === 'shares' ? 'active' : ''; ?>">
-                        <i class="fas fa-link"></i> Mis Comparticiones
+                        <i class="fas fa-link"></i> <?php echo htmlspecialchars(t('my_shares')); ?>
                     </a>
                 </div>
             <?php endif; ?>
