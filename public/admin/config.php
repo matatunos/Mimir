@@ -1499,7 +1499,8 @@ renderHeader(t('system_config_header'), $user, $auth);
                         
                         <?php
                             // Render the field help text (treat as a help/hint field rather than a formal description).
-                            $desc = trim($cfg['description'] ?? '');
+                            // Prefer translated description from config_translations, falling back to the config.description column.
+                            $desc = trim($configClass->getTranslatedDescription($cfg['config_key']) ?? '');
                             $labelCheck = isset($label) ? trim($label) : trim($cfg['config_key']);
                             if ($desc !== '') {
                                 // Only hide help when it's identical to the label (case-insensitive).

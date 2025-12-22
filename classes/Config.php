@@ -7,6 +7,7 @@
 class Config {
     private $db;
     private $cache = [];
+    private $translationsCache = [];
     
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
@@ -104,6 +105,52 @@ class Config {
         } catch (Exception $e) {
             error_log("Config get all details error: " . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * Get translated description for a config key.
+     * Falls back to the `config.description` column when no translation is present.
+     * @param string $key
+     * @param string|null $lang two-letter code (falls back to session or 'es')
+     * @return string|null
+     */
+    public function getTranslatedDescription($key, $lang = null) {
+        if (!$lang) {
+            $lang = 'es';
+            if (!empty($_SESSION['lang']) && is_string($_SESSION['lang'])) {
+                $lang = preg_replace('/[^a-zA-Z0-9_\-]/', '', $_SESSION['lang']);
+            }
+        }
+
+        $cacheKey = $key . '::' . $lang;
+        if (isset($this->translationsCache[$cacheKey])) {
+            return $this->translationsCache[$cacheKey];
+        }
+
+        try {
+            $stmt = $this->db->prepare("SELECT text FROM config_translations WHERE config_key = ? AND lang = ? LIMIT 1");
+            $stmt->execute([$key, $lang]);
+            $r = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($r && isset($r['text']) && $r['text'] !== '') {
+                $this->translationsCache[$cacheKey] = $r['text'];
+                return $r['text'];
+            }
+        } catch (Exception $e) {
+            // ignore DB errors and fallback to description column
+        }
+
+        // Fallback: read description from config table
+        try {
+            $stmt = $this->db->prepare("SELECT description FROM config WHERE config_key = ? LIMIT 1");
+            $stmt->execute([$key]);
+            $r = $stmt->fetch(PDO::FETCH_ASSOC);
+            $val = $r && isset($r['description']) ? $r['description'] : null;
+            $this->translationsCache[$cacheKey] = $val;
+            return $val;
+        } catch (Exception $e) {
+            $this->translationsCache[$cacheKey] = null;
+            return null;
         }
     }
     
