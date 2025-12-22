@@ -34,8 +34,8 @@ class Email {
             $body = $body . "<div style=\"margin-top:1rem; border-top:1px solid #e0e0e0; padding-top:0.75rem;\">" . $signature . "</div>";
         }
 
-        $enabled = $this->config->get('enable_email', '0');
-        if ($enabled === '0' || $enabled === 0) {
+        $enabled = (bool)$this->config->get('enable_email', '0');
+        if (!$enabled) {
             // Still attempt mail() as fallback to avoid silent failures
             $res = $this->sendMailFunction($to, $subject, $body, $options);
             $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to}" : "Failed to send email to {$to}"), ['to' => $to, 'subject' => $subject, 'method' => 'mail']);

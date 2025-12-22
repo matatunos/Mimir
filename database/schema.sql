@@ -191,6 +191,11 @@ INSERT INTO `config` (id,config_key,config_value,config_type,description,is_syst
 (74,'password_reset_detection_window_minutes','10','number','Time window in minutes for reset detection',0,NOW()),
 (75,'password_reset_auto_block_enabled','0','boolean','If enabled, automatically block IPs that exceed detection threshold',0,NOW()),
 (76,'password_reset_auto_block_duration_minutes','60','number','Duration in minutes to block IP when auto-block is triggered',0,NOW());
+/* Ensure enable_config_protection exists and is boolean (used to protect config edits via UI) */
+INSERT INTO `config` (config_key, config_value, config_type, description, is_system, updated_at) VALUES
+('enable_config_protection','0','boolean','When enabled, prevents editing protected config keys via the admin UI',1,NOW())
+ON DUPLICATE KEY UPDATE
+  config_value = VALUES(config_value), config_type = VALUES(config_type), description = VALUES(description), is_system = VALUES(is_system), updated_at = NOW();
 /*!40000 ALTER TABLE `config` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;

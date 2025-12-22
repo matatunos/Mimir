@@ -152,7 +152,7 @@ renderHeader('Mi Perfil', $user);
             </div>
             <div class="card-body">
                 <?php
-                    $currentProtection = $config->get('enable_config_protection', '0') ? true : false;
+                    $currentProtection = (bool)$config->get('enable_config_protection', '0');
                 ?>
                 <p>Estado actual: <strong><?php echo $currentProtection ? 'Activada' : 'Desactivada'; ?></strong></p>
                 <form method="POST" style="display:inline-block; margin-right:0.5rem;">

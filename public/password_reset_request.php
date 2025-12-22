@@ -9,7 +9,7 @@ require_once __DIR__ . '/../classes/ForensicLogger.php';
 use PDO;
 
 $cfg = new Config();
-if (!$cfg->get('enable_email', '0')) {
+if (!(bool)$cfg->get('enable_email', '0')) {
     http_response_code(403);
     echo "Email sending is not enabled on this instance.";
     exit;

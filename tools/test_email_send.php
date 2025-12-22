@@ -17,7 +17,7 @@ if (!$to) {
 }
 
 $config = new Config();
-$enabled = $config->get('enable_email', '0');
+$enabled = (bool)$config->get('enable_email', '0');
 $smtpHost = $config->get('smtp_host', '');
 $smtpPort = $config->get('smtp_port', '');
 $smtpEnc = $config->get('smtp_encryption', '');
@@ -26,7 +26,7 @@ $fromName = $config->get('email_from_name', 'Mimir');
 
 if ($verbose) {
     echo "Configuration:\n";
-    echo "  enable_email: {$enabled}\n";
+    echo "  enable_email: " . ($enabled ? '1' : '0') . "\n";
     echo "  smtp_host: {$smtpHost}\n";
     echo "  smtp_port: {$smtpPort}\n";
     echo "  smtp_encryption: {$smtpEnc}\n";

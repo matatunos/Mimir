@@ -59,13 +59,13 @@ function renderHeader($title, $user, $auth = null) {
                     $config = $GLOBALS['config_instance'] ?? new Config();
                     $maintenanceMode = $config->get('maintenance_mode', '0');
                     $isInMaintenance = $maintenanceMode === '1';
-                    $globalProtection = $config->get('enable_config_protection', '0');
+                    $globalProtection = (bool)$config->get('enable_config_protection', '0');
                     ?>
                     <a href="<?php echo BASE_URL; ?>/user/2fa_setup.php" style="display: block; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit;"><i class="fas fa-lock"></i> Autenticación 2FA</a>
                     <?php
                     // Show config protection toggle in the user dropdown for admins
-                    $globalProtection = $config->get('enable_config_protection', '0');
-                    $protectionEnabled = ($globalProtection === '1' || $globalProtection === 1 || $globalProtection === true);
+                    $globalProtection = (bool)$config->get('enable_config_protection', '0');
+                    $protectionEnabled = (bool)$globalProtection;
                     $toggleLabel = $protectionEnabled ? 'Desactivar Protección' : 'Activar Protección';
                     $toggleJsFlag = $protectionEnabled ? 'false' : 'true';
                     ?>

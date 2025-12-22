@@ -220,6 +220,12 @@ $defaults = [
     // Misc
     'enable_registration' => ['value' => '0', 'type' => 'boolean'],
     'items_per_page' => ['value' => '25', 'type' => 'number']
+    ,
+    // Password reset detection / auto-blocking defaults
+    'password_reset_detection_threshold' => ['value' => '5', 'type' => 'number'],
+    'password_reset_detection_window_minutes' => ['value' => '10', 'type' => 'number'],
+    'password_reset_auto_block_enabled' => ['value' => '0', 'type' => 'boolean'],
+    'password_reset_auto_block_duration_minutes' => ['value' => '60', 'type' => 'number']
 ];
 
 // Ensure default configuration keys exist in the DB so they are visible in the UI
@@ -259,6 +265,10 @@ $descs['notify_user_creation_retry_attempts'] = 'Número máximo de reintentos p
 $descs['notify_user_creation_retry_delay_seconds'] = 'Retraso inicial en segundos entre reintentos; se aplica backoff exponencial.';
 $descs['notify_user_creation_use_background_worker'] = 'Si está activado, las notificaciones se encolarán y un worker en background las procesará (recomendado para alta latencia de SMTP).';
 // Persist any default descriptions if DB connection available
+$descs['password_reset_detection_threshold'] = 'Número de solicitudes de restablecimiento en la ventana temporal que se consideran sospechosas (por nombre de usuario / IP).';
+$descs['password_reset_detection_window_minutes'] = 'Ventana de tiempo (en minutos) en la que se contabilizan solicitudes para detección de enumeración.';
+$descs['password_reset_auto_block_enabled'] = 'Si está activado, las IPs que superen el umbral serán bloqueadas automáticamente por la duración configurada.';
+$descs['password_reset_auto_block_duration_minutes'] = 'Duración (en minutos) del bloqueo automático de IP cuando se dispara el auto-block.';
 $db = null;
 try {
     $db = Database::getInstance()->getConnection();
@@ -539,7 +549,7 @@ $configs = array_values(array_filter($configs, function($c) {
     return isset($c['config_key']) && $c['config_key'] !== 'enable_config_protection';
 }));
 // Global toggle: when enabled (1) enforce `is_system` protection; when disabled (0) allow editing all keys
-$globalConfigProtection = $configClass->get('enable_config_protection', '0');
+$globalConfigProtection = (bool)$configClass->get('enable_config_protection', '0');
 
 // Keys that should remain editable in the admin UI even if marked as system
 $editableSystemKeys = [
@@ -774,6 +784,12 @@ $brandSecondary = $configClass->get('brand_secondary_color', '#764ba2');
 $brandAccent = $configClass->get('brand_accent_color', '#667eea');
 
 // Agrupar configuraciones por categoría
+// Reload configs and remove internal-only keys from the render list
+$configs = $configClass->getAllDetails();
+$configs = array_values(array_filter($configs, function($c){
+    return isset($c['config_key']) && $c['config_key'] !== 'enable_config_protection';
+}));
+
 $categories = [
     'general' => ['title' => 'General', 'icon' => '<i class="fas fa-cog"></i>', 'configs' => []],
     'branding' => ['title' => 'Marca e Identidad', 'icon' => '<i class="fas fa-paint-brush"></i>', 'configs' => []],
@@ -785,6 +801,7 @@ $categories = [
     '2fa' => ['title' => 'Autenticación 2FA (TOTP)', 'icon' => '<i class="fas fa-lock"></i>', 'configs' => []],
     'duo' => ['title' => 'Duo Security', 'icon' => '<i class="fas fa-shield-alt"></i>', 'configs' => []],
     'appearance' => ['title' => 'Apariencia', 'icon' => '<i class="fas fa-palette"></i>', 'configs' => []],
+    'security' => ['title' => 'Seguridad', 'icon' => '<i class="fas fa-shield-alt"></i>', 'configs' => []],
     'other' => ['title' => 'Otros', 'icon' => '<i class="fas fa-clipboard"></i>', 'configs' => []]
 ];
 
@@ -809,6 +826,11 @@ $categories = [
     elseif (strpos($key, 'share_') === 0 || strpos($key, 'default_max_share') === 0 || strpos($key, 'default_max_downloads') === 0 || $key === 'allow_public_shares') {
         $category = 'share';
     } 
+    // Security related configs (password reset protections)
+    elseif (strpos($key, 'password_reset_') === 0) {
+        $category = 'security';
+    }
+    
     // LDAP (OpenLDAP)
     elseif (strpos($key, 'ldap_') === 0 || $key === 'enable_ldap') {
         $category = 'ldap';
@@ -1142,6 +1164,16 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                     'site_name' => 'Nombre del Sitio',
                                     'site_description' => 'Descripción del Sitio',
                                     'site_logo' => 'Logo del Sitio',
+                                    'enable_email' => 'Activar correo electrónico',
+                                    'enable_ldap' => 'Habilitar LDAP',
+                                    'enable_ad' => 'Habilitar Active Directory',
+                                    'enable_duo' => 'Habilitar Duo 2FA',
+                                    'enable_registration' => 'Permitir registro de usuarios',
+                                    'enable_config_protection' => 'Protección de configuración (solo admins)',
+                                    'password_reset_detection_threshold' => 'Umbral detección restablecimientos',
+                                    'password_reset_detection_window_minutes' => 'Ventana detección (minutos)',
+                                    'password_reset_auto_block_enabled' => 'Bloqueo automático de IP',
+                                    'password_reset_auto_block_duration_minutes' => 'Duración bloqueo (minutos)',
                                     'ad_required_group_dn' => 'AD: Grupo permitido (DN)',
                                     'ad_admin_group_dn' => 'AD: Grupo administradores (DN)',
                                     'ldap_required_group_dn' => 'LDAP: Grupo permitido (DN)',
@@ -1281,6 +1313,24 @@ renderHeader('Configuración del Sistema', $user, $auth);
                                 <?php if ($placeholder): ?>placeholder="<?php echo htmlspecialchars($placeholder); ?>"<?php endif; ?>
                                 <?php echo (bool)$globalConfigProtection ? 'readonly style="color:#6b6b6b;"' : ''; ?>
                             ><?php echo htmlspecialchars($cfg['config_value']); ?></textarea>
+                        <?php elseif ($cfg['config_type'] === 'boolean'): ?>
+                            <?php
+                                $key = $cfg['config_key'];
+                                $isReadonly = (bool)$globalConfigProtection && $cfg['is_system'] && !in_array($key, $editableSystemKeys);
+                                $checked = ($cfg['config_value'] === '1' || $cfg['config_value'] === 1 || $cfg['config_value'] === true);
+                            ?>
+                            <div style="display:flex; align-items:center; gap:0.75rem;">
+                                <input type="hidden" name="<?php echo htmlspecialchars($key); ?>_present" value="1">
+                                <label style="cursor:pointer; display:flex; align-items:center; gap:0.5rem; margin:0;">
+                                    <input type="checkbox" name="<?php echo htmlspecialchars($key); ?>" value="1" <?php echo $checked ? 'checked' : ''; ?> <?php echo $isReadonly ? 'disabled' : ''; ?>>
+                                    <span style="font-weight:600;"><?php echo htmlspecialchars($label ?? $cfg['config_key']); ?></span>
+                                </label>
+                            </div>
+                            <?php if ($cfg['description']): ?>
+                                <small style="display:block; color: var(--text-muted); margin-top:0.25rem;">
+                                    <?php echo htmlspecialchars($cfg['description']); ?>
+                                </small>
+                            <?php endif; ?>
                         <?php else: ?>
                             <?php
                             // Placeholders for text fields based on config key
@@ -1366,11 +1416,18 @@ renderHeader('Configuración del Sistema', $user, $auth);
                             <?php endif; ?>
                         <?php endif; ?>
                         
-                        <?php if ($cfg['description']): ?>
-                            <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
-                                <?php echo htmlspecialchars($cfg['description']); ?>
-                            </small>
-                        <?php endif; ?>
+                        <?php
+                            // Show description only when it provides additional information beyond the label
+                            $desc = trim($cfg['description'] ?? '');
+                            $labelCheck = isset($label) ? trim($label) : trim($cfg['config_key']);
+                            if ($desc !== '') {
+                                $descLower = mb_strtolower($desc);
+                                $labelLower = mb_strtolower($labelCheck);
+                                if (strpos($descLower, $labelLower) === false) {
+                                    echo '<small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">' . htmlspecialchars($desc) . '</small>'; 
+                                }
+                            }
+                        ?>
                     </div>
                     <?php endforeach; ?>
                 </div>
@@ -1378,6 +1435,8 @@ renderHeader('Configuración del Sistema', $user, $auth);
             <?php endif; ?>
         <?php endforeach; ?>
         
+        <!-- Password reset detection & auto-blocking will be shown under Security category -->
+
         <div style="position: sticky; bottom: 1rem; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 100%); padding: 1.5rem; border-radius: 1rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 2px solid var(--border-color);">
             <button type="submit" class="btn btn-primary" style="padding: 0.875rem 2rem; font-size: 1.0625rem; font-weight: 700; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);"><i class="fas fa-save"></i> Guardar Cambios</button>
             <a href="<?php echo BASE_URL; ?>/admin/index.php" class="btn btn-outline btn-outline--on-dark" style="padding: 0.875rem 2rem; font-size: 1.0625rem; font-weight: 600;">Cancelar</a>
