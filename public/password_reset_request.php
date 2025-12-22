@@ -219,6 +219,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } catch (Exception $e) {
                         // ignore email errors
                     }
+
+                    // Auto-block IP if configured
+                    try {
+                        $cfgAuto = new Config();
+                        if ($cfgAuto->get('password_reset_auto_block_enabled', '0')) {
+                            $duration = max(1, intval($cfgAuto->get('password_reset_auto_block_duration_minutes', 60)));
+                            $expires = date('Y-m-d H:i:s', time() + ($duration * 60));
+                            $stmtBlockIns = $db->prepare("INSERT INTO ip_blocks (ip_address, reason, expires_at, created_by) VALUES (?, ?, ?, NULL)");
+                            $reason = 'Auto-block due to suspected password reset enumeration for ' . $username;
+                            $stmtBlockIns->execute([$_SERVER['REMOTE_ADDR'] ?? '', $reason, $expires]);
+                            try {
+                                $forensic->logSecurityEvent('password_reset_auto_block', 'high', 'Auto-block applied to IP due to suspected enumeration', ['ip' => $_SERVER['REMOTE_ADDR'] ?? '', 'username' => $username, 'duration_minutes' => $duration], null);
+                                $logger->log(null, 'ip_blocked_auto', null, null, 'Auto-blocked IP ' . ($_SERVER['REMOTE_ADDR'] ?? ''), ['username' => $username, 'duration' => $duration]);
+                            } catch (Exception $e) {}
+                        }
+                    } catch (Exception $e) {
+                        // ignore auto-block errors
+                    }
                 }
             } catch (Exception $e) {
                 // ignore detection errors
