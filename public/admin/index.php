@@ -36,6 +36,8 @@ $diskUsed = max(0, $diskTotal - $diskFree);
 $diskPercent = $diskTotal > 0 ? round(($diskUsed / $diskTotal) * 100, 1) : 0;
 $diskTotalGB = round($diskTotal / 1024 / 1024 / 1024, 2);
 $diskUsedGB = round($diskUsed / 1024 / 1024 / 1024, 2);
+// Visible chart capacity in GB (override via config; default 27.8 GB)
+$diskCapacityGB = $config->get('disk_capacity_gb', 27.8);
 
 // Ensure metrics table exists and record a snapshot if last snapshot is older than 5 minutes
 try {
@@ -62,8 +64,27 @@ try {
         $stmt->execute([(int)$diskTotal, (int)$diskFree, (int)$diskUsed]);
     }
 
-    // Read recent points (limit to 168 entries)
-    $rows = $db->query("SELECT recorded_at, used_bytes, total_bytes FROM disk_usage_metrics ORDER BY recorded_at ASC LIMIT 168")->fetchAll();
+    // Disk usage range filter: default to last 7 days
+    $disk_from = isset($_GET['disk_from']) ? $_GET['disk_from'] : null;
+    $disk_to = isset($_GET['disk_to']) ? $_GET['disk_to'] : null;
+    $disk_period = isset($_GET['disk_period']) ? (int)$_GET['disk_period'] : 7;
+    if ($disk_period && $disk_period > 0) {
+        // set from to disk_period days ago (inclusive)
+        $disk_from = date('Y-m-d', strtotime("-" . ($disk_period - 1) . " days"));
+        $disk_to = date('Y-m-d');
+    }
+
+    if ($disk_from && $disk_to) {
+        // Normalize to full day range
+        $fromDt = $disk_from . ' 00:00:00';
+        $toDt = $disk_to . ' 23:59:59';
+        $stmt = $db->prepare("SELECT recorded_at, used_bytes, total_bytes FROM disk_usage_metrics WHERE recorded_at BETWEEN ? AND ? ORDER BY recorded_at ASC");
+        $stmt->execute([$fromDt, $toDt]);
+        $rows = $stmt->fetchAll();
+    } else {
+        // Read recent points (limit to 168 entries)
+        $rows = $db->query("SELECT recorded_at, used_bytes, total_bytes FROM disk_usage_metrics ORDER BY recorded_at ASC LIMIT 168")->fetchAll();
+    }
 } catch (Exception $e) {
     $rows = [];
 }
@@ -1131,6 +1152,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Disk period shortcut buttons
+    document.querySelectorAll('.disk-period-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const period = this.getAttribute('data-disk-period');
+            // Preserve other query params (like 'period' for uploads)
+            const url = new URL(window.location.href);
+            url.searchParams.set('disk_period', period);
+            // remove explicit disk_from/disk_to to allow disk_period to take effect
+            url.searchParams.delete('disk_from');
+            url.searchParams.delete('disk_to');
+            window.location.href = url.toString();
+        });
+    });
+
     // Gráfico de actividad del sistema
     const systemCtx = document.getElementById('systemUploadsChart');
     if (systemCtx) {
@@ -1277,7 +1312,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        title: { display: true, text: 'GB' }
+                        title: { display: true, text: 'GB' },
+                        // enforce maximum capacity for the chart
+                        max: <?php echo json_encode((float)$diskCapacityGB); ?>,
+                        ticks: {
+                            // sensible step size
+                            stepSize: Math.max(1, Math.round(<?php echo json_encode((float)$diskCapacityGB); ?> / 10))
+                        }
                     },
                     x: {
                         title: { display: true, text: 'Tiempo' }
