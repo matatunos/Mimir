@@ -362,6 +362,22 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
         // Ensure UI matches selected language immediately
         fetchAndApply(sel.value);
     })();
+    // Make Enter in password field trigger the login button click
+    (function(){
+        const pwd = document.getElementById('password');
+        if (!pwd) return;
+        pwd.addEventListener('keydown', function(e){
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                const btn = document.querySelector('button.btn-primary[type="submit"]');
+                if (btn) {
+                    btn.click();
+                } else if (this.form) {
+                    this.form.submit();
+                }
+            }
+        });
+    })();
     </script>
 </body>
 </html>
