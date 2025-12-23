@@ -254,6 +254,23 @@ ON DUPLICATE KEY UPDATE text = VALUES(text);
 
 -- Helper index for language lookups
 CREATE INDEX IF NOT EXISTS idx_config_translations_lang ON config_translations (lang);
+
+-- Table structure for table `disk_usage_metrics`
+
+DROP TABLE IF EXISTS `disk_usage_metrics`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `disk_usage_metrics` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `recorded_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `total_bytes` bigint(20) NOT NULL,
+  `free_bytes` bigint(20) NOT NULL,
+  `used_bytes` bigint(20) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_recorded_at` (`recorded_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 UPDATE config SET description = 'Host del controlador de dominio o servidor LDAP/AD.' WHERE config_key = 'ad_host' AND (description IS NULL OR description = '');
 UPDATE config SET description = 'Puerto del servidor AD (habitualmente 389 o 636 para LDAPS).' WHERE config_key = 'ad_port' AND (description IS NULL OR description = '');
 UPDATE config SET description = 'Base DN para búsquedas en Active Directory.' WHERE config_key = 'ad_base_dn' AND (description IS NULL OR description = '');
@@ -718,6 +735,7 @@ CREATE TABLE `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
   `email` varchar(100) NOT NULL,
+  `language` varchar(10) DEFAULT NULL,
   `password` varchar(255) DEFAULT NULL,
   `full_name` varchar(100) DEFAULT NULL,
   `role` enum('admin','user') NOT NULL DEFAULT 'user',
@@ -748,9 +766,9 @@ CREATE TABLE `users` (
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 set autocommit=0;
-INSERT INTO `users` (`id`,`username`,`email`,`password`,`full_name`,`role`,`is_active`,`is_ldap`,`storage_quota`,`storage_used`,`require_2fa`,`force_password_change`,`trusted_devices`,`last_login`,`locked_until`,`created_at`) VALUES
-(1,'admin','admin@doc.favala.es','$2y$12$Izr2MVWgyhXQaTUMpUYdW.5stZPIPTNtdQjr8KbXVy5qEKw4UPI6S','Administrator','admin',1,0,NULL,0,0,0,NULL,'2025-12-17 20:57:27','2025-12-17 20:56:55','2025-12-17 20:57:27'),
-(3,'nacho','nacho@favala.es','$2y$12$gI.VXCMBqlZOJb.tmMbY6OXKyLn52jys2vll9//Ps8i2AFVreaa/m','ignacio vargas','admin',1,0,10737418240,0,0,0,NULL,NULL,'2025-12-17 21:09:25','2025-12-17 21:09:25');
+INSERT INTO `users` (`id`,`username`,`email`,`language`,`password`,`full_name`,`role`,`is_active`,`is_ldap`,`storage_quota`,`storage_used`,`require_2fa`,`force_password_change`,`trusted_devices`,`last_login`,`locked_until`,`created_at`) VALUES
+(1,'admin','admin@doc.favala.es',NULL,'$2y$12$Izr2MVWgyhXQaTUMpUYdW.5stZPIPTNtdQjr8KbXVy5qEKw4UPI6S','Administrator','admin',1,0,NULL,0,0,0,NULL,'2025-12-17 20:57:27','2025-12-17 20:56:55','2025-12-17 20:57:27'),
+(3,'nacho','nacho@favala.es',NULL,'$2y$12$gI.VXCMBqlZOJb.tmMbY6OXKyLn52jys2vll9//Ps8i2AFVreaa/m','ignacio vargas','admin',1,0,10737418240,0,0,0,NULL,NULL,'2025-12-17 21:09:25','2025-12-17 21:09:25');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;

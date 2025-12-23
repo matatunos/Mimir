@@ -19,6 +19,26 @@ $success = '';
 $config = new Config();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Update language preference
+    if (isset($_POST['update_language'])) {
+        if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
+            $error = 'Token de seguridad inválido';
+        } else {
+            $newLang = preg_replace('/[^a-zA-Z0-9_\-]/', '', $_POST['language'] ?? '');
+            if ($newLang === '') {
+                $error = 'Idioma inválido';
+            } else {
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare('UPDATE users SET language = ? WHERE id = ?');
+                $stmt->execute([$newLang, $user['id']]);
+                $_SESSION['lang'] = $newLang;
+                $logger->log($user['id'], 'language_change', 'user', $user['id'], 'Updated UI language');
+                $success = 'Preferencia de idioma actualizada';
+                // refresh user
+                $user = $auth->getUser();
+            }
+        }
+    }
     // Toggle global config protection (admin only)
     if (isset($_POST['toggle_config_protection_action']) && $user['role'] === 'admin') {
         $token = $_POST['csrf_token'] ?? '';
@@ -105,6 +125,25 @@ renderHeader(t('user_profile'), $user);
                     <label><?php echo t('label_role'); ?></label>
                     <input type="text" class="form-control" value="<?php echo $user['role'] === 'admin' ? t('role_admin') : t('role_user'); ?>" disabled>
                 </div>
+                <form method="POST" style="margin-top:1rem;">
+                    <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
+                    <input type="hidden" name="update_language" value="1">
+                    <div class="form-group">
+                        <label><?php echo t('label_language'); ?></label>
+                        <select name="language" class="form-control">
+                            <?php
+                            $langs = get_available_languages();
+                            $cur = $user['language'] ?? (new Config())->get('default_language','es');
+                            foreach ($langs as $code => $name):
+                                // Use emoji-only flags inside <option> to avoid embedding HTML
+                                $flag = get_language_flag_emoji($code);
+                            ?>
+                                <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $cur === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars(($flag ? $flag . ' ' : '') . $name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" type="submit"><?php echo t('save_changes'); ?></button>
+                </form>
                 
                 <?php if ($user['is_ldap']): ?>
                     <div class="alert alert-info">

@@ -284,6 +284,20 @@ class Auth {
         $_SESSION['role'] = $user['role'];
         $_SESSION['is_ldap'] = $user['is_ldap'];
         $_SESSION['created'] = time();
+
+        // Set session language preference from user profile if available,
+        // otherwise fall back to global default.
+        try {
+            require_once __DIR__ . '/../classes/Config.php';
+            $config = new Config();
+            if (!empty($user['language'])) {
+                $_SESSION['lang'] = $user['language'];
+            } else {
+                $_SESSION['lang'] = $config->get('default_language', 'es');
+            }
+        } catch (Exception $e) {
+            // ignore language setting failures
+        }
         
         // Store session in database
         $stmt = $this->db->prepare("

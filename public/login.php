@@ -7,6 +7,7 @@ require_once __DIR__ . '/../classes/TwoFactor.php';
 require_once __DIR__ . '/../classes/DuoAuth.php';
 require_once __DIR__ . '/../classes/SecurityValidator.php';
 require_once __DIR__ . '/../classes/SecurityHeaders.php';
+require_once __DIR__ . '/../includes/lang.php';
 
 // Apply security headers
 SecurityHeaders::applyAll();
@@ -31,6 +32,18 @@ if ($auth->isLoggedIn() && empty($_SESSION['2fa_pending'])) {
 }
 
 $error = $_GET['error'] ?? '';
+
+// Determine default and available languages for selector
+$defaultLang = $configClass->get('default_language', 'es');
+$availableLangs = get_available_languages();
+
+// If login form posted a language selection, persist it into session
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['lang'])) {
+    $sel = preg_replace('/[^a-zA-Z0-9_\-]/', '', $_POST['lang']);
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        $_SESSION['lang'] = $sel;
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $security->sanitizeString($_POST['username'] ?? '');
@@ -275,6 +288,24 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
                     <label for="password" class="form-label required"><?php echo htmlspecialchars(t('label_password')); ?></label>
                     <input type="password" id="password" name="password" class="form-control" required>
                 </div>
+                <div class="form-group">
+                    <label for="lang"><?php echo htmlspecialchars(t('label_language')); ?></label>
+                    <?php $selLang = session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['lang']) ? $_SESSION['lang'] : $defaultLang; ?>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="lang-flag" style="line-height:1;">
+                            <?php echo get_language_flag($selLang); ?>
+                        </div>
+                        <select id="lang" name="lang" class="form-control" style="flex:1;">
+                        <?php
+                        foreach ($availableLangs as $code => $name):
+                            // Use emoji-only flags inside <option> to avoid raw HTML showing
+                            $flag = get_language_flag_emoji($code);
+                        ?>
+                            <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $selLang === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars(($flag ? $flag . ' ' : '') . $name); ?></option>
+                        <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
                 <div class="form-check">
                     <input type="checkbox" id="remember" name="remember">
                     <label for="remember"><?php echo htmlspecialchars(t('remember_me')); ?></label>
@@ -286,5 +317,51 @@ $primaryTextColor = getTextColorForBackground($primaryColor);
                 </form>
         </div>
     </div>
+    <script>
+    (function(){
+        const sel = document.getElementById('lang');
+        const flagContainer = document.getElementById('lang-flag');
+        const applyTranslations = (data) => {
+            if (!data) return;
+            // Title
+            if (data.login_title) document.title = data.login_title;
+            // Prompt paragraph
+            const p = document.querySelector('.login-header p');
+            if (p && data.login_prompt) p.textContent = data.login_prompt;
+            // Labels
+            const lUser = document.querySelector('label[for="username"]');
+            if (lUser && data.label_username) lUser.textContent = data.label_username;
+            const lPass = document.querySelector('label[for="password"]');
+            if (lPass && data.label_password) lPass.textContent = data.label_password;
+            const lLang = document.querySelector('label[for="lang"]');
+            if (lLang && data.label_language) lLang.textContent = data.label_language;
+            const lRemember = document.querySelector('label[for="remember"]');
+            if (lRemember && data.remember_me) lRemember.textContent = data.remember_me;
+            const btn = document.querySelector('button.btn-primary');
+            if (btn && data.login_button) btn.textContent = data.login_button;
+            const fp = document.querySelector('a[href$="password_reset_request.php"]');
+            if (fp && data.forgot_password) fp.textContent = data.forgot_password;
+            // Flag HTML
+            if (flagContainer && data.flag_html) flagContainer.innerHTML = data.flag_html;
+        };
+
+        const fetchAndApply = (code) => {
+            fetch('lang_ajax.php?lang=' + encodeURIComponent(code))
+                .then(r => r.json())
+                .then(applyTranslations)
+                .catch(()=>{});
+        };
+
+        sel.addEventListener('change', function(){
+            const code = this.value;
+            // Persist selection to session via form submit (server-side already handles POST),
+            // but we also update UI immediately via AJAX.
+            fetchAndApply(code);
+        });
+
+        // Ensure UI matches selected language immediately
+        fetchAndApply(sel.value);
+    })();
+    </script>
 </body>
 </html>

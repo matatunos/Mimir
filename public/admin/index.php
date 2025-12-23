@@ -28,6 +28,55 @@ $totalFiles = $db->query("SELECT COUNT(*) FROM files")->fetchColumn();
 $totalShares = $db->query("SELECT COUNT(*) FROM shares WHERE is_active = 1")->fetchColumn();
 $totalStorage = $db->query("SELECT COALESCE(SUM(file_size), 0) FROM files")->fetchColumn();
 $storageGB = $totalStorage / 1024 / 1024 / 1024;
+// Disk usage for uploads path (shown in dashboard below 'Actividad de Subidas')
+$uploadsPath = defined('UPLOADS_PATH') ? UPLOADS_PATH : (dirname(__DIR__,2) . '/storage/uploads');
+$diskTotal = @disk_total_space($uploadsPath) ?: 0;
+$diskFree = @disk_free_space($uploadsPath) ?: 0;
+$diskUsed = max(0, $diskTotal - $diskFree);
+$diskPercent = $diskTotal > 0 ? round(($diskUsed / $diskTotal) * 100, 1) : 0;
+$diskTotalGB = round($diskTotal / 1024 / 1024 / 1024, 2);
+$diskUsedGB = round($diskUsed / 1024 / 1024 / 1024, 2);
+
+// Ensure metrics table exists and record a snapshot if last snapshot is older than 5 minutes
+try {
+    $db->exec("CREATE TABLE IF NOT EXISTS disk_usage_metrics (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        total_bytes BIGINT UNSIGNED NOT NULL,
+        free_bytes BIGINT UNSIGNED NOT NULL,
+        used_bytes BIGINT UNSIGNED NOT NULL,
+        PRIMARY KEY (id),
+        INDEX (recorded_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+    $last = $db->query("SELECT recorded_at FROM disk_usage_metrics ORDER BY recorded_at DESC LIMIT 1")->fetchColumn();
+    $needInsert = true;
+    if ($last) {
+        $ts = strtotime($last);
+        if ($ts !== false && (time() - $ts) < 300) { // 5 minutes
+            $needInsert = false;
+        }
+    }
+    if ($needInsert) {
+        $stmt = $db->prepare('INSERT INTO disk_usage_metrics (recorded_at, total_bytes, free_bytes, used_bytes) VALUES (NOW(), ?, ?, ?)');
+        $stmt->execute([(int)$diskTotal, (int)$diskFree, (int)$diskUsed]);
+    }
+
+    // Read recent points (limit to 168 entries)
+    $rows = $db->query("SELECT recorded_at, used_bytes, total_bytes FROM disk_usage_metrics ORDER BY recorded_at ASC LIMIT 168")->fetchAll();
+} catch (Exception $e) {
+    $rows = [];
+}
+
+// Prepare arrays for Chart.js (labels, usedGB, totalGB)
+$diskLabels = [];
+$diskUsedSeries = [];
+$diskTotalSeries = [];
+foreach ($rows as $r) {
+    $diskLabels[] = date('d/m H:i', strtotime($r['recorded_at']));
+    $diskUsedSeries[] = round($r['used_bytes'] / 1024 / 1024 / 1024, 2);
+    $diskTotalSeries[] = round($r['total_bytes'] / 1024 / 1024 / 1024, 2);
+}
 
 // Invitations stats (last 48 hours)
 $invitesSent48 = 0;
@@ -399,6 +448,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
     @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
     .charts-grid .uploads-chart-card { grid-column: 1 / -1; }
+    .charts-grid .disk-usage-card { grid-column: 1 / -1; }
     .charts-grid .filetypes-chart-card { grid-column: 1 / -1; }
     /* Layout for filetypes chart with side legend/table */
     .filetypes-chart-card .filetypes-chart-inner { display: grid; grid-template-columns: 1fr 300px; gap: 1rem; align-items: start; }
@@ -554,6 +604,26 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
             </div>
             <div class="card-body">
                 <canvas id="systemUploadsChart" height="300"></canvas>
+            </div>
+        </div>
+        
+        <!-- Uso de Disco: formato similar a 'Actividad de Subidas' -->
+        <div class="card disk-usage-card" style="width:100%;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <h3 class="card-title"><i class="fas fa-hdd"></i> Uso de Disco</h3>
+                <div style="color:var(--text-muted); font-size:0.95rem;">Ruta: <?php echo htmlspecialchars($uploadsPath); ?></div>
+            </div>
+            <div class="card-body" style="display:flex; gap:1rem; align-items:center; flex-wrap:nowrap; width:100%;">
+                <div style="flex: 1 1 85%; min-width:0; width:85%;">
+                    <div style="width:100%; height:100%;">
+                        <canvas id="diskUsageChart" height="360" style="width:100%; height:360px; display:block;"></canvas>
+                    </div>
+                </div>
+                <div style="flex: 1 1 15%; min-width:0; width:15%;">
+                    <div style="font-size:1.25rem; font-weight:700; margin-bottom:0.25rem;"><?php echo $diskPercent; ?>% ocupado</div>
+                    <div style="color:var(--text-muted); margin-bottom:0.5rem;"><?php echo $diskUsedGB; ?> GB ocupados de <?php echo $diskTotalGB; ?> GB</div>
+                    <div style="margin-top:0.5rem;">Leyenda: <span style="display:inline-block;width:12px;height:12px;background:#4a90e2;margin-right:6px;border-radius:2px;"></span> Usado &nbsp; <span style="display:inline-block;width:12px;height:12px;background:#e6e6e6;margin:0 6px;border-radius:2px;"></span> Libre</div>
+                </div>
             </div>
         </div>
         
@@ -1164,6 +1234,53 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     title: {
                         display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    // Gráfico de uso de disco: serie temporal (GB vs tiempo)
+    const diskCtx = document.getElementById('diskUsageChart');
+    if (diskCtx) {
+        new Chart(diskCtx, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode($diskLabels ?: [$diskLabels ? $diskLabels[0] : date('d/m H:i')]); ?>,
+                datasets: [{
+                    label: 'Usado (GB)',
+                    data: <?php echo json_encode($diskUsedSeries ?: [$diskUsedGB]); ?>,
+                    borderColor: 'rgb(74, 144, 226)',
+                    backgroundColor: 'rgba(74, 144, 226, 0.15)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Capacidad Total (GB)',
+                    data: <?php echo json_encode($diskTotalSeries ?: [$diskTotalGB]); ?>,
+                    borderColor: 'rgb(120,120,120)',
+                    borderDash: [6,4],
+                    backgroundColor: 'rgba(120,120,120,0.05)',
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    yAxisID: 'y'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                layout: { padding: { left: 0, right: 0, top: 8, bottom: 8 } },
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'GB' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Tiempo' }
                     }
                 }
             }

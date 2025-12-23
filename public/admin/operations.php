@@ -144,33 +144,9 @@ renderHeader('Operaciones', $user, $auth);
 ?>
 <div class="content">
     <h2>Operaciones</h2>
+    <!-- El panel de uso de disco se ha movido al Dashboard principal (admin/index.php) -->
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; margin-bottom:1rem;">
-        <div class="admin-stat-card">
-            <div style="position: relative; z-index: 1;">
-                <div class="admin-stat-label">Cola de Notificaciones</div>
-                <div class="admin-stat-value"><?php echo number_format($queuedNotifications); ?></div>
-                <div class="admin-stat-sublabel"><i class="fas fa-hourglass-start"></i> En cola</div>
-            </div>
-            <div class="admin-stat-icon"><i class="fas fa-bell"></i></div>
-        </div>
-
-        <div class="admin-stat-card">
-            <div style="position: relative; z-index: 1;">
-                <div class="admin-stat-label">Notificaciones Fallidas (24h)</div>
-                <div class="admin-stat-value"><?php echo number_format($failedNotifications); ?></div>
-                <div class="admin-stat-sublabel"><i class="fas fa-exclamation-triangle"></i> Intentos fallidos</div>
-            </div>
-            <div class="admin-stat-icon"><i class="fas fa-bell-slash"></i></div>
-        </div>
-
-        <div class="admin-stat-card">
-            <div style="position: relative; z-index: 1;">
-                <div class="admin-stat-label">Errores SMTP (24h)</div>
-                <div class="admin-stat-value"><?php echo number_format($smtpFailures24); ?></div>
-                <div class="admin-stat-sublabel"><i class="fas fa-envelope-open-text"></i> Autenticación</div>
-            </div>
-            <div class="admin-stat-icon"><i class="fas fa-envelope"></i></div>
-        </div>
+        <!-- Notifications card and disk usage removed to declutter per request -->
 
         <div class="admin-stat-card">
             <div style="position: relative; z-index: 1;">
@@ -190,21 +166,13 @@ renderHeader('Operaciones', $user, $auth);
             <div class="admin-stat-icon"><i class="fas fa-file-alt"></i></div>
         </div>
 
-        <div class="admin-stat-card">
-            <div style="position: relative; z-index: 1;">
-                <div class="admin-stat-label">Workers</div>
-                <div class="admin-stat-value"><?php echo number_format($workerCount); ?></div>
-                <div class="admin-stat-sublabel"><i class="fas fa-play-circle"></i> notification_worker</div>
-            </div>
-            <div class="admin-stat-icon"><i class="fas fa-server"></i></div>
-        </div>
+        <!-- Workers card removed to declutter -->
     </div>
 
     <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; align-items:center;">
         <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="btn btn-outline">Ver Archivos Huérfanos (<?php echo $orphanCount; ?>)</a>
         <a href="<?php echo BASE_URL; ?>/admin/logs.php" class="btn btn-outline">Ver Registros</a>
-        <a href="?view=smtp" class="btn btn-outline">Ver SMTP Log</a>
-        <a href="?view=notifications" class="btn btn-outline">Ver Notification Jobs</a>
+        <!-- SMTP log and Notification Jobs links removed to declutter -->
         <a href="?view=failed_logins" class="btn btn-outline">Ver Fallos de Login (24h)</a>
 
         <form method="POST" style="display:inline-block; margin-left:1rem;" onsubmit="return confirm(<?php echo json_encode(t('confirm_action')); ?>);">
@@ -277,4 +245,44 @@ renderHeader('Operaciones', $user, $auth);
     <?php endif; ?>
 </div>
 
-<?php renderPageEnd(); ?>
+    <script>
+    // Render a donut chart for disk usage
+    document.addEventListener('DOMContentLoaded', function(){
+        var c = document.getElementById('diskUsageChart');
+        if (!c) return;
+        var ctx = c.getContext('2d');
+        var percent = <?php echo json_encode($diskPercent); ?>;
+        var used = percent / 100;
+        var start = -0.5 * Math.PI;
+        var end = start + used * 2 * Math.PI;
+
+        // Background ring
+        ctx.clearRect(0,0,c.width,c.height);
+        var cx = c.width / 2;
+        var cy = c.height / 2;
+        var radius = Math.min(cx, cy) - 8;
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+        ctx.lineWidth = 14;
+        ctx.strokeStyle = '#e6e6e6';
+        ctx.stroke();
+
+        // Used arc
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, start, end, false);
+        ctx.lineWidth = 14;
+        ctx.strokeStyle = '#4a90e2';
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Center text
+        ctx.fillStyle = '#222';
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(percent + '%', cx, cy);
+    });
+    </script>
+
+    <?php renderPageEnd(); ?>

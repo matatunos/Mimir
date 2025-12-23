@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30">
+  <rect width="60" height="30" fill="#012169"/>
+  <path d="M0 0 L60 30 M60 0 L0 30" stroke="#fff" stroke-width="6"/>
+  <path d="M0 0 L60 30 M60 0 L0 30" stroke="#C8102E" stroke-width="4"/>
+  <rect x="25" width="10" height="30" fill="#fff"/>
+  <rect y="10" width="60" height="10" fill="#fff"/>
+  <rect x="26.5" width="7" height="30" fill="#C8102E"/>
+  <rect y="11.5" width="60" height="7" fill="#C8102E"/>
+</svg>
