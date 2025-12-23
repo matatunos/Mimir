@@ -632,7 +632,19 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
         <div class="card disk-usage-card" style="width:100%;">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                 <h3 class="card-title"><i class="fas fa-hdd"></i> Uso de Disco</h3>
-                <div style="color:var(--text-muted); font-size:0.95rem;">Ruta: <?php echo htmlspecialchars($uploadsPath); ?></div>
+                <div style="display:flex; gap:0.75rem; align-items:center;">
+                    <div class="period-selector" style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                        <button type="button" class="disk-period-btn <?php echo (isset($disk_period) && $disk_period === 7) ? 'active' : ''; ?>" data-disk-period="7">Últ. semana</button>
+                        <form method="GET" action="" style="display:inline-flex; gap:0.4rem; align-items:center;">
+                            <label style="font-size:0.85rem; color:var(--text-muted);">Desde</label>
+                            <input type="date" name="disk_from" value="<?php echo htmlspecialchars($disk_from ?? ''); ?>" style="padding:0.25rem; border-radius:4px; border:1px solid var(--border-color);">
+                            <label style="font-size:0.85rem; color:var(--text-muted);">Hasta</label>
+                            <input type="date" name="disk_to" value="<?php echo htmlspecialchars($disk_to ?? ''); ?>" style="padding:0.25rem; border-radius:4px; border:1px solid var(--border-color);">
+                            <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Aplicar</button>
+                        </form>
+                    </div>
+                    <div style="color:var(--text-muted); font-size:0.95rem; margin-left:0.5rem;">Ruta: <?php echo htmlspecialchars($uploadsPath); ?></div>
+                </div>
             </div>
             <div class="card-body" style="display:flex; gap:1rem; align-items:center; flex-wrap:nowrap; width:100%;">
                 <div style="flex: 1 1 85%; min-width:0; width:85%;">
