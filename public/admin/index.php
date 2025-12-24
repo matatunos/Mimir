@@ -529,7 +529,13 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     /* unify card visuals for uploads and disk charts */
     .uploads-chart-card .card-header, .disk-usage-card .card-header { padding: 0.6rem 1rem; }
     .uploads-chart-card .card-body, .disk-usage-card .card-body { padding: 1rem 1rem 1.25rem 1rem; display:flex; gap:1rem; align-items:center; }
-    .uploads-chart-card canvas, .disk-usage-card canvas { width: 100%; height: 360px !important; display:block; }
+    .uploads-chart-card canvas, .disk-usage-card canvas { width: 100%; height: 280px !important; display:block; }
+    /* Other charts: slightly smaller and responsive */
+    .filetypes-chart-card canvas, #weeklyUploadsChart, #dayOfWeekChart { width: 100%; height: 260px !important; display:block; }
+    @media (max-width: 1000px) {
+        .uploads-chart-card canvas, .disk-usage-card canvas { height: 220px !important; }
+        .filetypes-chart-card canvas, #weeklyUploadsChart, #dayOfWeekChart { height: 200px !important; }
+    }
     /* Chart cards styling */
     .uploads-chart-card, .disk-usage-card { border-radius: 6px; }
     .charts-grid .filetypes-chart-card { grid-column: 1 / -1; }
