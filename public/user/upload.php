@@ -1,4 +1,14 @@
 <?php
+// Load core configuration and dependencies before emitting any output so
+// headers/session settings can be applied safely.
+require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/database.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/layout.php';
+require_once __DIR__ . '/../../classes/User.php';
+require_once __DIR__ . '/../../classes/File.php';
+require_once __DIR__ . '/../../classes/Logger.php';
+
 // Avoid emitting the overlay HTML before handling POST/AJAX requests so JSON
 // responses remain clean. Render the overlay only for non-AJAX GET/POST page loads.
 if (!(
@@ -22,14 +32,6 @@ if (!(
     </div>
 <?php
 endif;
-
-require_once __DIR__ . '/../../includes/config.php';
-require_once __DIR__ . '/../../includes/database.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/layout.php';
-require_once __DIR__ . '/../../classes/User.php';
-require_once __DIR__ . '/../../classes/File.php';
-require_once __DIR__ . '/../../classes/Logger.php';
 
 $auth = new Auth();
 $auth->requireLogin();
@@ -332,17 +334,19 @@ renderHeader(t('upload_page_title'), $user);
         makeInteractiveTable('uploadResultsTable','uploadResultsSearch','uploadResultsStatus');
     });
     </script>
-    </script>
+
+    <script>
     // Server-provided upload limits
     var ALLOWED_EXTENSIONS = <?php echo json_encode(array_map('strtolower', $allowedExtsArr)); ?>;
     var MAX_FILE_SIZE_BYTES = <?php echo (int)$maxFileBytes; ?>; // bytes
-    </script>
+
     // Client-side translated error messages
     var ERR_EXT_NOT_ALLOWED = <?php echo json_encode(t('error_ext_not_allowed')); ?>;
     var ERR_FILE_EXCEEDS = <?php echo json_encode(t('error_file_exceeds_max_mb')); ?>; // expects appended size info
     var UPLOADING_PREFIX = <?php echo json_encode(t('uploading_prefix')); ?>; // e.g. 'Subiendo '
     var UPLOADING_BETWEEN = <?php echo json_encode(t('uploading_between')); ?>; // e.g. ' de '
     var UPLOADING_SEP = <?php echo json_encode(t('uploading_sep')); ?>; // e.g. ' — '
+    </script>
 
     <div class="card">
         <div class="card-header" style="padding: 1.5rem;">

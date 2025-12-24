@@ -9,6 +9,11 @@ require_once __DIR__ . '/../../classes/Share.php';
 require_once __DIR__ . '/../../classes/Logger.php';
 require_once __DIR__ . '/../../classes/Config.php';
 
+// Prevent aggressive caching of the admin dashboard during development
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Expires: 0');
+header('Pragma: no-cache');
+
 $auth = new Auth();
 $auth->requireAdmin();
 $user = $auth->getUser();
@@ -67,12 +72,17 @@ try {
     // Disk usage range filter: default to last 7 days
     $disk_from = isset($_GET['disk_from']) ? $_GET['disk_from'] : null;
     $disk_to = isset($_GET['disk_to']) ? $_GET['disk_to'] : null;
+    // Default period is 7 days, but only apply it when the user did not
+    // provide explicit `disk_from`/`disk_to` values (so filters from the UI work).
     $disk_period = isset($_GET['disk_period']) ? (int)$_GET['disk_period'] : 7;
-    if ($disk_period && $disk_period > 0) {
+    if (empty($disk_from) && empty($disk_to) && $disk_period && $disk_period > 0) {
         // set from to disk_period days ago (inclusive)
         $disk_from = date('Y-m-d', strtotime("-" . ($disk_period - 1) . " days"));
         $disk_to = date('Y-m-d');
     }
+
+    // mark if the current disk range corresponds to the 'last week' shortcut
+    $diskIsLastWeek = ((isset($disk_from) && isset($disk_to) && $disk_from === date('Y-m-d', strtotime('-6 days')) && $disk_to === date('Y-m-d')) || (isset($disk_period) && $disk_period === 7));
 
     if ($disk_from && $disk_to) {
         // Normalize to full day range
@@ -137,6 +147,17 @@ if ($fromDate && $toDate) {
 } else {
     $dailyUploads = $userClass->getSystemDailyUploads($period);
 }
+
+// If no explicit from/to provided, default the calendar inputs to last week
+if (empty($fromDate) && empty($toDate)) {
+    $fromDate = date('Y-m-d', strtotime("-" . ($period - 1) . " days"));
+    $toDate = date('Y-m-d');
+}
+
+// Determine if uploads range equals last week (for UI active state)
+$lastWeekFrom = date('Y-m-d', strtotime('-' . ($period - 1) . ' days'));
+$lastWeekTo = date('Y-m-d');
+$uploadsIsLastWeek = ($fromDate === $lastWeekFrom && $toDate === $lastWeekTo);
 $weeklyUploads = $userClass->getSystemWeeklyUploads(52); // 1 año de semanas
 $activityByDayOfWeek = $userClass->getActivityByDayOfWeek($period);
 $weekendVsWeekday = $userClass->getWeekendVsWeekdayStats($period);
@@ -324,6 +345,11 @@ $dailySizesValues = array_map(function($size) {
 }, array_values($dailySizes));
 $dailyUsersValues = array_values($dailyUsers);
 
+// Current period totals for uploads chart (used in right-side summary)
+$currentUploadsTotal = array_sum($dailyCountsValues);
+$currentVolumeMBTotal = array_sum($dailySizesValues);
+$currentActiveUsersMax = count($dailyUsersValues) ? max($dailyUsersValues) : 0;
+
 // Weekly data
 $weeklyLabels = [];
 $weeklyCounts = [];
@@ -379,21 +405,40 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
 <div class="admin-dashboard">
 
 <style>
-.admin-stat-card {
+    .admin-stat-card {
     background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 100%);
     border: 1px solid var(--border-color);
     border-radius: 1rem;
-    padding: 1.75rem;
+    padding: 0.6rem 0.6rem;
     position: relative;
     overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
 }
 /* Brandized card headers for admin dashboard */
 .admin-dashboard .card-header {
     background: linear-gradient(135deg, <?php echo htmlspecialchars($brandPrimary); ?> 0%, <?php echo htmlspecialchars($brandSecondary); ?> 100%);
     color: white;
 }
+    /* Shared chart header/body styles to avoid inline differences */
+    .chart-card-header { display:flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 0.6rem 1rem; min-height:48px; }
+    .chart-card-body { display:flex; gap:1rem; align-items:center; flex-wrap:nowrap; width:100%; padding: 1rem 1rem 1.25rem 1rem; min-height:220px; }
+
+    /* Shared controls and form styles for chart headers */
+    .period-selector { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+    .period-form { display:inline-flex; gap:0.4rem; align-items:center; margin-left:0.5rem; }
+    .period-label { font-size:0.85rem; color:var(--text-muted); }
+    .period-input { padding:0.25rem; border-radius:4px; border:1px solid var(--border-color); }
+
+    /* Header control grouping */
+    .header-controls { display:flex; gap:0.75rem; align-items:center; }
+    .header-path { color:var(--text-muted); font-size:0.95rem; margin-left:0.5rem; }
+
+    /* Chart left/right columns (85/15) */
+    .chart-left { flex: 1 1 85%; min-width:0; width:85%; }
+    .chart-right { flex: 1 1 15%; min-width:0; width:15%; }
+    .chart-right .big { font-size:1.25rem; font-weight:700; margin-bottom:0.25rem; }
+    .chart-right .muted { color:var(--text-muted); margin-bottom:0.5rem; }
 .admin-stat-card:hover {
     transform: translateY(-6px);
     box-shadow: 0 16px 32px rgba(0,0,0,0.12);
@@ -404,19 +449,30 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     bottom: 0;
     left: 0;
     right: 0;
-    height: 5px;
+    height: 4px;
     background: linear-gradient(90deg, #4a90e2, #50c878, #ffa500, #9b59b6);
     background-size: 200% 100%;
     animation: shimmer 3s infinite;
+}
+/* Range badge used in chart headers */
+.card-header .range-badge {
+    display: inline-block;
+    margin-left: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(0,0,0,0.06);
+    color: var(--text-main);
+    font-size: 0.8rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
 }
 @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
 .admin-stat-icon {
-    font-size: 4rem;
+    font-size: 2.4rem;
     position: absolute;
-    right: 1rem;
+    right: 0.6rem;
     top: 50%;
     transform: translateY(-50%);
     opacity: 0.08;
@@ -427,25 +483,25 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     transform: translateY(-50%) scale(1.15) rotate(5deg);
 }
 .admin-stat-value {
-    font-size: 2.6rem;
-    font-weight: 800;
+    font-size: 1.3rem;
+    font-weight: 700;
     /* softer, less saturated gradient for stat numbers */
     background: linear-gradient(135deg, rgba(74,144,226,0.9) 0%, rgba(80,200,120,0.85) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     line-height: 1;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.15rem;
     letter-spacing: -0.02em;
 }
 .admin-stat-label {
-    font-size: 0.9375rem;
+    font-size: 0.78rem;
     color: var(--text-main);
     font-weight: 600;
     margin-bottom: 0.25rem;
 }
 .admin-stat-sublabel {
-    font-size: 0.8125rem;
+    font-size: 0.68rem;
     color: var(--text-muted);
     font-weight: 500;
 }
@@ -455,7 +511,7 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
 <div class="content">
     <style>
     /* Responsive admin stats grid: prefer 4 columns on wide screens, down to 1 on small */
-    .admin-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; grid-auto-flow: dense; }
+    .admin-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem; grid-auto-flow: dense; }
     @media (max-width: 1200px) { .admin-stats-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 900px) { .admin-stats-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 600px) { .admin-stats-grid { grid-template-columns: 1fr; } }
@@ -470,10 +526,18 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
     .charts-grid .uploads-chart-card { grid-column: 1 / -1; }
     .charts-grid .disk-usage-card { grid-column: 1 / -1; }
+    /* unify card visuals for uploads and disk charts */
+    .uploads-chart-card .card-header, .disk-usage-card .card-header { padding: 0.6rem 1rem; }
+    .uploads-chart-card .card-body, .disk-usage-card .card-body { padding: 1rem 1rem 1.25rem 1rem; display:flex; gap:1rem; align-items:center; }
+    .uploads-chart-card canvas, .disk-usage-card canvas { width: 100%; height: 360px !important; display:block; }
+    /* Chart cards styling */
+    .uploads-chart-card, .disk-usage-card { border-radius: 6px; }
     .charts-grid .filetypes-chart-card { grid-column: 1 / -1; }
     /* Layout for filetypes chart with side legend/table */
-    .filetypes-chart-card .filetypes-chart-inner { display: grid; grid-template-columns: 1fr 300px; gap: 1rem; align-items: start; }
+    .filetypes-chart-card .filetypes-chart-inner { display: grid; grid-template-columns: 1fr minmax(220px, 300px); gap: 1rem; align-items: start; }
     @media (max-width: 1000px) { .filetypes-chart-card .filetypes-chart-inner { grid-template-columns: 1fr; } }
+    .filetypes-chart-card table { width: 100%; table-layout: fixed; }
+    .filetypes-chart-card td, .filetypes-chart-card th { word-break: break-word; }
     </style>
 
     <div class="admin-stats-grid">
@@ -610,51 +674,74 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
     <!-- Gráficos -->
     <div class="charts-grid">
         <div class="card uploads-chart-card">
-            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div class="card-header chart-card-header">
                 <h3 class="card-title"><i class="fas fa-chart-area"></i> Actividad de Subidas</h3>
-                <div class="period-selector" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                    <button class="period-btn <?php echo $period === 7 ? 'active' : ''; ?>" data-period="7">Últ. semana</button>
-                    <form method="GET" action="" style="display:inline-flex; gap:0.4rem; align-items:center; margin-left:0.5rem;">
-                        <label style="font-size:0.85rem; color:var(--text-muted);">Desde</label>
-                        <input type="date" name="from" value="<?php echo htmlspecialchars($fromDate ?? ''); ?>" style="padding:0.25rem; border-radius:4px; border:1px solid var(--border-color);">
-                        <label style="font-size:0.85rem; color:var(--text-muted);">Hasta</label>
-                        <input type="date" name="to" value="<?php echo htmlspecialchars($toDate ?? ''); ?>" style="padding:0.25rem; border-radius:4px; border:1px solid var(--border-color);">
+                <?php if (!empty($uploadsIsLastWeek)): ?>
+                    <span class="range-badge" id="uploads-range-badge">Mostrando: Últ. semana</span>
+                <?php else: ?>
+                    <span class="range-badge" id="uploads-range-badge" style="display:none;">Mostrando: Últ. semana</span>
+                <?php endif; ?>
+                <div class="period-selector">
+                    <button type="button" class="period-btn <?php echo ($uploadsIsLastWeek || $period === 7) ? 'active' : ''; ?>" data-period="7">Últ. semana</button>
+                    <form method="GET" action="" class="period-form">
+                        <label class="period-label">Desde</label>
+                        <input type="date" name="from" value="<?php echo htmlspecialchars($fromDate ?? ''); ?>" class="period-input">
+                        <label class="period-label">Hasta</label>
+                        <input type="date" name="to" value="<?php echo htmlspecialchars($toDate ?? ''); ?>" class="period-input">
                         <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Aplicar</button>
                     </form>
                 </div>
             </div>
-            <div class="card-body">
-                <canvas id="systemUploadsChart" height="300"></canvas>
+            <div class="card-body chart-card-body">
+                <div class="chart-left">
+                    <div style="width:100%; height:100%;">
+                        <canvas id="systemUploadsChart" height="360"></canvas>
+                    </div>
+                </div>
+                <div class="chart-right">
+                    <div id="uploads-total-files" class="big">
+                        <?php echo number_format($currentUploadsTotal); ?> archivos
+                    </div>
+                    <div id="uploads-total-size" class="muted">
+                        <?php echo round($currentVolumeMBTotal,2); ?> MB
+                    </div>
+                    <div id="uploads-active-users" class="muted">Usuarios activos (máx): <?php echo intval($currentActiveUsersMax); ?></div>
+                </div>
             </div>
         </div>
         
         <!-- Uso de Disco: formato similar a 'Actividad de Subidas' -->
         <div class="card disk-usage-card" style="width:100%;">
-            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div class="card-header chart-card-header">
                 <h3 class="card-title"><i class="fas fa-hdd"></i> Uso de Disco</h3>
-                <div style="display:flex; gap:0.75rem; align-items:center;">
-                    <div class="period-selector" style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-                        <button type="button" class="disk-period-btn <?php echo (isset($disk_period) && $disk_period === 7) ? 'active' : ''; ?>" data-disk-period="7">Últ. semana</button>
-                        <form method="GET" action="" style="display:inline-flex; gap:0.4rem; align-items:center;">
-                            <label style="font-size:0.85rem; color:var(--text-muted);">Desde</label>
-                            <input type="date" name="disk_from" value="<?php echo htmlspecialchars($disk_from ?? ''); ?>" style="padding:0.25rem; border-radius:4px; border:1px solid var(--border-color);">
-                            <label style="font-size:0.85rem; color:var(--text-muted);">Hasta</label>
-                            <input type="date" name="disk_to" value="<?php echo htmlspecialchars($disk_to ?? ''); ?>" style="padding:0.25rem; border-radius:4px; border:1px solid var(--border-color);">
+                <?php if (!empty($diskIsLastWeek)): ?>
+                    <span class="range-badge" id="disk-range-badge">Mostrando: Últ. semana</span>
+                <?php else: ?>
+                    <span class="range-badge" id="disk-range-badge" style="display:none;">Mostrando: Últ. semana</span>
+                <?php endif; ?>
+                <div class="header-controls">
+                    <div class="period-selector">
+                        <button type="button" class="disk-period-btn <?php echo ((isset($disk_from) && isset($disk_to) && $disk_from === date('Y-m-d', strtotime('-6 days')) && $disk_to === date('Y-m-d')) || (isset($disk_period) && $disk_period === 7)) ? 'active' : ''; ?>" data-disk-period="7">Últ. semana</button>
+                        <form method="GET" action="" class="period-form">
+                            <label class="period-label">Desde</label>
+                            <input type="date" name="disk_from" value="<?php echo htmlspecialchars($disk_from ?? ''); ?>" class="period-input">
+                            <label class="period-label">Hasta</label>
+                            <input type="date" name="disk_to" value="<?php echo htmlspecialchars($disk_to ?? ''); ?>" class="period-input">
                             <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Aplicar</button>
                         </form>
                     </div>
-                    <div style="color:var(--text-muted); font-size:0.95rem; margin-left:0.5rem;">Ruta: <?php echo htmlspecialchars($uploadsPath); ?></div>
+                    <div class="header-path">Ruta: <?php echo htmlspecialchars($uploadsPath); ?></div>
                 </div>
             </div>
-            <div class="card-body" style="display:flex; gap:1rem; align-items:center; flex-wrap:nowrap; width:100%;">
-                <div style="flex: 1 1 85%; min-width:0; width:85%;">
+            <div class="card-body chart-card-body">
+                <div class="chart-left">
                     <div style="width:100%; height:100%;">
-                        <canvas id="diskUsageChart" height="360" style="width:100%; height:360px; display:block;"></canvas>
+                        <canvas id="diskUsageChart" height="360"></canvas>
                     </div>
                 </div>
-                <div style="flex: 1 1 15%; min-width:0; width:15%;">
-                    <div style="font-size:1.25rem; font-weight:700; margin-bottom:0.25rem;"><?php echo $diskPercent; ?>% ocupado</div>
-                    <div style="color:var(--text-muted); margin-bottom:0.5rem;"><?php echo $diskUsedGB; ?> GB ocupados de <?php echo $diskTotalGB; ?> GB</div>
+                <div class="chart-right">
+                        <div id="disk-percent" class="big"><?php echo $diskPercent; ?>% ocupado</div>
+                        <div id="disk-used-total" class="muted"><?php echo $diskUsedGB; ?> GB ocupados de <?php echo $diskTotalGB; ?> GB</div>
                     <div style="margin-top:0.5rem;">Leyenda: <span style="display:inline-block;width:12px;height:12px;background:#4a90e2;margin-right:6px;border-radius:2px;"></span> Usado &nbsp; <span style="display:inline-block;width:12px;height:12px;background:#e6e6e6;margin:0 6px;border-radius:2px;"></span> Libre</div>
                 </div>
             </div>
@@ -1156,32 +1243,30 @@ $brandAccent = $config->get('brand_accent_color', '#667eea');
 <script src="<?php echo BASE_URL; ?>/assets/vendor/chartjs/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Period selector buttons
-    document.querySelectorAll('.period-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const period = this.getAttribute('data-period');
-            window.location.href = '<?php echo BASE_URL; ?>/admin/index.php?period=' + period;
-        });
-    });
+    // Delegated click handler for period selector buttons to avoid accidental form submits
+    document.addEventListener('click', function(ev){
+        const btn = ev.target.closest && ev.target.closest('.period-btn');
+        if (!btn) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const period = btn.getAttribute('data-period') || 7;
+        try {
+            if (typeof fetchUploadMetrics === 'function') {
+                fetchUploadMetrics({ period: period });
+                return;
+            }
+        } catch(e) {}
+        // fallback to full reload if AJAX not available
+        window.location.href = '<?php echo BASE_URL; ?>/admin/index.php?period=' + period;
+    }, true);
 
-    // Disk period shortcut buttons
-    document.querySelectorAll('.disk-period-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const period = this.getAttribute('data-disk-period');
-            // Preserve other query params (like 'period' for uploads)
-            const url = new URL(window.location.href);
-            url.searchParams.set('disk_period', period);
-            // remove explicit disk_from/disk_to to allow disk_period to take effect
-            url.searchParams.delete('disk_from');
-            url.searchParams.delete('disk_to');
-            window.location.href = url.toString();
-        });
-    });
+    // Disk period shortcut buttons — handled via AJAX later in the script
 
     // Gráfico de actividad del sistema
     const systemCtx = document.getElementById('systemUploadsChart');
     if (systemCtx) {
-        new Chart(systemCtx, {
+        // keep reference on window so we can update it via AJAX
+        window.systemChart = new Chart(systemCtx, {
             type: 'line',
             data: {
                 labels: <?php echo json_encode($dailyLabels); ?>,
@@ -1252,10 +1337,78 @@ document.addEventListener('DOMContentLoaded', function() {
                         type: 'linear',
                         display: false,
                         position: 'right',
+                    },
+                    x: {
+                        // ensure labels are plotted left->right chronological
+                        reverse: false,
+                        offset: false,
+                        ticks: {
+                            maxRotation: 0,
+                            autoSkip: true
+                        }
                     }
                 }
             }
         });
+
+        // helper to update uploads chart data from JSON
+        function applyUploadData(data) {
+            if (!window.systemChart) return;
+            window.systemChart.data.labels = data.labels || [];
+            if (window.systemChart.data.datasets[0]) {
+                window.systemChart.data.datasets[0].data = data.counts || [];
+            }
+            if (window.systemChart.data.datasets[1]) {
+                window.systemChart.data.datasets[1].data = data.sizes || [];
+            }
+            if (window.systemChart.data.datasets[2]) {
+                window.systemChart.data.datasets[2].data = data.users || [];
+            }
+            window.systemChart.update();
+        }
+
+        // fetch helper for uploads metrics
+        async function fetchUploadMetrics(params) {
+            const qs = new URLSearchParams(params || {}).toString();
+            const resp = await fetch('upload_metrics.php?' + qs, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!resp.ok) return;
+            const json = await resp.json();
+            applyUploadData(json);
+
+            // update URL without reloading (keep upload params)
+            const url = new URL(window.location);
+            url.searchParams.delete('from');
+            url.searchParams.delete('to');
+            url.searchParams.delete('period');
+            if (json._params) {
+                if (json._params.from) url.searchParams.set('from', json._params.from);
+                if (json._params.to) url.searchParams.set('to', json._params.to);
+                if (json._params.period) url.searchParams.set('period', json._params.period);
+            }
+            history.replaceState({}, '', url);
+            // Update uploads period button active state
+            try {
+                const lastFrom = new Date(); lastFrom.setDate(lastFrom.getDate() - ( (json._params && json._params.period) ? (json._params.period -1) : 6 ));
+                const lastFromStr = lastFrom.toISOString().slice(0,10);
+                const lastToStr = new Date().toISOString().slice(0,10);
+                const isLastWeek = (json._params && ((json._params.period && parseInt(json._params.period) === 7) || (json._params.from === lastFromStr && json._params.to === lastToStr)));
+                document.querySelectorAll('.period-btn').forEach(b=> b.classList.toggle('active', isLastWeek));
+                const uploadsBadge = document.getElementById('uploads-range-badge');
+                if (uploadsBadge) uploadsBadge.style.display = isLastWeek ? 'inline-block' : 'none';
+            } catch(e) {}
+        }
+
+        // wire up the uploads date form to submit via AJAX
+        const uploadsForm = document.querySelector('.uploads-chart-card .period-selector form');
+        if (uploadsForm) {
+            uploadsForm.addEventListener('submit', function(ev) {
+                ev.preventDefault();
+                const fd = new FormData(uploadsForm);
+                const from = fd.get('from');
+                const to = fd.get('to');
+                fetchUploadMetrics({ from: from, to: to });
+            });
+        }
     }
 
     // Gráfico de distribución de tipos
@@ -1290,7 +1443,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gráfico de uso de disco: serie temporal (GB vs tiempo)
     const diskCtx = document.getElementById('diskUsageChart');
     if (diskCtx) {
-        new Chart(diskCtx, {
+        // keep a reference so we can update it via AJAX without reloading
+        window.diskChart = new Chart(diskCtx, {
             type: 'line',
             data: {
                 labels: <?php echo json_encode($diskLabels ?: [$diskLabels ? $diskLabels[0] : date('d/m H:i')]); ?>,
@@ -1337,6 +1491,87 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             }
+        });
+
+        // helper to update chart data from JSON response
+        function applyDiskData(data) {
+            if (!window.diskChart) return;
+            window.diskChart.data.labels = data.labels || [];
+            if (window.diskChart.data.datasets[0]) {
+                window.diskChart.data.datasets[0].data = data.used || [];
+            }
+            if (window.diskChart.data.datasets[1]) {
+                window.diskChart.data.datasets[1].data = data.total || [];
+            }
+            // update y max if provided
+            if (data.capacity_gb) {
+                const cap = parseFloat(data.capacity_gb);
+                if (window.diskChart.options && window.diskChart.options.scales && window.diskChart.options.scales.y) {
+                    window.diskChart.options.scales.y.max = cap;
+                    window.diskChart.options.scales.y.ticks.stepSize = Math.max(1, Math.round(cap/10));
+                }
+            }
+            window.diskChart.update();
+
+            // update small stats on the right
+            if (data.percent !== undefined) {
+                const el = document.getElementById('disk-percent');
+                if (el) el.textContent = data.percent + '% ocupado';
+            }
+            if (data.used_gb !== undefined && data.total_gb !== undefined) {
+                const el2 = document.getElementById('disk-used-total');
+                if (el2) el2.textContent = data.used_gb + ' GB ocupados de ' + data.total_gb + ' GB';
+            }
+        }
+
+        // fetch helper
+        async function fetchDiskMetrics(params) {
+            const qs = new URLSearchParams(params || {}).toString();
+            const resp = await fetch('disk_metrics.php?' + qs, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!resp.ok) return;
+            const json = await resp.json();
+            applyDiskData(json);
+            // update URL without reloading
+            const url = new URL(window.location);
+            // keep only disk-related params
+            url.searchParams.delete('disk_from');
+            url.searchParams.delete('disk_to');
+            url.searchParams.delete('disk_period');
+            if (json._params) {
+                if (json._params.disk_from) url.searchParams.set('disk_from', json._params.disk_from);
+                if (json._params.disk_to) url.searchParams.set('disk_to', json._params.disk_to);
+                if (json._params.disk_period) url.searchParams.set('disk_period', json._params.disk_period);
+            }
+            history.replaceState({}, '', url);
+            // Update disk period button active state
+            try {
+                const lastFrom = new Date(); lastFrom.setDate(lastFrom.getDate() - ((json._params && json._params.disk_period) ? (parseInt(json._params.disk_period) -1) : 6));
+                const lastFromStr = lastFrom.toISOString().slice(0,10);
+                const lastToStr = new Date().toISOString().slice(0,10);
+                const isLastWeekDisk = (json._params && ((json._params.disk_period && parseInt(json._params.disk_period) === 7) || (json._params.disk_from === lastFromStr && json._params.disk_to === lastToStr)));
+                document.querySelectorAll('.disk-period-btn').forEach(b=> b.classList.toggle('active', isLastWeekDisk));
+                const diskBadge = document.getElementById('disk-range-badge');
+                if (diskBadge) diskBadge.style.display = isLastWeekDisk ? 'inline-block' : 'none';
+            } catch(e) {}
+        }
+
+        // wire up the period buttons and the inline form
+        const diskForm = document.querySelector('.disk-usage-card .period-selector form');
+        if (diskForm) {
+            diskForm.addEventListener('submit', function(ev) {
+                ev.preventDefault();
+                const fd = new FormData(diskForm);
+                const disk_from = fd.get('disk_from');
+                const disk_to = fd.get('disk_to');
+                fetchDiskMetrics({ disk_from: disk_from, disk_to: disk_to });
+            });
+        }
+
+        document.querySelectorAll('.disk-period-btn').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                const p = btn.getAttribute('data-disk-period') || 7;
+                fetchDiskMetrics({ disk_period: p });
+            });
         });
     }
     
