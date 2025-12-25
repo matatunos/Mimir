@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/lang.php';
 // Ensure opcode cache loads latest class definition
 if (function_exists('opcache_invalidate')) {
     @opcache_invalidate(__DIR__ . '/../../classes/File.php', true);
@@ -19,13 +20,15 @@ $auth = new Auth();
 // For AJAX endpoints return JSON 401 instead of redirecting to login page
 if (!$auth->isLoggedIn()) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'message' => t('error_auth_required')]);
+    $msg = function_exists('t') ? t('error_auth_required') : 'Authentication required';
+    echo json_encode(['success' => false, 'message' => $msg]);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'message' => t('error_invalid_method')]);
+    $msg = function_exists('t') ? t('error_invalid_method') : 'Invalid method';
+    echo json_encode(['success' => false, 'message' => $msg]);
     exit;
 }
 
@@ -37,7 +40,8 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     if (!isset($input['folder_name']) || empty(trim($input['folder_name']))) {
-        throw new Exception(t('error_folder_name_required'));
+        $err = function_exists('t') ? t('error_folder_name_required') : 'Folder name is required';
+        throw new Exception($err);
     }
     
     $folderName = trim($input['folder_name']);
@@ -48,9 +52,10 @@ try {
     // Create folder
     $folderId = $fileClass->createFolder($user['id'], $folderName, $parentFolderId);
     
+    $succMsg = function_exists('t') ? t('folder_created_success') : 'Folder created';
     echo json_encode([
         'success' => true,
-        'message' => t('folder_created_success'),
+        'message' => $succMsg,
         'folder_id' => $folderId
     ]);
     
