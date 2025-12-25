@@ -96,6 +96,14 @@ renderHeader(t('my_shared_links'), $user);
                             <?php foreach ($shares as $share): ?>
                             <?php 
                                 $shareUrl = BASE_URL . '/s/' . $share['token'];
+                                // detect gallery image: image MIME, no expiry, unlimited downloads
+                                $isGalleryImage = false;
+                                if (!empty($share['mime_type']) && strpos($share['mime_type'], 'image/') === 0) {
+                                    $noExpiry = empty($share['expires_at']);
+                                    $unlimited = empty($share['max_downloads']);
+                                    if ($noExpiry && $unlimited) $isGalleryImage = true;
+                                }
+                                $shareRawUrl = $shareUrl . '/' . rawurlencode($share['original_name']);
                             ?>
                             <tr>
                                 <td>
@@ -107,7 +115,10 @@ renderHeader(t('my_shared_links'), $user);
                                                 <?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB
                                                 <?php if ($share['password_hash']): ?>
                                                         <span style="margin-left: 0.5rem;"><i class="fas fa-lock"></i> <?php echo t('protected'); ?></span>
-                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                                <?php if ($isGalleryImage): ?>
+                                                    <span style="margin-left:0.5rem; background:#f5e6b8; color:#7a5a0a; padding:2px 6px; border-radius:4px; font-weight:600; font-size:0.75rem;"><?php echo htmlspecialchars(t('gallery')) ?? 'Galería'; ?></span>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>
@@ -148,7 +159,7 @@ renderHeader(t('my_shared_links'), $user);
                                 </td>
                                 <td>
                                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                        <button type="button" class="btn btn-sm btn-primary copy-link-btn" data-url="<?php echo htmlspecialchars($shareUrl); ?>" title="<?php echo t('copy'); ?>"><i class="fas fa-clipboard"></i> <?php echo t('copy'); ?></button>
+                                        <button type="button" class="btn btn-sm btn-primary copy-link-btn" data-url="<?php echo htmlspecialchars($isGalleryImage ? $shareRawUrl : $shareUrl); ?>" title="<?php echo t('copy'); ?>"><i class="fas fa-clipboard"></i> <?php echo t('copy'); ?></button>
                                         <a href="<?php echo $shareUrl; ?>" target="_blank" class="btn btn-sm btn-success" title="<?php echo t('open_link'); ?>"><i class="fas fa-link"></i> <?php echo t('open_link'); ?></a>
                                         <form method="POST" style="display: inline;">
                                             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
