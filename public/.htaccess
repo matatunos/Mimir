@@ -1,6 +1,9 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
-    # Rewrite share URLs /s/{token} to /s/index.php?token={token}
-    RewriteRule ^s/([a-zA-Z0-9]{32})$ s/index.php?token=$1 [L,QSA]
+
+    # If request is for /s/<token>/optional-filename, route to /s/index.php?token=<token>
+    RewriteRule ^s/([A-Fa-f0-9]{32}|[A-Fa-f0-9]{64})(?:/.*)?$ /s/index.php?token=$1 [L,QSA]
+
+    # Allow direct access to files in /sfiles (public raw files)
+    RewriteRule ^sfiles/ - [L]
 </IfModule>
