@@ -167,6 +167,7 @@ renderHeader(t('my_shared_links'), $user);
                                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                         <button type="button" class="btn btn-sm btn-primary copy-link-btn" data-url="<?php echo htmlspecialchars($isGalleryImage ? $shareRawUrl : $shareUrl); ?>" title="<?php echo t('copy'); ?>"><i class="fas fa-clipboard"></i> <?php echo t('copy'); ?></button>
                                         <a href="<?php echo $shareUrl; ?>" target="_blank" class="btn btn-sm btn-success" title="<?php echo t('open_link'); ?>"><i class="fas fa-link"></i> <?php echo t('open_link'); ?></a>
+                                        <button type="button" class="btn btn-sm btn-secondary copy-raw-btn" data-url="<?php echo htmlspecialchars($shareRawUrl); ?>" title="<?php echo t('direct_link'); ?>"><i class="fas fa-external-link-alt"></i> <?php echo t('direct_link'); ?></button>
                                         <form method="POST" style="display: inline;">
                                             <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
                                             <input type="hidden" name="share_id" value="<?php echo $share['id']; ?>">
@@ -215,6 +216,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 prompt('Copia este enlace:', url);
             }
             
+            document.body.removeChild(textarea);
+        });
+    });
+    const copyRawButtons = document.querySelectorAll('.copy-raw-btn');
+    copyRawButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            const textarea = document.createElement('textarea');
+            textarea.value = url;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                Mimir.showAlert(<?php echo json_encode(t('copied_to_clipboard')); ?>, 'success');
+            } catch (err) {
+                prompt('Copia este enlace:', url);
+            }
             document.body.removeChild(textarea);
         });
     });
