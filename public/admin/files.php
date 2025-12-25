@@ -579,26 +579,28 @@ renderHeader('Gestión de Archivos', $user);
     </div>
 </div>
 
-<!-- Bulk Actions Bar -->
+<!-- Compact Bulk Actions Bar (match user UI style) -->
 <div class="bulk-actions-bar" id="bulkActionsBar">
-    <span id="selectedCount">0</span> <?php echo t('selected_files'); ?>
-    <button type="button" class="btn btn-danger" onclick="confirmBulkAction('delete')">
-        <i class="fas fa-trash"></i> <?php echo t('delete'); ?>
-    </button>
-    <button type="button" class="btn btn-warning" onclick="confirmBulkAction('unshare')">
-        <i class="fas fa-ban"></i> <?php echo t('unshare_selected'); ?>
-    </button>
-    <button type="button" class="btn btn-success" onclick="confirmBulkAction('share')">
-        <i class="fas fa-share"></i> <?php echo t('mark_shared_selected'); ?>
-    </button>
-    <button type="button" class="btn btn-primary" onclick="confirmBulkAction('download')">
-        <i class="fas fa-download"></i> <?php echo t('download_selected'); ?>
-    </button>
-    <button type="button" class="btn btn-info" onclick="openReassignModal()">
-        <i class="fas fa-user-edit"></i> <?php echo t('reassign'); ?>
-    </button>
-    <button type="button" class="btn btn-secondary" onclick="clearSelection()">
-        <i class="fas fa-times"></i> <?php echo htmlspecialchars(t('cancel')); ?>
+    <span id="selectedCount">0</span>
+    <div style="display:inline-flex; align-items:center; gap:0.4rem; margin-left:0.5rem;">
+        <button type="button" class="btn btn-danger" onclick="confirmBulkAction('delete')" title="<?php echo t('delete'); ?>">
+            <i class="fas fa-trash"></i>
+        </button>
+        <button type="button" class="btn btn-warning" onclick="confirmBulkAction('unshare')" title="<?php echo t('unshare_selected'); ?>">
+            <i class="fas fa-ban"></i>
+        </button>
+        <button type="button" class="btn btn-success" onclick="confirmBulkAction('share')" title="<?php echo t('mark_shared_selected'); ?>">
+            <i class="fas fa-share"></i>
+        </button>
+        <button type="button" class="btn btn-primary" onclick="confirmBulkAction('download')" title="<?php echo t('download_selected'); ?>">
+            <i class="fas fa-download"></i>
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="clearSelection()" title="<?php echo htmlspecialchars(t('cancel')); ?>">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <button type="button" class="btn btn-outline btn-outline--on-dark" id="selectAllMatchingBtn" onclick="selectAllFiltered()" style="margin-left:0.5rem; padding:0.35rem 0.6rem; font-size:0.85rem;">
+        <?php echo htmlspecialchars(t('select_all_matching', [$totalFiles])); ?>
     </button>
 </div>
 

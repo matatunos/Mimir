@@ -10,10 +10,59 @@ $auth->requireAdmin();
 $user = $auth->getUser();
 $userClass = new User();
 
-// Handle bulk actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['bulk_action']) && !empty($_POST['user_ids'])) {
+// Handle bulk actions (support select_all via filters)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['bulk_action']) && (!empty($_POST['user_ids']) || (isset($_POST['select_all']) && $_POST['select_all'] == '1'))) {
     $action = $_POST['bulk_action'];
-    $userIds = array_map('intval', $_POST['user_ids']);
+    $userIds = is_array($_POST['user_ids'] ?? null) ? array_map('intval', $_POST['user_ids']) : [];
+
+    // If select_all flag provided, build the user ID list according to provided filters
+    if (isset($_POST['select_all']) && $_POST['select_all'] == '1') {
+        $filters = $_POST['filters'] ?? '';
+        $farr = [];
+        if ($filters !== '') parse_str($filters, $farr);
+
+        $search_f = $farr['search'] ?? '';
+        $filterRole_f = $farr['role'] ?? '';
+        $filterActive_f = $farr['active'] ?? '';
+        $filter2FA_f = $farr['twofa'] ?? '';
+        $filterInactive_f = $farr['inactive'] ?? '';
+
+        $whereA = ["1=1"];
+        $paramsA = [];
+        if ($search_f) {
+            $whereA[] = "(u.username LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)";
+            $paramsA[] = "%$search_f%";
+            $paramsA[] = "%$search_f%";
+            $paramsA[] = "%$search_f%";
+        }
+        if ($filterRole_f) {
+            $whereA[] = "u.role = ?";
+            $paramsA[] = $filterRole_f;
+        }
+        if ($filterActive_f === 'yes') {
+            $whereA[] = "u.is_active = 1";
+        } elseif ($filterActive_f === 'no') {
+            $whereA[] = "u.is_active = 0";
+        }
+        if ($filter2FA_f === 'yes') {
+            $whereA[] = "EXISTS (SELECT 1 FROM user_2fa WHERE user_id = u.id AND is_enabled = 1)";
+        } elseif ($filter2FA_f === 'no') {
+            $whereA[] = "NOT EXISTS (SELECT 1 FROM user_2fa WHERE user_id = u.id AND is_enabled = 1)";
+        } elseif ($filter2FA_f === 'required') {
+            $whereA[] = "u.require_2fa = 1";
+        }
+        if ($filterInactive_f) {
+            $days = intval($filterInactive_f);
+            $whereA[] = "(SELECT MAX(created_at) FROM activity_log WHERE user_id = u.id) < DATE_SUB(NOW(), INTERVAL ? DAY) OR (SELECT MAX(created_at) FROM activity_log WHERE user_id = u.id) IS NULL";
+            $paramsA[] = $days;
+        }
+
+        $whereClauseA = implode(' AND ', $whereA);
+        $stmtA = $db->prepare("SELECT u.id FROM users u WHERE $whereClauseA");
+        $stmtA->execute($paramsA);
+        $rows = $stmtA->fetchAll(PDO::FETCH_ASSOC);
+        $userIds = array_map(function($r){ return intval($r['id']); }, $rows);
+    }
     $success = 0;
     $errors = 0;
     
@@ -438,6 +487,8 @@ renderHeader('Gestión de Usuarios', $user);
                 <div class="table-responsive">
                     <form method="POST" id="bulkActionForm">
                         <input type="hidden" name="bulk_action" id="bulkActionInput">
+                        <input type="hidden" name="select_all" id="selectAllFlag" value="0">
+                        <input type="hidden" name="filters" id="bulkFilters" value="">
                         <table class="table users-table-compact">
                             <thead>
                                     <th style="width: 40px;">
@@ -667,29 +718,32 @@ renderHeader('Gestión de Usuarios', $user);
                     </form>
                 </div>
 
-                <!-- Bulk Actions Bar -->
+                <!-- Compact Bulk Actions Bar (match user UI style) -->
                 <div class="bulk-actions-bar" id="bulkActionsBar" style="display: none;">
-                    <span id="selectedCount">0</span> usuarios seleccionados
-                    <div style="display: flex; gap: 0.5rem; margin-left: auto;">
+                    <span id="selectedCount">0</span>
+                    <div style="display:inline-flex; align-items:center; gap:0.4rem; margin-left:0.5rem;">
                         <button type="button" class="btn btn-sm btn-success" onclick="executeBulkAction('activate')" title="<?php echo t('activate'); ?> <?php echo t('users'); ?>">
-                            <i class="fas fa-check-circle"></i> <?php echo t('activate'); ?>
+                            <i class="fas fa-check-circle"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-warning" onclick="executeBulkAction('deactivate')" title="<?php echo t('deactivate'); ?> <?php echo t('users'); ?>">
-                            <i class="fas fa-ban"></i> <?php echo t('deactivate'); ?>
+                            <i class="fas fa-ban"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-info" onclick="executeBulkAction('require_2fa')" title="Requerir 2FA">
-                            <i class="fas fa-shield-alt"></i> Requerir 2FA
+                            <i class="fas fa-shield-alt"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-secondary" onclick="executeBulkAction('unrequire_2fa')" title="No requerir 2FA">
-                            <i class="fas fa-shield-alt"></i> Quitar 2FA Obligatorio
+                            <i class="fas fa-shield-alt"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-danger" onclick="executeBulkAction('delete')" title="Eliminar usuarios">
-                            <i class="fas fa-trash"></i> <?php echo t('delete'); ?>
+                            <i class="fas fa-trash"></i>
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline" onclick="cancelBulkSelection()">
-                            <i class="fas fa-times"></i> <?php echo t('cancel'); ?>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="cancelBulkSelection()" title="<?php echo t('cancel'); ?>">
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
+                    <button type="button" class="btn btn-outline btn-outline--on-dark" id="selectAllMatchingBtn" style="margin-left:0.5rem; padding:0.35rem 0.6rem; font-size:0.85rem;">
+                        <?php echo htmlspecialchars(t('select_all_matching', [$totalUsers])); ?>
+                    </button>
                 </div>
 
                 <?php if ($totalPages > 1): ?>
@@ -740,6 +794,8 @@ document.addEventListener('DOMContentLoaded', function() {
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', updateBulkActionsBar);
     });
+    const selBtn = document.getElementById('selectAllMatchingBtn');
+    if (selBtn) selBtn.addEventListener('click', selectAllFiltered);
 });
 
 // Compact view feature removed — all columns are always visible for admin users.
@@ -768,6 +824,9 @@ function cancelBulkSelection() {
     checkboxes.forEach(cb => cb.checked = false);
     document.getElementById('selectAll').checked = false;
     updateBulkActionsBar();
+    // Clear select_all mode and filters
+    const selectAllFlag = document.getElementById('selectAllFlag'); if (selectAllFlag) selectAllFlag.value = '0';
+    const filtersInput = document.getElementById('bulkFilters'); if (filtersInput) filtersInput.value = '';
 }
 
 function executeBulkAction(action) {
@@ -799,9 +858,28 @@ function executeBulkAction(action) {
     }
     
     if (confirm(message)) {
+        // If select_all mode is active, set hidden inputs accordingly
+        const selectAllFlag = document.getElementById('selectAllFlag');
+        const filtersInput = document.getElementById('bulkFilters');
+        if (selectAllFlag && selectAllFlag.value === '1') {
+            // include current query string (without leading ?)
+            filtersInput.value = window.location.search.length ? window.location.search.substring(1) : '';
+        } else {
+            // ensure filters empty when not selecting all
+            if (filtersInput) filtersInput.value = '';
+        }
         document.getElementById('bulkActionInput').value = action;
         document.getElementById('bulkActionForm').submit();
     }
+}
+
+// Select all matching (filtered) users
+function selectAllFiltered() {
+    // mark that user wants to select all users matching filters
+    document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = true);
+    const selectAllFlag = document.getElementById('selectAllFlag'); if (selectAllFlag) selectAllFlag.value = '1';
+    document.getElementById('selectedCount').textContent = '<?php echo $totalUsers; ?>';
+    document.getElementById('bulkActionsBar').style.display = 'flex';
 }
 
 function toggleUserStatus(userId, activate) {
