@@ -109,7 +109,15 @@ renderHeader(t('my_shared_links'), $user);
                                     $unlimited = empty($share['max_downloads']);
                                     if ($noExpiry && $unlimited) $isGalleryImage = true;
                                 }
+                                $ext = pathinfo($share['file_path'] ?? '', PATHINFO_EXTENSION);
+                                $publicFileName = $share['token'] . ($ext ? '.' . $ext : '');
+                                $publicPath = PUBLIC_PATH . '/sfiles/' . $publicFileName;
+                                $publicSfilesUrl = BASE_URL . '/sfiles/' . $publicFileName;
                                 $shareRawUrl = $shareUrl . '/' . rawurlencode($share['original_name']);
+                                // prefer public sfiles url when the file exists
+                                if (file_exists($publicPath)) {
+                                    $shareRawUrl = $publicSfilesUrl;
+                                }
                             ?>
                             <tr>
                                 <td>
