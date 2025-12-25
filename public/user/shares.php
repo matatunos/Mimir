@@ -49,9 +49,15 @@ $allShares = $shareClass->getByUser($user['id']);
 
 // Filtrar solo las comparticiones actualmente activas (activas, no expiradas, no alcanzado límite)
 $shares = array_filter($allShares, function($share) {
-    $isExpired = strtotime($share['expires_at']) < time();
+    $isExpired = false;
+    if (!empty($share['expires_at'])) {
+        $expiresTs = strtotime($share['expires_at']);
+        if ($expiresTs !== false && $expiresTs < time()) {
+            $isExpired = true;
+        }
+    }
     $isMaxed = $share['max_downloads'] && $share['download_count'] >= $share['max_downloads'];
-    return $share['is_active'] && !$isExpired && !$isMaxed;
+    return !empty($share['is_active']) && !$isExpired && !$isMaxed;
 });
 
 $isAdmin = ($user['role'] === 'admin');
