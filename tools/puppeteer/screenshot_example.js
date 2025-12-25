@@ -39,6 +39,37 @@ const puppeteer = require('puppeteer');
     }
     await page.screenshot({ path: 'docs/screenshots/03-my-files.png', fullPage: true });
 
+    // --- Upload a test file ---
+    try {
+      await page.goto(baseUrl + '/user/upload.php', { waitUntil: 'networkidle2' });
+      await page.screenshot({ path: 'docs/screenshots/04-upload-select.png', fullPage: true });
+      const input = await page.$('input[type=file][name="files[]"]');
+      if (input) {
+        await input.uploadFile('tools/puppeteer/test_assets/sample.png');
+        // Submit the form
+        await Promise.all([
+          page.click('button[type=submit]'),
+          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(()=>{})
+        ]);
+        await page.screenshot({ path: 'docs/screenshots/05-upload-result.png', fullPage: true });
+      }
+    } catch (err) {
+      console.error('Upload step failed:', err.message);
+    }
+
+    // --- Publish first file to gallery (click publish button on files list) ---
+    try {
+      await page.goto(baseUrl + '/user/files.php', { waitUntil: 'networkidle2' });
+      // Wait for publish button and click the first one
+      await page.waitForSelector('.publish-gallery-btn', { timeout: 8000 });
+      await page.click('.publish-gallery-btn');
+      // Wait for modal to appear
+      await page.waitForSelector('#publishGalleryModal', { visible: true, timeout: 8000 });
+      await page.screenshot({ path: 'docs/screenshots/09-gallery-modal.png', fullPage: true });
+    } catch (err) {
+      console.error('Publish step failed:', err.message);
+    }
+
     // Additional manual steps can be scripted here, for example:
     // - Open upload dialog (click selector), capture
     // - Click on an image thumbnail to open preview, capture
