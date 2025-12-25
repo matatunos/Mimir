@@ -440,10 +440,10 @@ renderHeader('Gestión de Archivos', $user);
                     <p style="color: var(--text-muted);">Intenta ajustar los filtros de búsqueda</p>
                 </div>
             <?php else: ?>
-                <form method="POST" id="bulkForm">
-                    <input type="hidden" name="action" id="bulkAction">
-                    <input type="hidden" name="select_all" id="selectAllFlag" value="0">
-                    <input type="hidden" name="filters" id="bulkFilters" value="">
+                <form method="POST" id="userBulkForm">
+                    <input type="hidden" name="action" id="userBulkAction">
+                    <input type="hidden" name="select_all" id="userSelectAll" value="0">
+                    <input type="hidden" name="filters" id="userBulkFilters" value="">
                     
                     <div style="overflow-x: auto;">
                         <table class="table">
@@ -513,7 +513,7 @@ renderHeader('Gestión de Archivos', $user);
                                 <?php foreach ($files as $file): ?>
                                 <tr>
                                     <td>
-                                        <input type="checkbox" name="file_ids[]" value="<?php echo $file['id']; ?>" class="file-checkbox file-item">
+                                        <input type="checkbox" name="file_ids[]" value="<?php echo $file['id']; ?>" class="file-checkbox user-file-item">
                                     </td>
                                     <td>
                                         <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;" title="<?php echo htmlspecialchars($file['original_name']); ?>">
@@ -580,8 +580,8 @@ renderHeader('Gestión de Archivos', $user);
 </div>
 
 <!-- Compact Bulk Actions Bar (match user UI style) -->
-<div class="bulk-actions-bar" id="bulkActionsBar">
-    <span id="selectedCount">0</span>
+<div class="bulk-actions-bar" id="userBulkActionsBar">
+    <span id="userSelectedCount">0</span>
     <div style="display:inline-flex; align-items:center; gap:0.4rem; margin-left:0.5rem;">
         <button type="button" class="btn btn-danger" onclick="confirmBulkAction('delete')" title="<?php echo t('delete'); ?>">
             <i class="fas fa-trash"></i>
@@ -623,10 +623,10 @@ if (!window._selectAllFilteredActive) window._selectAllFilteredActive = function
 if (!window._setSelectAllFilteredActive) window._setSelectAllFilteredActive = function(v){};
 
 document.addEventListener('DOMContentLoaded', function() {
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const fileCheckboxes = document.querySelectorAll('.file-item');
-    const bulkActionsBar = document.getElementById('bulkActionsBar');
-    const selectedCountSpan = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllUser');
+    const fileCheckboxes = document.querySelectorAll('.user-file-item');
+    const bulkActionsBar = document.getElementById('userBulkActionsBar');
+    const selectedCountSpan = document.getElementById('userSelectedCount');
     // total number of files matching current filters (populated server-side)
     // (declared earlier to avoid races)
     let selectAllFilteredActive = false;
@@ -642,22 +642,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    selectAllCheckbox.addEventListener('change', function() {
-        fileCheckboxes.forEach(cb => cb.checked = this.checked);
-        updateBulkActionsBar();
-    });
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            fileCheckboxes.forEach(cb => cb.checked = this.checked);
+            // clear userSelectAll flag
+            const s = document.getElementById('userSelectAll'); if (s) s.value = '0';
+            updateBulkActionsBar();
+        });
+    }
     
     fileCheckboxes.forEach(cb => {
         cb.addEventListener('change', function() {
             // any manual change cancels the 'select all filtered' mode
             if (window._setSelectAllFilteredActive) window._setSelectAllFilteredActive(false);
+            // clear userSelectAll flag
+            const s = document.getElementById('userSelectAll'); if (s) s.value = '0';
             updateBulkActionsBar();
-            
+
             // Update select all checkbox state
             const allChecked = Array.from(fileCheckboxes).every(cb => cb.checked);
             const someChecked = Array.from(fileCheckboxes).some(cb => cb.checked);
-            selectAllCheckbox.checked = allChecked;
-            selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            }
         });
     });
     // expose selectAllFilteredActive to global scope
@@ -701,11 +709,13 @@ function toggleSelectAll() {
 function selectAllFiltered() {
     // mark that user wants to select all files matching filters
     // check the visible checkboxes too for visual feedback
-    document.querySelectorAll('.file-item').forEach(cb => cb.checked = true);
-    document.getElementById('selectAll').checked = true;
+    document.querySelectorAll('.user-file-item').forEach(cb => cb.checked = true);
+    const sel = document.getElementById('selectAllUser'); if (sel) sel.checked = true;
+    // set hidden flag
+    const s = document.getElementById('userSelectAll'); if (s) s.value = '1';
     window._setSelectAllFilteredActive(true);
-    document.getElementById('selectedCount').textContent = totalFilteredFiles;
-    document.getElementById('bulkActionsBar').classList.add('show');
+    document.getElementById('userSelectedCount').textContent = totalFilteredFiles;
+    const bar = document.getElementById('userBulkActionsBar'); if (bar) bar.classList.add('show');
 }
 
 function clearSelection() {

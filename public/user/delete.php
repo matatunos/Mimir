@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/lang.php';
 require_once __DIR__ . '/../../classes/File.php';
 require_once __DIR__ . '/../../classes/Logger.php';
 

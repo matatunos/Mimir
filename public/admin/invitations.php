@@ -60,6 +60,15 @@ $success = '';
                         }
                     }
 
+                    // Also ensure the forced username is not already reserved in a pending invitation
+                    if (!$error && $forcedUsername) {
+                        $stmtInv = $db->prepare('SELECT id FROM invitations WHERE forced_username = ? AND is_revoked = 0 AND used_at IS NULL LIMIT 1');
+                        $stmtInv->execute([$forcedUsername]);
+                        if ($stmtInv->fetch()) {
+                            $error = t('error_forced_username_exists');
+                        }
+                    }
+
                     if (empty($error)) {
                         $token = $inv->create($email, $user['id'], ['role' => $role, 'message' => $message, 'expires_hours' => $expiresHours, 'send_email' => $sendEmail, 'forced_username' => $forcedUsername, 'force_2fa' => $force2fa]);
                     } else {

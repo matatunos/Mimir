@@ -1,0 +1,17 @@
+[Unit]
+Description=Mimir Notification Worker
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/Mimir
+ExecStart=/usr/bin/php /opt/Mimir/tools/notification_worker.php
+Restart=always
+RestartSec=5
+SyslogIdentifier=mimir-notification-worker
+
+[Install]
+WantedBy=multi-user.target

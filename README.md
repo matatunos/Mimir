@@ -126,6 +126,46 @@ cd Mimir
 sudo chmod +x install.sh
 sudo ./install.sh
 ```
+## 🛠️ Background workers
+
+Este proyecto dispone de un worker CLI que procesa la cola de notificaciones `notification_jobs`.
+
+Servicio systemd (recomendado)
+
+1. Copiar la unidad systemd al host:
+
+```bash
+sudo cp /opt/Mimir/deploy/mimir-notification-worker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now mimir-notification-worker.service
+```
+
+2. Comandos útiles:
+
+```bash
+# Ver estado
+sudo systemctl status mimir-notification-worker.service
+
+# Ver logs
+sudo journalctl -u mimir-notification-worker.service -f
+
+# Reiniciar
+sudo systemctl restart mimir-notification-worker.service
+
+# Detener y deshabilitar
+sudo systemctl disable --now mimir-notification-worker.service
+```
+
+Alternativa temporal
+
+Si no quieres crear la unidad systemd inmediatamente, puedes lanzar el worker en background:
+
+```bash
+nohup php /opt/Mimir/tools/notification_worker.php > /var/log/mimir_notification_worker.log 2>&1 &
+```
+
+Nota: se recomienda systemd para reinicios automáticos y supervisión.
+
 
 El script de instalación:
 1. Verifica dependencias del sistema

@@ -9,6 +9,9 @@ $auth = new Auth();
 $auth->requireAdmin();
 $user = $auth->getUser();
 $userClass = new User();
+// Ensure DB connection is available for any early operations (bulk actions may run before
+// the later $db assignment). Initialize here to avoid undefined variable errors.
+$db = Database::getInstance()->getConnection();
 
 // Handle bulk actions (support select_all via filters)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['bulk_action']) && (!empty($_POST['user_ids']) || (isset($_POST['select_all']) && $_POST['select_all'] == '1'))) {
@@ -271,40 +274,44 @@ renderHeader('Gestión de Usuarios', $user);
     cursor: pointer;
 }
 /* Responsive adjustments to save horizontal space */
-.users-table-compact { table-layout: auto; width: auto; }
+.users-table-compact { table-layout: fixed; width: 100%; }
 .users-table-compact th, .users-table-compact td {
     padding: 0.05rem 0.14rem;
     vertical-align: middle;
     white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
 }
 .users-table-compact .truncate {
     display: inline-block;
-    max-width: 190px;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: middle;
 }
-.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive { overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .user-checkbox { width: 14px; height: 14px; }
 
-/* sensible column widths (will be overridden by media queries) */
-.col-id { width: 4rem; }
-.col-username { width: 11.6rem; }
-.col-name { width: 8.6rem; }
-.col-email { width: 11.5rem; }
-.col-role { width: 5.8rem; }
-.col-status { width: 6rem; }
-.col-2fa { width: 6rem; }
-.col-storage { width: 9rem; }
-.col-created { width: 6.5rem; }
-.col-last { width: 7rem; }
-.col-actions { width: 11rem; }
+/* column widths as percentages to keep table within viewport */
+    .col-id { width: 4%; }
+    .col-username { width: 12%; }
+    .col-name { width: 12%; }
+    .col-email { width: 18%; }
+    .col-role { width: 6%; }
+    .col-status { width: 6%; }
+    .col-2fa { width: 6%; }
+    .col-storage { width: 8%; }
+    .col-created { width: 8%; }
+    .col-last { width: 10%; }
+    .col-actions { width: 10%; min-width: 6rem; }
 
-/* Make action buttons wrap if necessary */
-.col-actions > div { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
-.col-actions .btn { padding: 3px 5px; font-size: 0.86rem; }
+/* Keep action buttons on a single line; shrink when needed to avoid wrapping
+    and horizontal overflow. Use small paddings and prevent wrapping inside the
+    actions column while allowing the table to scroll horizontally if necessary. */
+.col-actions { min-width: 0; }
+.col-actions > div { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
+.col-actions .btn { padding: 2px 4px; font-size: 0.78rem; flex: 0 0 auto; }
 
 /* Do not hide columns automatically; prefer horizontal scrolling or a compact toggle.
    Hiding columns by media queries removed to preserve functionality. */
