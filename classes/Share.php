@@ -86,6 +86,37 @@ class Share {
             
             // Update file shared status
             $this->fileClass->updateSharedStatus($fileId);
+
+            // Try to create a public hardlink copy under public/sfiles/ so the file can be referenced directly
+            try {
+                if (!empty($file['file_path'])) {
+                    $destDir = rtrim(constant('BASE_PATH'), '/') . '/public/sfiles';
+                    if (!is_dir($destDir)) @mkdir($destDir, 0755, true);
+                    $absPath = $file['file_path'];
+                    if (!preg_match('#^(\/|[A-Za-z]:\\\\)#', $absPath)) {
+                        if (defined('UPLOADS_PATH') && UPLOADS_PATH) {
+                            $absPath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($absPath, '/');
+                        } else {
+                            $absPath = rtrim(constant('BASE_PATH'), '/') . '/' . ltrim($absPath, '/');
+                        }
+                    }
+                    if (file_exists($absPath) && is_readable($absPath) && is_dir($destDir) && is_writable($destDir)) {
+                        $ext = pathinfo($absPath, PATHINFO_EXTENSION);
+                        $publicName = $shareToken . ($ext ? '.' . $ext : '');
+                        $publicPath = $destDir . '/' . $publicName;
+                        // Create hard link where possible; fallback to copy if link fails
+                        if (!file_exists($publicPath)) {
+                            if (!@link($absPath, $publicPath)) {
+                                // try copy
+                                @copy($absPath, $publicPath);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception $e) {
+                // ignore failures creating public link
+                error_log('Failed to create public share hardlink: ' . $e->getMessage());
+            }
             
             // Log action
             $this->logger->log($userId, 'share_created', 'share', $shareId, "Share created for file: {$file['original_name']}");
@@ -519,6 +550,19 @@ class Share {
                 $id,
                 "Share deleted: {$share['share_name']}"
             );
+
+            // Remove public hardlink/copy if present
+            try {
+                $destDir = rtrim(constant('BASE_PATH'), '/') . '/public/sfiles';
+                $ext = pathinfo($share['file_path'] ?? '', PATHINFO_EXTENSION);
+                $publicName = $share['share_token'] . ($ext ? '.' . $ext : '');
+                $publicPath = $destDir . '/' . $publicName;
+                if (file_exists($publicPath)) {
+                    @unlink($publicPath);
+                }
+            } catch (Exception $e) {
+                // ignore
+            }
             
             return true;
         } catch (Exception $e) {
