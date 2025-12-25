@@ -776,6 +776,81 @@ class Share {
             return ['valid' => false, 'error' => 'An error occurred'];
         }
     }
+
+    /**
+     * Stream shared file inline (for embedding images)
+     * Similar to download() but uses Content-Disposition: inline and is intended for image previews/embed.
+     */
+    public function streamInline($token, $password = null) {
+        try {
+            $validation = $this->validateAccess($token, $password);
+
+            if (!$validation['valid']) {
+                // If password required, indicate so to caller
+                if (!empty($validation['requires_password'])) {
+                    header($_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden');
+                    echo 'Password required';
+                    exit;
+                }
+                header($_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden');
+                echo 'Access denied';
+                exit;
+            }
+
+            $share = $validation['share'];
+
+            $filePath = $share['file_path'];
+            if (!empty($filePath) && !preg_match('#^(\/|[A-Za-z]:\\\\)#', $filePath)) {
+                if (defined('UPLOADS_PATH') && UPLOADS_PATH) {
+                    $filePath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($filePath, '/');
+                } else {
+                    $filePath = rtrim(constant('BASE_PATH'), '/') . '/' . ltrim($filePath, '/');
+                }
+            }
+
+            if (file_exists($filePath)) {
+                // Increment access counters (safe for unlimited shares because max_downloads is null)
+                $stmt = $this->db->prepare("UPDATE shares SET download_count = download_count + 1, last_accessed = NOW() WHERE id = ?");
+                $stmt->execute([$share['id']]);
+
+                $this->logger->logShareAccess($share['id'], 'inline_view');
+
+                // Serve inline with proper mime type
+                $fileSize = filesize($filePath);
+                header('Content-Type: ' . ($share['mime_type'] ?: 'application/octet-stream'));
+                header('Content-Disposition: inline; filename="' . basename($share['original_name']) . '"');
+                header('Content-Length: ' . $fileSize);
+                header('Cache-Control: public, max-age=604800');
+
+                ignore_user_abort(true);
+                set_time_limit(0);
+
+                $chunkSize = 8192;
+                $handle = fopen($filePath, 'rb');
+                if ($handle === false) {
+                    header($_SERVER['SERVER_PROTOCOL'] . ' 500 Internal Server Error');
+                    echo 'Unable to open file';
+                    exit;
+                }
+
+                while (!feof($handle)) {
+                    echo fread($handle, $chunkSize);
+                    flush();
+                }
+                fclose($handle);
+                exit;
+            }
+
+            header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found');
+            echo 'File not found';
+            exit;
+        } catch (Exception $e) {
+            error_log("Share streamInline error: " . $e->getMessage());
+            header($_SERVER['SERVER_PROTOCOL'] . ' 500 Internal Server Error');
+            echo 'An error occurred';
+            exit;
+        }
+    }
     
     /**
      * Generate unique share token

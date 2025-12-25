@@ -194,6 +194,8 @@ return array (
   'view_mode_detailed' => 'Detalle',
   'view_mode_icons' => 'Iconos',
   'view_mode_icons_xl' => 'Iconos grandes',
+  'publish_to_gallery' => 'Publicar en Galería (público, sin límites)',
+  'embed_in_forum' => 'Código para incrustar',
   'guide_quick_intro' => 'Pasos iniciales para configurar el sistema rápidamente.',
   'guide_quick_title' => 'Guía rápida',
   'help_prefix' => 'Ayuda:',

@@ -80,6 +80,12 @@ if ($token && !$security->checkIPRateLimit($clientIP, 'share_download', 20, 60))
     $token = '';
 }
 
+// If raw image requested, serve inline and exit (used for embedding/preview)
+if (!empty($token) && isset($_GET['raw']) && $_GET['raw']) {
+    $shareClass->streamInline($token);
+    exit;
+}
+
 $needsPassword = false;
 $share = null;
 
@@ -200,6 +206,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                 </form>
                 <?php elseif ($share && !$needsPassword): ?>
+                    <?php
+                        // Detect gallery-style shares (images with no expiry and unlimited downloads)
+                        $isGalleryImage = false;
+                        if (!empty($share['mime_type']) && strpos($share['mime_type'], 'image/') === 0) {
+                            $noExpiry = empty($share['expires_at']);
+                            $unlimited = empty($share['max_downloads']);
+                            if ($noExpiry && $unlimited) $isGalleryImage = true;
+                        }
+                    ?>
+                    <?php if ($isGalleryImage): ?>
+                        <div class="mb-3" style="text-align: center;">
+                            <div style="margin-bottom:1rem;">
+                                <img src="<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>?raw=1" alt="<?php echo htmlspecialchars($share['original_name']); ?>" style="max-width:100%; max-height:60vh; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.12);">
+                            </div>
+                            <h2 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars($share['original_name']); ?></h2>
+                            <p style="color: var(--text-muted);"><?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB</p>
+                            <p style="margin-top: 1rem;"><?php echo htmlspecialchars(t('embed_in_forum') ?? 'Código para incrustar'); ?></p>
+                            <div style="margin-top:0.5rem; text-align:left; max-width:720px; margin-left:auto; margin-right:auto;">
+                                <label style="font-weight:600;">HTML</label>
+                                <textarea class="form-control" rows="2" readonly>&lt;img src="<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>?raw=1" alt="<?php echo htmlspecialchars($share['original_name']); ?>"&gt;</textarea>
+                                <label style="font-weight:600; margin-top:0.5rem;">BBCode</label>
+                                <textarea class="form-control" rows="2" readonly>[img]<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>?raw=1[/img]</textarea>
+                                <label style="font-weight:600; margin-top:0.5rem;">Enlace directo</label>
+                                <input type="text" class="form-control" readonly value="<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>">
+                            </div>
+                        </div>
+                    <?php else: ?>
                     <div class="mb-3" style="text-align: center;">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
                         <h2 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars($share['original_name']); ?></h2>
@@ -214,6 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <button type="submit" class="btn btn-primary" style="background: <?php echo htmlspecialchars($buttonBg); ?>; color: <?php echo htmlspecialchars($buttonText); ?>; border: none; padding: 0.7rem 1.2rem; font-size: 1rem; border-radius: 6px; display: inline-block; cursor: pointer;">⬇️ Descargar</button>
                         </div>
                     </form>
+        <?php endif; ?>
 
                 <?php elseif (isset($error) && $error): ?>
                     <div style="text-align: center; padding: 2rem;">

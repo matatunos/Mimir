@@ -32,8 +32,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             $defaultMaxDays = $config->get('default_max_share_days', DEFAULT_MAX_SHARE_DAYS);
-            $maxDays = min(intval($_POST['max_days'] ?? $defaultMaxDays), $defaultMaxDays);
-            $maxDownloads = intval($_POST['max_downloads'] ?? 0) ?: null;
+            $isGallery = isset($_POST['publish_gallery']) && $_POST['publish_gallery'] == '1';
+
+            if ($isGallery) {
+                // gallery: no expiration, unlimited downloads
+                $maxDays = 0;
+                $maxDownloads = null;
+            } else {
+                $maxDays = min(intval($_POST['max_days'] ?? $defaultMaxDays), $defaultMaxDays);
+                $maxDownloads = intval($_POST['max_downloads'] ?? 0) ?: null;
+            }
+
             $password = !empty($_POST['password']) ? $_POST['password'] : null;
 
             // Validate recipient email if provided
@@ -116,6 +125,11 @@ renderHeader(t('share') . ': ' . htmlspecialchars($file['original_name']), $user
                     <label><?php echo htmlspecialchars(t('share_max_downloads_label')); ?></label>
                     <input type="number" name="max_downloads" class="form-control" placeholder="<?php echo htmlspecialchars(t('unlimited')); ?>" min="1">
                     <small style="color: var(--text-muted);"><?php echo htmlspecialchars(t('leave_blank_unlimited')); ?></small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display:flex; gap:0.5rem; align-items:center;"><input type="checkbox" name="publish_gallery" value="1"> <?php echo htmlspecialchars(t('publish_to_gallery') ?? 'Publicar en Galería (público, sin límites)'); ?></label>
+                    <small style="color: var(--text-muted);">Si marcas esta opción el enlace será público, sin límite de descargas ni caducidad.</small>
                 </div>
 
                 <div class="form-group">
