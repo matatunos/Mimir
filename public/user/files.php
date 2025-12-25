@@ -220,7 +220,7 @@ renderHeader(t('my_files_section'), $user);
                     <i class="fas fa-folder-plus"></i> <?php echo htmlspecialchars(t('create') . ' ' . t('folder')); ?>
                 </button>
                 <a href="<?php echo BASE_URL; ?>/user/upload.php<?php echo $currentFolderId ? '?folder=' . $currentFolderId : ''; ?>" class="btn btn-success" style="background: white; color: #50c878; border: none; font-weight: 600;">
-                    <i class="fas fa-upload"></i> <?php echo htmlspecialchars(t('upload_button')); ?>
+                    <?php echo htmlspecialchars(t('upload_button')); ?>
                 </a>
             </div>
         </div>
