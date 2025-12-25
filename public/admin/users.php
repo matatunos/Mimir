@@ -775,6 +775,8 @@ renderHeader('Gestión de Usuarios', $user);
 
 <script>
 const csrfToken = '<?php echo $auth->generateCsrfToken(); ?>';
+// total number of users matching current filters (server-side)
+var totalFilteredUsers = <?php echo intval($totalUsers); ?>;
 
 // Bulk selection management
 function updateSelectAll(checkbox) {
@@ -832,28 +834,33 @@ function cancelBulkSelection() {
 function executeBulkAction(action) {
     const checkboxes = document.querySelectorAll('.user-checkbox:checked');
     const userIds = Array.from(checkboxes).map(cb => cb.value);
-    
-    if (userIds.length === 0) {
+    const selectAllFlag = document.getElementById('selectAllFlag');
+    const selectAllActive = selectAllFlag && selectAllFlag.value === '1';
+
+    // If not in select-all mode and no individual users selected, warn.
+    if (!selectAllActive && userIds.length === 0) {
         Mimir.showAlert(<?php echo json_encode(t('no_users_selected')); ?>, 'warning');
         return;
     }
-    
+
+    // Use totalFilteredUsers when select-all is active, otherwise number of checked boxes
+    const count = selectAllActive ? totalFilteredUsers : userIds.length;
     let message = '';
     switch(action) {
         case 'activate':
-            message = <?php echo json_encode(t('confirm_activate_n_users')); ?>.replace('%s', userIds.length);
+            message = <?php echo json_encode(t('confirm_activate_n_users')); ?>.replace('%s', count);
             break;
         case 'deactivate':
-            message = <?php echo json_encode(t('confirm_deactivate_n_users')); ?>.replace('%s', userIds.length);
+            message = <?php echo json_encode(t('confirm_deactivate_n_users')); ?>.replace('%s', count);
             break;
         case 'require_2fa':
-            message = <?php echo json_encode(t('confirm_require_2fa_n_users')); ?>.replace('%s', userIds.length);
+            message = <?php echo json_encode(t('confirm_require_2fa_n_users')); ?>.replace('%s', count);
             break;
         case 'unrequire_2fa':
-            message = <?php echo json_encode(t('confirm_unrequire_2fa_n_users')); ?>.replace('%s', userIds.length);
+            message = <?php echo json_encode(t('confirm_unrequire_2fa_n_users')); ?>.replace('%s', count);
             break;
         case 'delete':
-            message = <?php echo json_encode(t('confirm_delete_n_users')); ?>.replace('%s', userIds.length);
+            message = <?php echo json_encode(t('confirm_delete_n_users')); ?>.replace('%s', count);
             break;
     }
     
