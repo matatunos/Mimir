@@ -63,8 +63,16 @@ function readableTextColor($hex) {
 $buttonBg = $brandAccent ?: $brandPrimary;
 $buttonText = readableTextColor($buttonBg);
 
-// Get token from URL
-$tokenRaw = $_GET['token'] ?? basename($_SERVER['REQUEST_URI']);
+// Get token from URL. Support path-style URLs like /s/<token>/<filename>
+$requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$scriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/'); // usually '/s'
+$rel = $requestPath;
+if ($scriptDir !== '' && strpos($requestPath, $scriptDir) === 0) {
+    $rel = substr($requestPath, strlen($scriptDir));
+}
+$rel = trim($rel, '/');
+$parts = $rel === '' ? [] : explode('/', $rel);
+$tokenRaw = $_GET['token'] ?? ($parts[0] ?? basename($_SERVER['REQUEST_URI']));
 $token = $security->sanitizeString($tokenRaw);
 
 // Validate token format (should be alphanumeric, 32 or 64 chars)
@@ -80,8 +88,10 @@ if ($token && !$security->checkIPRateLimit($clientIP, 'share_download', 20, 60))
     $token = '';
 }
 
-// If raw image requested, serve inline and exit (used for embedding/preview)
-if (!empty($token) && isset($_GET['raw']) && $_GET['raw']) {
+// If raw image requested (or requested via direct path), serve inline and exit (used for embedding/preview)
+if (!empty($token) && ((isset($_GET['raw']) && $_GET['raw']) || (isset($parts[1]) && $parts[1] !== ''))) {
+    // Allow cross-origin embedding for images
+    header('Access-Control-Allow-Origin: *');
     $shareClass->streamInline($token);
     exit;
 }
