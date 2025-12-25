@@ -83,9 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// If opened with ?gallery=1, pre-check publish_gallery
 $isAdmin = ($user['role'] === 'admin');
-$preGallery = isset($_GET['gallery']) && ($_GET['gallery'] == '1' || $_GET['gallery'] === 'true');
 renderPageStart(t('share'), 'files', $isAdmin);
 renderHeader(t('share') . ': ' . htmlspecialchars($file['original_name']), $user);
 ?>
@@ -116,10 +114,7 @@ renderHeader(t('share') . ': ' . htmlspecialchars($file['original_name']), $user
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
 
-                <div class="form-group" style="background: linear-gradient(90deg, rgba(234, 203, 110, 0.12), transparent); padding:0.6rem; border-radius:6px; border:1px solid rgba(234,203,110,0.2);">
-                    <label style="display:flex; gap:0.5rem; align-items:center; font-weight:600; color:#7a5a0a;"><input type="checkbox" id="publishGalleryCheckbox" name="publish_gallery" value="1" <?php echo $preGallery ? 'checked' : ''; ?>> <?php echo htmlspecialchars(t('publish_to_gallery') ?? 'Publicar en Galería (público, sin límites)'); ?></label>
-                    <small style="color: var(--text-muted);">Si marcas esta opción el enlace será público, sin límite de descargas ni caducidad.</small>
-                </div>
+                
 
                 <div class="form-group">
                     <label><?php echo htmlspecialchars(t('share_days_valid_label')); ?> *</label>
@@ -134,10 +129,7 @@ renderHeader(t('share') . ': ' . htmlspecialchars($file['original_name']), $user
                     <small style="color: var(--text-muted);"><?php echo htmlspecialchars(t('leave_blank_unlimited')); ?></small>
                 </div>
 
-                <div class="form-group">
-                    <label style="display:flex; gap:0.5rem; align-items:center;"><input type="checkbox" name="publish_gallery" value="1"> <?php echo htmlspecialchars(t('publish_to_gallery') ?? 'Publicar en Galería (público, sin límites)'); ?></label>
-                    <small style="color: var(--text-muted);">Si marcas esta opción el enlace será público, sin límite de descargas ni caducidad.</small>
-                </div>
+                
 
                 <div class="form-group">
                     <label><?php echo htmlspecialchars(t('share_password_optional')); ?></label>
@@ -165,25 +157,6 @@ renderHeader(t('share') . ': ' . htmlspecialchars($file['original_name']), $user
     </div>
 </div>
 
-<script>
-// When publish gallery checked, disable expiry/downloads inputs to avoid confusion
-document.addEventListener('DOMContentLoaded', function(){
-    var cb = document.getElementById('publishGalleryCheckbox');
-    if (!cb) return;
-    var maxDays = document.querySelector('input[name="max_days"]');
-    var maxDownloads = document.querySelector('input[name="max_downloads"]');
-    function toggle() {
-        if (cb.checked) {
-            if (maxDays) { maxDays.setAttribute('disabled','disabled'); }
-            if (maxDownloads) { maxDownloads.setAttribute('disabled','disabled'); }
-        } else {
-            if (maxDays) { maxDays.removeAttribute('disabled'); }
-            if (maxDownloads) { maxDownloads.removeAttribute('disabled'); }
-        }
-    }
-    cb.addEventListener('change', toggle);
-    toggle();
-});
-</script>
+
 
 <?php renderPageEnd(); ?>

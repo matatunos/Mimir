@@ -87,7 +87,7 @@ class Share {
             // Update file shared status
             $this->fileClass->updateSharedStatus($fileId);
 
-            // Try to create a public hardlink copy under public/sfiles/ so the file can be referenced directly
+            // Try to create a public anonymized copy under public/sfiles/ so the file can be referenced directly
             try {
                 if (!empty($file['file_path'])) {
                     $destDir = rtrim(constant('BASE_PATH'), '/') . '/public/sfiles';
@@ -104,22 +104,86 @@ class Share {
                         $ext = pathinfo($absPath, PATHINFO_EXTENSION);
                         $publicName = $shareToken . ($ext ? '.' . $ext : '');
                         $publicPath = $destDir . '/' . $publicName;
-                        // Create hard link where possible; fallback to copy if link fails
                         if (!file_exists($publicPath)) {
-                            if (!@link($absPath, $publicPath)) {
-                                // try copy
-                                @copy($absPath, $publicPath);
+                            // If image, create a sanitized copy (strip EXIF/metadata) by re-encoding
+                            $mime = strtolower($file['mime_type'] ?? '');
+                            $isImage = strpos($mime, 'image/') === 0 || in_array(strtolower($ext), ['jpg','jpeg','png','gif']);
+                            if ($isImage) {
+                                // attempt to sanitize via GD
+                                try {
+                                    switch ($mime) {
+                                        case 'image/jpeg':
+                                        case 'image/jpg':
+                                            $img = @imagecreatefromjpeg($absPath);
+                                            if ($img !== false) {
+                                                imagejpeg($img, $publicPath, 85);
+                                                imagedestroy($img);
+                                            } else {
+                                                @copy($absPath, $publicPath);
+                                            }
+                                            break;
+                                        case 'image/png':
+                                            $img = @imagecreatefrompng($absPath);
+                                            if ($img !== false) {
+                                                imagealphablending($img, false);
+                                                imagesavealpha($img, true);
+                                                // PNG compression level 6
+                                                imagepng($img, $publicPath, 6);
+                                                imagedestroy($img);
+                                            } else {
+                                                @copy($absPath, $publicPath);
+                                            }
+                                            break;
+                                        case 'image/gif':
+                                            $img = @imagecreatefromgif($absPath);
+                                            if ($img !== false) {
+                                                imagegif($img, $publicPath);
+                                                imagedestroy($img);
+                                            } else {
+                                                @copy($absPath, $publicPath);
+                                            }
+                                            break;
+                                        default:
+                                            // Unknown image mime; fallback to copy
+                                            @copy($absPath, $publicPath);
+                                            break;
+                                    }
+                                    // ensure permissions and update mtime to now
+                                    @chmod($publicPath, 0644);
+                                    @touch($publicPath, time());
+                                } catch (Exception $e) {
+                                    // fallback to simple copy
+                                    @copy($absPath, $publicPath);
+                                }
+                            } else {
+                                // Non-image: try hard link for space efficiency, fallback to copy
+                                if (!@link($absPath, $publicPath)) {
+                                    @copy($absPath, $publicPath);
+                                }
                             }
                         }
                     }
                 }
             } catch (Exception $e) {
-                // ignore failures creating public link
-                error_log('Failed to create public share hardlink: ' . $e->getMessage());
+                // ignore failures creating public copy
+                error_log('Failed to create public share file: ' . $e->getMessage());
             }
             
-            // Log action
-            $this->logger->log($userId, 'share_created', 'share', $shareId, "Share created for file: {$file['original_name']}");
+            // Determine share type for logging (gallery vs download)
+            $shareType = 'download';
+            $mime = strtolower($file['mime_type'] ?? '');
+            $noExpiry = empty($expiresAt);
+            $unlimited = ($maxDownloads === null || $maxDownloads === 0);
+            if ($noExpiry && $unlimited && strpos($mime, 'image/') === 0) {
+                $shareType = 'gallery';
+            }
+
+            // Log action with differentiated event
+            if ($shareType === 'gallery') {
+                $this->logger->log($userId, 'gallery_published', 'share', $shareId, "Gallery published for file: {$file['original_name']}");
+            } else {
+                $this->logger->log($userId, 'share_created', 'share', $shareId, "Share created for file: {$file['original_name']}");
+            }
 
             // If a recipient email was provided, send the share link by email
             if (!empty($recipientEmail)) {
@@ -350,6 +414,34 @@ class Share {
         } catch (Exception $e) {
             error_log("Share getByUser error: " . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * Find an existing gallery-style share for a file created by the given user.
+     * Gallery share criteria: image MIME, no expiry, unlimited downloads, active.
+     */
+    public function findGalleryShare($fileId, $userId) {
+        try {
+            $sql = "
+                SELECT 
+                    s.*, s.id as share_id, s.share_token as token,
+                    f.original_name, f.file_path, f.mime_type
+                FROM shares s
+                JOIN files f ON s.file_id = f.id
+                WHERE s.file_id = ? AND s.created_by = ? AND s.is_active = 1
+                  AND (s.expires_at IS NULL OR s.expires_at = '')
+                  AND (s.max_downloads IS NULL OR s.max_downloads = 0)
+                  AND (f.mime_type LIKE 'image/%')
+                ORDER BY s.created_at DESC
+                LIMIT 1
+            ";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$fileId, $userId]);
+            return $stmt->fetch();
+        } catch (Exception $e) {
+            error_log('findGalleryShare error: ' . $e->getMessage());
+            return null;
         }
     }
     

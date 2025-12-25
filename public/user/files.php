@@ -335,7 +335,7 @@ renderHeader(t('my_files_section'), $user);
                                         <?php else: ?>
                                             <a href="<?php echo BASE_URL; ?>/user/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo htmlspecialchars(t('download')); ?>"><i class="fas fa-download"></i></a>
                                             <a href="<?php echo BASE_URL; ?>/user/share.php?file_id=<?php echo $file['id']; ?>" class="btn btn-sm btn-success" title="<?php echo htmlspecialchars(t('share')); ?>"><i class="fas fa-link"></i></a>
-                                            <a href="<?php echo BASE_URL; ?>/user/share.php?file_id=<?php echo $file['id']; ?>&amp;gallery=1" class="btn btn-sm btn-warning" title="<?php echo htmlspecialchars(t('publish_to_gallery')); ?>"><i class="fas fa-image"></i></a>
+                                            <button type="button" class="btn btn-sm btn-warning publish-gallery-btn" data-file-id="<?php echo $file['id']; ?>" title="<?php echo htmlspecialchars(t('publish_to_gallery')); ?>"><i class="fas fa-image"></i></button>
                                             <?php if ($file['is_shared']): ?>
                                                 <form method="POST" action="<?php echo BASE_URL; ?>/user/bulk_action.php" style="display:inline; margin:0;">
                                                     <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
@@ -498,6 +498,75 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     const saved = (localStorage.getItem('mimir_view_mode') || 'detailed');
     if(select) select.value = saved;
+
+    // CSRF token for AJAX operations
+    var MIMIR_CSRF = '<?php echo $auth->generateCsrfToken(); ?>';
+
+    // Publish to gallery modal markup
+    (function(){
+        var modalHtml = '\n<div id="publishGalleryModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:4000; align-items:center; justify-content:center;">\n  <div style="background:var(--bg-main); padding:1rem; border-radius:8px; width:90%; max-width:720px;">\n    <h3 style="margin:0 0 0.5rem 0;">'+(<?php echo json_encode(t('publish_to_gallery')); ?>)+'</h3>\n    <p style="color:var(--text-muted);">Enlace público generado:</p>\n    <div style="display:flex; gap:0.5rem;">\n      <input type="text" id="publishGalleryLink" class="form-control" readonly style="flex:1;">\n      <button id="publishGalleryCopy" class="btn btn-primary">'+(<?php echo json_encode(t('copy')); ?>)+'</button>\n      <button id="publishGalleryClose" class="btn btn-outline">'+(<?php echo json_encode(t('cancel')); ?>)+'</button>\n    </div>\n    <div id="publishGalleryError" style="color:#b00020; margin-top:0.5rem; display:none;"></div>\n  </div>\n</div>\n';
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        var modal = document.getElementById('publishGalleryModal');
+        var input = document.getElementById('publishGalleryLink');
+        var copyBtn = document.getElementById('publishGalleryCopy');
+        var closeBtn = document.getElementById('publishGalleryClose');
+        var errDiv = document.getElementById('publishGalleryError');
+
+        function showModal(url) {
+            errDiv.style.display = 'none';
+            input.value = url;
+            modal.style.display = 'flex';
+            setTimeout(function(){ input.select(); }, 120);
+        }
+        function hideModal(){ modal.style.display = 'none'; }
+        if (closeBtn) closeBtn.addEventListener('click', hideModal);
+        if (copyBtn) copyBtn.addEventListener('click', function(){
+            var v = input.value || '';
+            if (!v) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(v).then(function(){
+                    copyBtn.innerText = '✓ '+(<?php echo json_encode(t('copied_to_clipboard')); ?>); setTimeout(function(){ copyBtn.innerText = (<?php echo json_encode(t('copy')); ?>); }, 1600);
+                });
+            } else {
+                input.select(); try { document.execCommand('copy'); copyBtn.innerText = '✓ '+(<?php echo json_encode(t('copied_to_clipboard')); ?>); } catch(e){};
+            }
+        });
+
+        // Attach handlers to buttons dynamically
+        document.addEventListener('click', function(e){
+            var el = e.target.closest && e.target.closest('.publish-gallery-btn');
+            if (!el) return;
+            e.preventDefault();
+            var fileId = el.getAttribute('data-file-id');
+            if (!fileId) return;
+            el.setAttribute('disabled','disabled');
+            var originalHtml = el.innerHTML;
+            el.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            var fd = new FormData();
+            fd.append('csrf_token', MIMIR_CSRF);
+            fd.append('file_id', fileId);
+
+            fetch('<?php echo BASE_URL; ?>/user/gallery_publish.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function(r){ return r.json(); })
+                .then(function(js){
+                    if (js && js.success) {
+                        showModal(js.url);
+                    } else {
+                        errDiv.style.display = 'block';
+                        errDiv.innerText = (js && js.error) ? js.error : 'Error creating gallery link';
+                        modal.style.display = 'flex';
+                    }
+                }).catch(function(err){
+                    errDiv.style.display = 'block';
+                    errDiv.innerText = err && err.message ? err.message : 'Request failed';
+                    modal.style.display = 'flex';
+                }).finally(function(){
+                    el.removeAttribute('disabled');
+                    el.innerHTML = originalHtml;
+                });
+        });
+    })();
     applyMode(saved);
     if(select) select.addEventListener('change', function(){ applyMode(this.value); });
 

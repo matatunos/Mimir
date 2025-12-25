@@ -228,14 +228,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php if ($isGalleryImage): ?>
                         <div class="mb-3" style="text-align: center;">
                             <div style="margin-bottom:1rem;">
-                                <img src="<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>?raw=1" alt="<?php echo htmlspecialchars($share['original_name']); ?>" style="max-width:100%; max-height:60vh; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.12);">
+                                <img src="<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>?raw=1" alt="<?php echo htmlspecialchars(t('gallery_public_image')); ?>" style="max-width:100%; max-height:60vh; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.12);">
                             </div>
-                            <h2 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars($share['original_name']); ?></h2>
+                            <h2 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars(t('gallery_public_image')); ?></h2>
                             <p style="color: var(--text-muted);"><?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB</p>
                             <p style="margin-top: 1rem;"><?php echo htmlspecialchars(t('embed_in_forum') ?? 'Código para incrustar'); ?></p>
                             <div style="margin-top:0.5rem; text-align:left; max-width:720px; margin-left:auto; margin-right:auto;">
                                 <label style="font-weight:600;">HTML</label>
-                                <textarea class="form-control" rows="2" readonly>&lt;img src="<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>?raw=1" alt="<?php echo htmlspecialchars($share['original_name']); ?>"&gt;</textarea>
+                                <textarea class="form-control" rows="2" readonly>&lt;img src="<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>?raw=1" alt="<?php echo htmlspecialchars(t('gallery_public_image')); ?>"&gt;</textarea>
                                 <label style="font-weight:600; margin-top:0.5rem;">BBCode</label>
                                 <textarea class="form-control" rows="2" readonly>[img]<?php echo htmlspecialchars(BASE_URL . '/s/' . $token); ?>?raw=1[/img]</textarea>
                                 <label style="font-weight:600; margin-top:0.5rem;">Enlace directo</label>

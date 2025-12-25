@@ -126,6 +126,7 @@ $LANG = [
     'view_mode_icons_xl' => 'Large icons',
     'publish_to_gallery' => 'Publish to gallery (public, unlimited)',
     'embed_in_forum' => 'Embed code for forums',
+    'gallery_public_image' => 'Public image',
     'direct_link' => 'Direct link',
     'selected_files' => 'selected files',
     'unshare_selected' => 'Unshare',
