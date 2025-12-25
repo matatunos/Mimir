@@ -346,9 +346,9 @@ renderHeader(t('my_files_section'), $user);
                 <!-- Grid view (thumbnails) -->
                 <div id="filesGrid" class="file-grid" style="display:none;">
                     <?php foreach ($files as $file): ?>
-                        <div class="grid-item <?php echo $file['is_folder'] ? 'folder' : 'file'; ?>" data-file-id="<?php echo $file['id']; ?>">
+                        <div class="grid-item <?php echo $file['is_folder'] ? 'folder' : 'file'; ?>" data-file-id="<?php echo $file['id']; ?>" <?php if ($file['is_folder']): ?>data-folder-id="<?php echo $file['id']; ?>"<?php endif; ?>>
                             <?php if ($file['is_folder']): ?>
-                                <div class="grid-thumb folder-thumb"><i class="fas fa-folder"></i></div>
+                                <div class="grid-thumb folder-thumb" data-folder-id="<?php echo $file['id']; ?>"><i class="fas fa-folder"></i></div>
                                 <div class="grid-label"><?php echo htmlspecialchars($file['original_name']); ?></div>
                             <?php else: ?>
                                 <?php $isImage = strpos($file['mime_type'], 'image/') === 0; ?>
@@ -492,13 +492,26 @@ document.addEventListener('DOMContentLoaded', function(){
 
     // Thumbnail click -> preview
     document.querySelectorAll('#filesGrid .grid-thumb.clickable').forEach(function(n){
-        n.addEventListener('click', function(){
+        n.addEventListener('click', function(e){
+            e.stopPropagation();
             const url = this.getAttribute('data-preview-url');
             if(!url) return;
             const img = document.getElementById('imagePreviewImg');
             img.src = url;
             document.getElementById('imagePreviewModal').style.display = 'flex';
         });
+    });
+
+    // Make folder grid items navigable: click anywhere on the folder item opens it
+    document.querySelectorAll('#filesGrid .grid-item.folder').forEach(function(item){
+        item.addEventListener('click', function(){
+            const folderId = this.getAttribute('data-folder-id') || this.getAttribute('data-file-id');
+            if (!folderId) return;
+            window.location.href = '<?php echo BASE_URL; ?>/user/files.php?folder=' + encodeURIComponent(folderId);
+        });
+        // Ensure folder thumb click doesn't conflict
+        const thumb = item.querySelector('.grid-thumb');
+        if (thumb) thumb.addEventListener('click', function(e){ e.stopPropagation(); window.location.href = '<?php echo BASE_URL; ?>/user/files.php?folder=' + encodeURIComponent(item.getAttribute('data-folder-id')); });
     });
 });
 
