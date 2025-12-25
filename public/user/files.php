@@ -106,6 +106,16 @@ renderHeader(t('my_files_section'), $user);
 .view-icons-xl .file-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .view-icons-xl .file-grid .grid-thumb { height:200px; }
 .grid-thumb.clickable { cursor: pointer; }
+/* Folder color in icon views (match detailed view) */
+.view-icons .file-grid .folder-thumb i,
+.view-icons .file-grid .grid-item.folder .grid-thumb i {
+    color: #e9b149;
+}
+.view-icons-xl .file-grid .folder-thumb i,
+.view-icons-xl .file-grid .grid-item.folder .grid-thumb i {
+    color: #e9b149;
+    font-size: 2.6rem;
+}
 /* Pagination styles */
 .pagination { display:flex; gap:0.5rem; justify-content:center; align-items:center; padding:0.75rem 0; }
 .pagination a { display:inline-block; padding:0.45rem 0.75rem; border-radius:6px; color:var(--text-main); text-decoration:none; border:1px solid transparent; }
