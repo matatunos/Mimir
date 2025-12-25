@@ -113,7 +113,12 @@ renderHeader(t('share') . ': ' . htmlspecialchars($file['original_name']), $user
 
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
-                
+
+                <div class="form-group" style="background: linear-gradient(90deg, rgba(234, 203, 110, 0.12), transparent); padding:0.6rem; border-radius:6px; border:1px solid rgba(234,203,110,0.2);">
+                    <label style="display:flex; gap:0.5rem; align-items:center; font-weight:600; color:#7a5a0a;"><input type="checkbox" name="publish_gallery" value="1"> <?php echo htmlspecialchars(t('publish_to_gallery') ?? 'Publicar en Galería (público, sin límites)'); ?></label>
+                    <small style="color: var(--text-muted);">Si marcas esta opción el enlace será público, sin límite de descargas ni caducidad.</small>
+                </div>
+
                 <div class="form-group">
                     <label><?php echo htmlspecialchars(t('share_days_valid_label')); ?> *</label>
                     <?php $defaultMaxDays = $config->get('default_max_share_days', DEFAULT_MAX_SHARE_DAYS); ?>
