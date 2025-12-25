@@ -95,6 +95,23 @@ renderHeader(t('my_files_section'), $user);
 .bulk-actions-bar.show { display: flex; align-items: center; gap: 0.5rem; }
 .bulk-actions-bar .btn { padding: 0.35rem 0.5rem; font-size: 0.9rem; min-width: 2.2rem; }
 .file-checkbox { width: 16px; height: 16px; cursor: pointer; }
+/* Grid view */
+.file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
+.file-grid .grid-item { background: var(--bg-secondary); border:1px solid var(--border-color); padding:0.75rem; border-radius:8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:0.5rem; }
+.file-grid .grid-thumb { width:100%; height:110px; display:flex; align-items:center; justify-content:center; background:#f6f6f6; border-radius:6px; overflow:hidden; }
+.file-grid .grid-thumb img { width:100%; height:100%; object-fit:cover; }
+.file-grid .grid-thumb i { font-size:2.2rem; color:var(--text-muted); }
+.file-grid .grid-label { font-size:0.9rem; word-break:break-word; }
+.view-icons .file-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.view-icons-xl .file-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.view-icons-xl .file-grid .grid-thumb { height:200px; }
+.grid-thumb.clickable { cursor: pointer; }
+/* Pagination styles */
+.pagination { display:flex; gap:0.5rem; justify-content:center; align-items:center; padding:0.75rem 0; }
+.pagination a { display:inline-block; padding:0.45rem 0.75rem; border-radius:6px; color:var(--text-main); text-decoration:none; border:1px solid transparent; }
+.pagination a:hover { background:var(--bg-secondary); }
+.pagination a.active { background:var(--brand-primary); color:#fff; border-color:rgba(0,0,0,0.05); box-shadow:0 2px 8px rgba(0,0,0,0.06); font-weight:700; }
+.pagination .page-info { margin-left:0.75rem; color:var(--text-muted); font-size:0.95rem; }
 </style>
 
 <div class="content">
@@ -224,6 +241,16 @@ renderHeader(t('my_files_section'), $user);
                 </div>
             </form>
 
+            <!-- View mode selector -->
+            <div style="display:flex; justify-content:flex-end; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                <label style="font-size:0.9rem; color:var(--text-muted);">Vista:</label>
+                <select id="viewModeSelect" class="form-control" style="width:220px;">
+                    <option value="detailed"><?php echo htmlspecialchars(t('view_detailed') ?? 'Detallada'); ?></option>
+                    <option value="icons"><?php echo htmlspecialchars(t('view_icons_large') ?? 'Iconos grandes'); ?></option>
+                    <option value="icons-xl"><?php echo htmlspecialchars(t('view_icons_xl') ?? 'Iconos muy grandes'); ?></option>
+                </select>
+            </div>
+
             <?php if (empty($files)): ?>
                 <div style="text-align: center; padding: 4rem; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 100%); border-radius: 1rem; border: 2px dashed var(--border-color);">
                     <div style="font-size: 5rem; margin-bottom: 1.5rem; opacity: 0.3;"><i class="fas fa-folder"></i></div>
@@ -316,6 +343,28 @@ renderHeader(t('my_files_section'), $user);
                     </table>
                 </div>
 
+                <!-- Grid view (thumbnails) -->
+                <div id="filesGrid" class="file-grid" style="display:none;">
+                    <?php foreach ($files as $file): ?>
+                        <div class="grid-item <?php echo $file['is_folder'] ? 'folder' : 'file'; ?>" data-file-id="<?php echo $file['id']; ?>">
+                            <?php if ($file['is_folder']): ?>
+                                <div class="grid-thumb folder-thumb"><i class="fas fa-folder"></i></div>
+                                <div class="grid-label"><?php echo htmlspecialchars($file['original_name']); ?></div>
+                            <?php else: ?>
+                                <?php $isImage = strpos($file['mime_type'], 'image/') === 0; ?>
+                                <div class="grid-thumb <?php echo $isImage ? 'clickable' : ''; ?>" <?php if ($isImage): ?>data-preview-url="<?php echo BASE_URL; ?>/user/preview.php?id=<?php echo $file['id']; ?>"<?php endif; ?>>
+                                    <?php if ($isImage): ?>
+                                        <img src="<?php echo BASE_URL; ?>/user/preview.php?id=<?php echo $file['id']; ?>&thumb=1" alt="<?php echo htmlspecialchars($file['original_name']); ?>">
+                                    <?php else: ?>
+                                        <i class="fas fa-file"></i>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="grid-label"><?php echo htmlspecialchars($file['original_name']); ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
                 <!-- Bulk actions form (hidden submit) -->
                 <form method="POST" id="userBulkForm" action="<?php echo BASE_URL; ?>/user/bulk_action.php">
                     <input type="hidden" name="action" id="userBulkAction" value="">
@@ -378,6 +427,7 @@ renderHeader(t('my_files_section'), $user);
                     <?php if ($page < $totalPages): ?>
                         <a href="?page=<?php echo $page + 1; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?><?php echo $currentFolderId ? '&folder=' . $currentFolderId : ''; ?>">Siguiente »</a>
                     <?php endif; ?>
+                    <span class="page-info"><?php echo htmlspecialchars(sprintf('Página %d de %d', $page, $totalPages)); ?></span>
                 </div>
                 <?php endif; ?>
             <?php endif; ?>
@@ -402,7 +452,62 @@ renderHeader(t('my_files_section'), $user);
     </div>
 </div>
 
+<!-- Image preview modal -->
+<div id="imagePreviewModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:3000; align-items:center; justify-content:center;">
+    <div style="max-width:90%; max-height:90%;">
+        <img id="imagePreviewImg" src="" style="max-width:100%; max-height:100%; border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,0.6);" alt="Preview">
+    </div>
+    <button onclick="closeImagePreview()" style="position:fixed; top:1rem; right:1rem; background:transparent; border:none; color:white; font-size:1.5rem;">&times;</button>
+</div>
+
 <script>
+// View mode + thumbnail behavior
+document.addEventListener('DOMContentLoaded', function(){
+    const select = document.getElementById('viewModeSelect');
+    const table = document.querySelector('.table');
+    const grid = document.getElementById('filesGrid');
+    const body = document.body;
+    function applyMode(mode){
+        if(mode === 'detailed'){
+            table && (table.style.display='table');
+            grid && (grid.style.display='none');
+            body.classList.remove('view-icons','view-icons-xl');
+        } else if(mode === 'icons'){
+            table && (table.style.display='none');
+            grid && (grid.style.display='grid');
+            body.classList.add('view-icons');
+            body.classList.remove('view-icons-xl');
+        } else if(mode === 'icons-xl'){
+            table && (table.style.display='none');
+            grid && (grid.style.display='grid');
+            body.classList.add('view-icons-xl');
+            body.classList.remove('view-icons');
+        }
+        try { localStorage.setItem('mimir_view_mode','' + mode); } catch(e){}
+    }
+    const saved = (localStorage.getItem('mimir_view_mode') || 'detailed');
+    if(select) select.value = saved;
+    applyMode(saved);
+    if(select) select.addEventListener('change', function(){ applyMode(this.value); });
+
+    // Thumbnail click -> preview
+    document.querySelectorAll('#filesGrid .grid-thumb.clickable').forEach(function(n){
+        n.addEventListener('click', function(){
+            const url = this.getAttribute('data-preview-url');
+            if(!url) return;
+            const img = document.getElementById('imagePreviewImg');
+            img.src = url;
+            document.getElementById('imagePreviewModal').style.display = 'flex';
+        });
+    });
+});
+
+function closeImagePreview(){
+    document.getElementById('imagePreviewModal').style.display = 'none';
+    const img = document.getElementById('imagePreviewImg');
+    img.src = '';
+}
+
 function showCreateFolderModal() {
     document.getElementById('createFolderModal').style.display = 'flex';
     document.getElementById('folderName').focus();
