@@ -335,6 +335,7 @@ renderHeader(t('my_files_section'), $user);
                                         <?php else: ?>
                                             <a href="<?php echo BASE_URL; ?>/user/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo htmlspecialchars(t('download')); ?>"><i class="fas fa-download"></i></a>
                                             <a href="<?php echo BASE_URL; ?>/user/share.php?file_id=<?php echo $file['id']; ?>" class="btn btn-sm btn-success" title="<?php echo htmlspecialchars(t('share')); ?>"><i class="fas fa-link"></i></a>
+                                            <a href="<?php echo BASE_URL; ?>/user/share.php?file_id=<?php echo $file['id']; ?>&amp;gallery=1" class="btn btn-sm btn-warning" title="<?php echo htmlspecialchars(t('publish_to_gallery')); ?>"><i class="fas fa-image"></i></a>
                                             <?php if ($file['is_shared']): ?>
                                                 <form method="POST" action="<?php echo BASE_URL; ?>/user/bulk_action.php" style="display:inline; margin:0;">
                                                     <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
