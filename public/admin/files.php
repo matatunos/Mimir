@@ -150,6 +150,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && (!empty
                         $errors++;
                     }
                     break;
+                    case 'never':
+                        $stmt = $db->prepare("UPDATE files SET never_expire = 1 WHERE id = ?");
+                        if ($stmt->execute([$fileId])) {
+                            $logger->log($user['id'], 'file_never_expire', 'file', $fileId, 'Admin marcó como nunca expirar: ' . $file['original_name']);
+                            $success++;
+                        } else {
+                            $errors++;
+                        }
+                        break;
             }
         }
         
@@ -548,6 +557,9 @@ renderHeader('Gestión de Archivos', $user);
                                             <button type="button" class="btn btn-sm btn-outline" onclick="adminToggleShare(<?php echo $file['id']; ?>, <?php echo $file['is_shared'] ? 'false' : 'true'; ?>)" title="<?php echo $file['is_shared'] ? t('unshare_selected') : t('mark_shared_selected'); ?>">
                                                 <?php echo $file['is_shared'] ? '<i class="fas fa-ban"></i>' : '<i class="fas fa-share"></i>'; ?>
                                             </button>
+                                            <button type="button" class="btn btn-sm btn-info" onclick="adminNeverFile(<?php echo $file['id']; ?>)" title="Marcar como 'Nunca expirar'">
+                                                <i class="fas fa-clock"></i>
+                                            </button>
                                             <button type="button" class="btn btn-sm btn-danger" onclick="adminDeleteFile(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars(addslashes($file['original_name'])); ?>')" title="Eliminar">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -592,6 +604,9 @@ renderHeader('Gestión de Archivos', $user);
         <button type="button" class="btn btn-success" onclick="confirmBulkAction('share')" title="<?php echo t('mark_shared_selected'); ?>">
             <i class="fas fa-share"></i>
         </button>
+        <button type="button" class="btn btn-info" onclick="confirmBulkAction('never')" title="<?php echo t('mark_never_expire_selected'); ?>">
+            <i class="fas fa-clock"></i>
+        </button>
         <button type="button" class="btn btn-primary" onclick="confirmBulkAction('download')" title="<?php echo t('download_selected'); ?>">
             <i class="fas fa-download"></i>
         </button>
@@ -622,35 +637,41 @@ var totalFilteredFiles = <?php echo intval($totalFiles); ?>;
 if (!window._selectAllFilteredActive) window._selectAllFilteredActive = function(){ return false; };
 if (!window._setSelectAllFilteredActive) window._setSelectAllFilteredActive = function(v){};
 
-document.addEventListener('DOMContentLoaded', function() {
-    const selectAllCheckbox = document.getElementById('selectAllUser');
-    const fileCheckboxes = document.querySelectorAll('.user-file-item');
+    document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const fileCheckboxes = Array.from(document.querySelectorAll('.user-file-item'));
     const bulkActionsBar = document.getElementById('userBulkActionsBar');
     const selectedCountSpan = document.getElementById('userSelectedCount');
     // total number of files matching current filters (populated server-side)
-    // (declared earlier to avoid races)
     let selectAllFilteredActive = false;
-    
+
+    function getCheckedCountOnPage() {
+        return document.querySelectorAll('.user-file-item:checked').length;
+    }
+
     function updateBulkActionsBar() {
-        const checkedCount = document.querySelectorAll('.file-item:checked').length;
-        selectedCountSpan.textContent = checkedCount;
-        
-        if (checkedCount > 0) {
-            bulkActionsBar.classList.add('show');
+        const checkedCount = getCheckedCountOnPage();
+        const displayCount = selectAllFilteredActive ? totalFilteredFiles : checkedCount;
+        if (selectedCountSpan) selectedCountSpan.textContent = displayCount;
+
+        if (checkedCount > 0 || selectAllFilteredActive) {
+            if (bulkActionsBar) bulkActionsBar.classList.add('show');
         } else {
-            bulkActionsBar.classList.remove('show');
+            if (bulkActionsBar) bulkActionsBar.classList.remove('show');
         }
     }
-    
+
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
             fileCheckboxes.forEach(cb => cb.checked = this.checked);
             // clear userSelectAll flag
             const s = document.getElementById('userSelectAll'); if (s) s.value = '0';
+            // turning the checkbox off cancels select-all-filtered
+            if (!this.checked && window._setSelectAllFilteredActive) window._setSelectAllFilteredActive(false);
             updateBulkActionsBar();
         });
     }
-    
+
     fileCheckboxes.forEach(cb => {
         cb.addEventListener('change', function() {
             // any manual change cancels the 'select all filtered' mode
@@ -660,8 +681,8 @@ document.addEventListener('DOMContentLoaded', function() {
             updateBulkActionsBar();
 
             // Update select all checkbox state
-            const allChecked = Array.from(fileCheckboxes).every(cb => cb.checked);
-            const someChecked = Array.from(fileCheckboxes).some(cb => cb.checked);
+            const allChecked = fileCheckboxes.length > 0 && fileCheckboxes.every(cb => cb.checked);
+            const someChecked = fileCheckboxes.some(cb => cb.checked);
             if (selectAllCheckbox) {
                 selectAllCheckbox.checked = allChecked;
                 selectAllCheckbox.indeterminate = someChecked && !allChecked;
@@ -671,6 +692,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // expose selectAllFilteredActive to global scope
     window._selectAllFilteredActive = function() { return selectAllFilteredActive; };
     window._setSelectAllFilteredActive = function(v) { selectAllFilteredActive = !!v; };
+    // initialize UI state
+    try { updateBulkActionsBar(); } catch (e) {}
 });
 
 // Simple spinner: show/hide overlay and update message. Keep minimal progress/log support.
@@ -710,7 +733,7 @@ function selectAllFiltered() {
     // mark that user wants to select all files matching filters
     // check the visible checkboxes too for visual feedback
     document.querySelectorAll('.user-file-item').forEach(cb => cb.checked = true);
-    const sel = document.getElementById('selectAllUser'); if (sel) sel.checked = true;
+    const sel = document.getElementById('selectAll'); if (sel) sel.checked = true;
     // set hidden flag
     const s = document.getElementById('userSelectAll'); if (s) s.value = '1';
     window._setSelectAllFilteredActive(true);
@@ -719,15 +742,15 @@ function selectAllFiltered() {
 }
 
 function clearSelection() {
-    document.querySelectorAll('.file-item').forEach(cb => cb.checked = false);
-    document.getElementById('selectAll').checked = false;
-    document.getElementById('bulkActionsBar').classList.remove('show');
+    document.querySelectorAll('.user-file-item').forEach(cb => cb.checked = false);
+    const sel = document.getElementById('selectAll'); if (sel) sel.checked = false;
+    const bar = document.getElementById('userBulkActionsBar'); if (bar) bar.classList.remove('show');
     if (window._setSelectAllFilteredActive) window._setSelectAllFilteredActive(false);
-    document.getElementById('selectedCount').textContent = '0';
+    const sc = document.getElementById('userSelectedCount'); if (sc) sc.textContent = '0';
 }
 
 function confirmBulkAction(action) {
-    const pageCheckedCount = document.querySelectorAll('.file-item:checked').length;
+    const pageCheckedCount = document.querySelectorAll('.user-file-item:checked').length;
     const count = (window._selectAllFilteredActive && window._selectAllFilteredActive()) ? totalFilteredFiles : pageCheckedCount;
     let message = '';
     
@@ -744,15 +767,18 @@ function confirmBulkAction(action) {
         case 'download':
             message = <?php echo json_encode(t('confirm_download_n_files')); ?>.replace('%s', count);
             break;
+        case 'never':
+            message = <?php echo json_encode(t('confirm_mark_never_expire_n_files')); ?>.replace('%s', count);
+            break;
     }
     
     if (confirm(message)) {
         // show processing overlay while the form posts and server works
         showProcessing(<?php echo json_encode(t('processing_wait')); ?>);
         // If selecting all filtered, set hidden input with filters
-        const bulkForm = document.getElementById('bulkForm');
-        const selectAllFlag = document.getElementById('selectAllFlag');
-        const filtersInput = document.getElementById('bulkFilters');
+        const bulkForm = document.getElementById('userBulkForm');
+        const selectAllFlag = document.getElementById('userSelectAll');
+        const filtersInput = document.getElementById('userBulkFilters');
         if (window._selectAllFilteredActive && window._selectAllFilteredActive()) {
             selectAllFlag.value = '1';
             // include current query string (without leading ?)
@@ -764,43 +790,57 @@ function confirmBulkAction(action) {
             selectAllFlag.value = '0';
             filtersInput.value = '';
         }
-        document.getElementById('bulkAction').value = action;
+        document.getElementById('userBulkAction').value = action;
         // hide the bulk actions bar and clear selection so UI doesn't remain selected
-        try { document.getElementById('bulkActionsBar').classList.remove('show'); } catch (e) {}
+        try { const b = document.getElementById('userBulkActionsBar'); if (b) b.classList.remove('show'); } catch (e) {}
         try { clearSelection(); } catch (e) {}
-        document.getElementById('bulkForm').submit();
+        document.getElementById('userBulkForm').submit();
     }
 }
 
 // Admin single-file actions using the existing bulk form
 function adminToggleShare(fileId, makeShared) {
     if (!confirm(makeShared ? <?php echo json_encode(t('confirm_mark_shared')); ?> : <?php echo json_encode(t('confirm_unshare_file')); ?>)) return;
-    const form = document.getElementById('bulkForm');
-    const input = document.getElementById('bulkAction');
+    const form = document.getElementById('userBulkForm');
+    const input = document.getElementById('userBulkAction');
     // Clear existing file_ids inputs
     const existing = form.querySelectorAll('input[name="file_ids[]"]');
     existing.forEach(e => e.remove());
     const hid = document.createElement('input');
     hid.type = 'hidden'; hid.name = 'file_ids[]'; hid.value = fileId; form.appendChild(hid);
     // ensure select_all flag is cleared
-    const selectAllFlag = document.getElementById('selectAllFlag'); if (selectAllFlag) selectAllFlag.value = '0';
-    const filtersInput = document.getElementById('bulkFilters'); if (filtersInput) filtersInput.value = '';
+    const selectAllFlag = document.getElementById('userSelectAll'); if (selectAllFlag) selectAllFlag.value = '0';
+    const filtersInput = document.getElementById('userBulkFilters'); if (filtersInput) filtersInput.value = '';
     input.value = makeShared ? 'share' : 'unshare';
     form.submit();
 }
 
 function adminDeleteFile(fileId, fileName) {
     if (!confirm(<?php echo json_encode(t('confirm_delete_file_named')); ?>.replace('%s', fileName))) return;
-    const form = document.getElementById('bulkForm');
-    const input = document.getElementById('bulkAction');
+    const form = document.getElementById('userBulkForm');
+    const input = document.getElementById('userBulkAction');
     const existing = form.querySelectorAll('input[name="file_ids[]"]');
     existing.forEach(e => e.remove());
     const hid = document.createElement('input');
     hid.type = 'hidden'; hid.name = 'file_ids[]'; hid.value = fileId; form.appendChild(hid);
     // ensure select_all flag is cleared
-    const selectAllFlag = document.getElementById('selectAllFlag'); if (selectAllFlag) selectAllFlag.value = '0';
-    const filtersInput = document.getElementById('bulkFilters'); if (filtersInput) filtersInput.value = '';
+    const selectAllFlag = document.getElementById('userSelectAll'); if (selectAllFlag) selectAllFlag.value = '0';
+    const filtersInput = document.getElementById('userBulkFilters'); if (filtersInput) filtersInput.value = '';
     input.value = 'delete';
+    form.submit();
+}
+
+function adminNeverFile(fileId) {
+    if (!confirm(<?php echo json_encode(t('confirm_mark_never_expire')); ?>)) return;
+    const form = document.getElementById('userBulkForm');
+    const input = document.getElementById('userBulkAction');
+    const existing = form.querySelectorAll('input[name="file_ids[]"]');
+    existing.forEach(e => e.remove());
+    const hid = document.createElement('input');
+    hid.type = 'hidden'; hid.name = 'file_ids[]'; hid.value = fileId; form.appendChild(hid);
+    const selectAllFlag = document.getElementById('userSelectAll'); if (selectAllFlag) selectAllFlag.value = '0';
+    const filtersInput = document.getElementById('userBulkFilters'); if (filtersInput) filtersInput.value = '';
+    input.value = 'never';
     form.submit();
 }
 </script>
@@ -828,7 +868,7 @@ let reassignSelectedUserId = 0;
 let reassignUseSelectAll = false;
 
 function openReassignModal() {
-    const checked = Array.from(document.querySelectorAll('.file-item:checked')).map(cb => cb.value);
+    const checked = Array.from(document.querySelectorAll('.user-file-item:checked')).map(cb => cb.value);
     // If select-all-filtered mode active, use that
     if (window._selectAllFilteredActive && window._selectAllFilteredActive()) {
         reassignUseSelectAll = true;

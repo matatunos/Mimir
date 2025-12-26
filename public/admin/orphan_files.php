@@ -34,10 +34,7 @@ renderHeader(t('orphan_files'), $user);
 ?>
 
 <style>
-.orphan-actions {
-    display: flex;
-    gap: 0.5rem;
-}
+/* Orphan files styles */
 .orphan-actions button {
     padding: 0.25rem 0.75rem;
     font-size: 0.875rem;
@@ -97,15 +94,15 @@ renderHeader(t('orphan_files'), $user);
     color: var(--text-muted);
 }
 
-.floating-action-bar {
+.floating-action-bar, #floatingBar {
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
     bottom: 1rem;
-    z-index: 1000;
+    z-index: 2147483647;
     display: none;
 }
-.floating-action-bar .bar {
+.floating-action-bar .bar, #floatingBar .bar {
     background: #fff;
     border: 1px solid var(--border-color);
     color: var(--text);
@@ -118,8 +115,18 @@ renderHeader(t('orphan_files'), $user);
     min-width: 320px;
     justify-content: center;
 }
-.floating-action-bar .bar .btn { font-size: 0.95rem; }
+.floating-action-bar .bar .btn, #floatingBar .bar .btn { font-size: 0.95rem; }
 </style>
+
+<!-- Floating actions bar (appears when files selected) -->
+<div id="floatingBar" style="position:fixed; left:50%; transform:translateX(-50%); bottom:1rem; z-index:2147483647; display:none;">
+    <div class="bar" style="display:flex; gap:0.5rem; align-items:center; background:#fff; padding:0.6rem 1rem; border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.18); border:1px solid rgba(0,0,0,0.06); color:#111;">
+        <div id="floatingCount" style="font-weight:600; margin-right:0.5rem;">0 seleccionado(s)</div>
+        <button class="btn btn-primary btn-sm" id="floatingAssignBtn" onclick="bulkAssign()" title="<?php echo htmlspecialchars(t('assign_selected')); ?>" aria-label="<?php echo htmlspecialchars(t('assign_selected')); ?>">👤</button>
+        <button class="btn btn-danger btn-sm" id="floatingDeleteBtn" onclick="bulkDelete()" title="<?php echo htmlspecialchars(t('delete_selected')); ?>" aria-label="<?php echo htmlspecialchars(t('delete_selected')); ?>">🗑️</button>
+        <button class="btn btn-outline btn-sm" id="floatingSelectAllBtn" onclick="selectAllFiles()" title="<?php echo htmlspecialchars(t('select_all')); ?>" aria-label="<?php echo htmlspecialchars(t('select_all')); ?>"><?php echo htmlspecialchars(t('select_all')); ?></button>
+    </div>
+</div>
 
 <div class="content">
     <div class="page-header">
@@ -149,9 +156,9 @@ renderHeader(t('orphan_files'), $user);
                     <input type="text" name="search" placeholder="<?php echo t('search_placeholder'); ?>" 
                            value="<?php echo htmlspecialchars($search); ?>" 
                            class="form-control" style="width: 250px;">
-                        <button type="submit" class="btn btn-primary">🔍 <?php echo t('search'); ?></button>
+                        <button type="submit" class="btn btn-primary" title="<?php echo htmlspecialchars(t('search')); ?>" aria-label="<?php echo htmlspecialchars(t('search')); ?>">🔍</button>
                     <?php if ($search): ?>
-                        <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="btn btn-outline">✖ <?php echo t('clear'); ?></a>
+                        <a href="<?php echo BASE_URL; ?>/admin/orphan_files.php" class="btn btn-outline" title="<?php echo htmlspecialchars(t('clear')); ?>" aria-label="<?php echo htmlspecialchars(t('clear')); ?>">✖</a>
                     <?php endif; ?>
                 </form>
             </div>
@@ -171,11 +178,13 @@ renderHeader(t('orphan_files'), $user);
                         <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
                         <span><?php echo t('select_all'); ?></span>
                     </label>
-                    <button class="btn btn-primary btn-sm" onclick="bulkAssign()" id="bulkAssignBtn" disabled>
-                        👤 <?php echo t('assign_selected'); ?>
+                    <button class="btn btn-primary btn-sm" onclick="bulkAssign()" id="bulkAssignBtn" disabled
+                            title="<?php echo htmlspecialchars(t('assign_selected')); ?>" aria-label="<?php echo htmlspecialchars(t('assign_selected')); ?>">
+                        <span class="icon" aria-hidden="true">👤</span>
                     </button>
-                    <button class="btn btn-danger btn-sm" onclick="bulkDelete()" id="bulkDeleteBtn" disabled>
-                        🗑️ <?php echo t('delete_selected'); ?>
+                    <button class="btn btn-danger btn-sm" onclick="bulkDelete()" id="bulkDeleteBtn" disabled
+                            title="<?php echo htmlspecialchars(t('delete_selected')); ?>" aria-label="<?php echo htmlspecialchars(t('delete_selected')); ?>">
+                        <span class="icon" aria-hidden="true">🗑️</span>
                     </button>
                 </div>
                 <div id="selectAllNotice" style="display:none; padding:0.5rem 1rem; background:#fffbe6; border:1px solid #ffe58f; color:#ad8b00; margin-bottom:1rem; border-radius:0.25rem;">
@@ -247,13 +256,15 @@ renderHeader(t('orphan_files'), $user);
                                 <td style="text-align: right;">
                                     <div class="orphan-actions">
                                         <button class="btn btn-primary btn-sm" 
-                                                                onclick="showAssignModal(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
-                                                            👤 <?php echo t('assign'); ?>
-                                                        </button>
-                                                        <button class="btn btn-danger btn-sm" 
-                                                                onclick="deleteOrphan(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')">
-                                                            🗑️ <?php echo t('delete'); ?>
-                                                        </button>
+                                                onclick="showAssignModal(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')"
+                                                title="<?php echo htmlspecialchars(t('assign')); ?>" aria-label="<?php echo htmlspecialchars(t('assign')); ?>">
+                                            <span class="icon" aria-hidden="true">👤</span>
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" 
+                                                onclick="deleteOrphan(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars($file['original_name'] ?? 'archivo', ENT_QUOTES); ?>')"
+                                                title="<?php echo htmlspecialchars(t('delete')); ?>" aria-label="<?php echo htmlspecialchars(t('delete')); ?>">
+                                            <span class="icon" aria-hidden="true">🗑️</span>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -336,20 +347,7 @@ renderHeader(t('orphan_files'), $user);
     .mimir-spinner { width:40px; height:40px; border:5px solid rgba(255,255,255,0.12); border-top-color:#fff; border-radius:50%; animation:mimir-spin 1s linear infinite; margin-right:0.75rem; }
     @keyframes mimir-spin { to { transform: rotate(360deg); } }
 </style>
-<div style="display:flex; gap:1rem; align-items:center;">
-    <div><div class="mimir-spinner" aria-hidden="true"></div></div>
-    <div style="flex:1;">
-        <div id="processingMessage" style="font-size:1.05rem; margin-bottom:0.5rem;">Procesando, por favor espere...</div>
-        <div style="background: rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; height:14px; position:relative;">
-            <div id="processingBarFill" style="background: linear-gradient(90deg,#4a90e2,#50c878); height:100%; width:0%; transition:width 250ms ease;"></div>
-        </div>
-        <div id="processingPercent" style="margin-top:6px; font-size:0.9rem; opacity:0.95;">0%</div>
-    </div>
-    <div style="min-width:120px; text-align:right; font-size:0.95rem; color: #fff; opacity:0.9;">
-        <div id="processingMiniStatus">Iniciado</div>
-    </div>
-</div>
-</div>
+<!-- Duplicate inline processing block removed; overlay above is used for long operations -->
 
 <script>
 let currentFileId = null;
@@ -367,6 +365,14 @@ let allFilesSelected = false;
 let allFileIds = <?php echo json_encode(array_column($orphans, 'id')); ?>;
 let totalOrphans = <?php echo $totalOrphans; ?>;
 
+// i18n strings for JS
+const I18N = <?php echo json_encode([
+    'assign_selected' => t('assign_selected'),
+    'delete_selected' => t('delete_selected'),
+    'assign' => t('assign'),
+    'delete' => t('delete')
+]); ?>;
+
 function updateBulkActions() {
     const selected = document.querySelectorAll('.file-select:checked').length;
     console.log('[orphan_files] updateBulkActions selected=', selected, 'allFilesSelected=', allFilesSelected);
@@ -377,8 +383,18 @@ function updateBulkActions() {
     if (deleteBtn) deleteBtn.disabled = selected === 0 && !allFilesSelected;
     if (assignBtn) assignBtn.disabled = selected === 0 && !allFilesSelected;
 
-    if (deleteBtn) deleteBtn.innerHTML = (selected > 0 || allFilesSelected) ? `🗑️ Eliminar ${(allFilesSelected ? totalOrphans : selected)} archivo(s)` : '🗑️ Eliminar seleccionados';
-    if (assignBtn) assignBtn.innerHTML = (selected > 0 || allFilesSelected) ? `👤 Asignar ${(allFilesSelected ? totalOrphans : selected)} archivo(s)` : '👤 Asignar seleccionados';
+    if (deleteBtn) {
+        deleteBtn.innerHTML = '🗑️';
+        const delCount = (selected > 0 || allFilesSelected) ? (allFilesSelected ? totalOrphans : selected) : null;
+        deleteBtn.title = delCount ? `${I18N.delete_selected} (${delCount})` : I18N.delete_selected;
+        deleteBtn.setAttribute('aria-label', deleteBtn.title);
+    }
+    if (assignBtn) {
+        assignBtn.innerHTML = '👤';
+        const asgCount = (selected > 0 || allFilesSelected) ? (allFilesSelected ? totalOrphans : selected) : null;
+        assignBtn.title = asgCount ? `${I18N.assign_selected} (${asgCount})` : I18N.assign_selected;
+        assignBtn.setAttribute('aria-label', assignBtn.title);
+    }
 
     // Mostrar aviso para seleccionar todos (si existe)
     const selectAllNotice = document.getElementById('selectAllNotice');
@@ -398,7 +414,14 @@ function updateBulkActions() {
 
 function selectAllFiles() {
     allFilesSelected = true;
+    // check visible checkboxes for visual feedback
+    document.querySelectorAll('.file-select').forEach(cb => cb.checked = true);
+    // update select all notice visible count if present
+    const selectedVisibleCount = document.getElementById('selectedVisibleCount');
+    if (selectedVisibleCount) selectedVisibleCount.textContent = document.querySelectorAll('.file-select:checked').length;
+    // show floating bar and update counts
     updateBulkActions();
+    const bar = document.getElementById('floatingBar'); if (bar) bar.style.display = 'block';
 }
 
 function showAssignModal(fileId, fileName) {
@@ -598,7 +621,6 @@ function bulkDelete() {
         showProcessing('Obteniendo lista de archivos para eliminar...', { clearLogs: true, percent: 0, status: 'Obteniendo lista' });
         const filters = <?php echo json_encode($search); ?> ? ('search=' + encodeURIComponent(<?php echo json_encode($search); ?>)) : '';
         // Use paginated processing for large lists
-        const filters = <?php echo json_encode($search); ?> ? ('search=' + encodeURIComponent(<?php echo json_encode($search); ?>)) : '';
         const listUrl = '/admin/orphan_files_api.php?action=list_ids&' + filters;
         showProcessing('Obteniendo y procesando archivos por páginas...', { clearLogs: true, percent: 0, status: 'Iniciando' });
         Mimir.processListIdsInPages(listUrl, 'bulk_delete', 500, 100, {

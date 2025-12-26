@@ -174,55 +174,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
             $offset = 0;
             $deleted = 0;
             $errors = 0;
+            $processed = 0;
 
-            while (true) {
-                $stmt = $db->prepare("SELECT f.id, f.original_name, f.file_path FROM files f LEFT JOIN users u ON f.user_id = u.id $whereSql ORDER BY f.id ASC LIMIT ? OFFSET ?");
-                $execParams = array_merge($params, [$pageSize, $offset]);
-                $stmt->execute($execParams);
-                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                if (empty($rows)) break;
+            if ($action === 'delete') {
+                // Delete files (existing behavior)
+                while (true) {
+                    $stmt = $db->prepare("SELECT f.id, f.original_name, f.file_path FROM files f LEFT JOIN users u ON f.user_id = u.id $whereSql ORDER BY f.id ASC LIMIT ? OFFSET ?");
+                    $execParams = array_merge($params, [$pageSize, $offset]);
+                    $stmt->execute($execParams);
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    if (empty($rows)) break;
 
-                foreach ($rows as $f) {
-                    try {
-                        // Delete physical file (support absolute and relative stored paths)
-                        $fp = $f['file_path'] ?? '';
-                        if (strpos($fp, '/') === 0) {
-                            $fullPath = $fp;
-                        } else {
-                            $fullPath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($fp, '/');
-                        }
-                        if ($fullPath && file_exists($fullPath)) {
-                            @unlink($fullPath);
-                        }
+                    foreach ($rows as $f) {
+                        try {
+                            // Delete physical file (support absolute and relative stored paths)
+                            $fp = $f['file_path'] ?? '';
+                            if (strpos($fp, '/') === 0) {
+                                $fullPath = $fp;
+                            } else {
+                                $fullPath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($fp, '/');
+                            }
+                            if ($fullPath && file_exists($fullPath)) {
+                                @unlink($fullPath);
+                            }
 
-                        // Delete database record
-                        $delStmt = $db->prepare("DELETE FROM files WHERE id = ?");
-                        if ($delStmt->execute([$f['id']])) {
-                            $deleted++;
-                            $logger->log($user['id'], 'orphan_deleted', 'file', $f['id'], "Archivo huérfano '{$f['original_name']}' eliminado (bulk paged)");
-                        } else {
+                            // Delete database record
+                            $delStmt = $db->prepare("DELETE FROM files WHERE id = ?");
+                            if ($delStmt->execute([$f['id']])) {
+                                $deleted++;
+                                $logger->log($user['id'], 'orphan_deleted', 'file', $f['id'], "Archivo huérfano '{$f['original_name']}' eliminado (bulk paged)");
+                            } else {
+                                $errors++;
+                            }
+                        } catch (Exception $e) {
                             $errors++;
+                            continue;
                         }
-                    } catch (Exception $e) {
-                        $errors++;
-                        continue;
                     }
-                }
 
-                // advance offset
-                if (count($rows) < $pageSize) break;
-                $offset += $pageSize;
+                    // advance offset
+                    if (count($rows) < $pageSize) break;
+                    $offset += $pageSize;
+                }
+            } else {
+                // Other actions (restore / never / reexpire) applied page-by-page
+                while (true) {
+                    $stmt = $db->prepare("SELECT f.id, f.original_name FROM files f LEFT JOIN users u ON f.user_id = u.id $whereSql ORDER BY f.id ASC LIMIT ? OFFSET ?");
+                    $execParams = array_merge($params, [$pageSize, $offset]);
+                    $stmt->execute($execParams);
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    if (empty($rows)) break;
+
+                    foreach ($rows as $f) {
+                        try {
+                            switch ($action) {
+                                case 'restore':
+                                    $uStmt = $db->prepare("UPDATE files SET is_expired = 0, expired_at = NULL WHERE id = ?");
+                                    if ($uStmt->execute([$f['id']])) {
+                                        $processed++;
+                                        $logger->log($user['id'], 'file_restore', 'file', $f['id'], "Admin restauró archivo expirado: {$f['original_name']} (bulk paged)");
+                                    } else { $errors++; }
+                                    break;
+                                case 'never':
+                                    $uStmt = $db->prepare("UPDATE files SET never_expire = 1 WHERE id = ?");
+                                    if ($uStmt->execute([$f['id']])) {
+                                        $processed++;
+                                        $logger->log($user['id'], 'file_never_expire', 'file', $f['id'], "Admin marcó como nunca expirar: {$f['original_name']} (bulk paged)");
+                                    } else { $errors++; }
+                                    break;
+                                case 'reexpire':
+                                    $uStmt = $db->prepare("UPDATE files SET never_expire = 0, is_expired = 1, expired_at = NOW() WHERE id = ?");
+                                    if ($uStmt->execute([$f['id']])) {
+                                        $processed++;
+                                        $logger->log($user['id'], 'file_reexpired', 'file', $f['id'], "Admin re-expiró archivo: {$f['original_name']} (bulk paged)");
+                                    } else { $errors++; }
+                                    break;
+                                default:
+                                    $errors++; break;
+                            }
+                        } catch (Exception $e) {
+                            $errors++; continue;
+                        }
+                    }
+
+                    // advance offset
+                    if (count($rows) < $pageSize) break;
+                    $offset += $pageSize;
+                }
             }
 
             if ($isAjax) {
                 header('Content-Type: application/json');
-                echo json_encode(['success' => true, 'deleted' => $deleted, 'errors' => $errors]);
+                echo json_encode(['success' => true, 'deleted' => $deleted, 'processed' => $processed, 'errors' => $errors]);
                 exit;
             }
 
             // Non-AJAX response
-            $msg = "Acción completada: $deleted eliminados";
-            if ($errors > 0) $msg .= ", $errors errores";
+            if ($action === 'delete') {
+                $msg = "Acción completada: $deleted eliminados";
+                if ($errors > 0) $msg .= ", $errors errores";
+            } else {
+                $msg = "Acción completada: $processed aplicadas";
+                if ($errors > 0) $msg .= ", $errors errores";
+            }
             header('Location: ' . BASE_URL . '/admin/expired_files.php?success=' . urlencode($msg));
             exit;
         }
@@ -252,6 +306,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
                 case 'delete':
                     if ($fileClass->delete($fid, $user['id'])) {
                         $logger->log($user['id'], 'file_delete', 'file', $fid, 'Admin eliminó archivo expirado: ' . $f['original_name']);
+                        $success++;
+                    } else { $errors++; }
+                    break;
+                case 'reexpire':
+                    $stmt = $db->prepare("UPDATE files SET never_expire = 0, is_expired = 1, expired_at = NOW() WHERE id = ?");
+                    if ($stmt->execute([$fid])) {
+                        $logger->log($user['id'], 'file_reexpired', 'file', $fid, 'Admin re-expiró archivo: ' . $f['original_name']);
                         $success++;
                     } else { $errors++; }
                     break;
@@ -319,7 +380,7 @@ $offset = ($page - 1) * $perPage;
 
 // Search / filter / sort parameters
 $q = trim((string)($_GET['q'] ?? ''));
-$filter = $_GET['filter'] ?? 'expired'; // expired | not | all
+$filter = 'expired'; // force view to only show expired files
 $expiredFrom = trim((string)($_GET['expired_from'] ?? ''));
 $expiredTo = trim((string)($_GET['expired_to'] ?? ''));
 $sortBy = $_GET['sort_by'] ?? 'expired_at';
@@ -383,6 +444,25 @@ $stmt = $db->prepare($dataSql);
 $stmt->execute($paramsWithLimit);
 $files = $stmt->fetchAll();
 
+// For testing: allow injecting fake rows when ?fake=1 is present
+if (empty($files) && isset($_GET['fake']) && $_GET['fake'] === '1') {
+    $files = [];
+    $now = time();
+    for ($i = 1; $i <= 12; $i++) {
+        $files[] = [
+            'id' => 100000 + $i,
+            'original_name' => "test_file_$i.pdf",
+            'username' => ($i % 3 === 0) ? 'alice' : (($i % 3) === 1 ? 'bob' : 'carol'),
+            'is_expired' => 1,
+            'never_expire' => 0,
+            'expired_at' => date('Y-m-d H:i:s', $now - ($i * 86400)),
+            'file_size' => rand(1024 * 100, 1024 * 1024 * 5),
+        ];
+    }
+    $total = count($files);
+    $totalPages = 1;
+}
+
 // Include layout just before rendering the HTML page to avoid any accidental
 // output before AJAX handlers above. This prevents HTML from polluting JSON.
 require_once __DIR__ . '/../../includes/layout.php';
@@ -399,12 +479,8 @@ function buildQuery(array $overrides = []) {
         <input type="hidden" name="sort_by" value="<?php echo htmlspecialchars($sortBy); ?>">
         <input type="hidden" name="sort_order" value="<?php echo htmlspecialchars(strtolower($sortOrder) === 'asc' ? 'asc' : 'desc'); ?>">
         <input type="text" name="q" value="<?php echo htmlspecialchars($q); ?>" placeholder="<?php echo t('search'); ?>" class="form-control" />
-        <select name="filter" class="form-control">
-            <option value="expired" <?php echo $filter==='expired' ? 'selected' : ''; ?>>Solo expirados</option>
-            <option value="not" <?php echo $filter==='not' ? 'selected' : ''; ?>>No expirados</option>
-            <option value="never" <?php echo $filter==='never' ? 'selected' : ''; ?>>Marcados como "Nunca expirar"</option>
-            <option value="all" <?php echo $filter==='all' ? 'selected' : ''; ?>>Todos</option>
-        </select>
+        <input type="hidden" name="filter" value="expired">
+        <div style="padding:0.35rem 0.5rem; color:var(--text-muted);">Mostrando solo archivos expirados</div>
         <label style="display:flex; gap:.25rem; align-items:center;">Desde: <input type="date" name="expired_from" value="<?php echo htmlspecialchars($expiredFrom); ?>" class="form-control" /></label>
         <label style="display:flex; gap:.25rem; align-items:center;">Hasta: <input type="date" name="expired_to" value="<?php echo htmlspecialchars($expiredTo); ?>" class="form-control" /></label>
         <button class="btn btn-primary" type="submit"><?php echo t('search'); ?></button>
@@ -443,17 +519,36 @@ function buildQuery(array $overrides = []) {
                         </thead>
                         <tbody>
                         <?php foreach ($files as $f): ?>
-                            <tr>
+                            <tr data-never="<?php echo (int)($f['never_expire'] ?? 0); ?>">
                                 <td><input type="checkbox" name="file_ids[]" value="<?php echo $f['id']; ?>" class="expired-item"></td>
                                 <td><?php echo htmlspecialchars($f['original_name']); ?></td>
                                 <td><?php echo htmlspecialchars($f['username'] ?? '-'); ?></td>
-                                <td><?php echo $f['is_expired'] ? 'Sí' : 'No'; ?></td>
-                                <td><?php echo $f['never_expire'] ? 'Sí' : 'No'; ?></td>
-                                <td><?php echo htmlspecialchars($f['expired_at']); ?></td>
-                                <td><?php echo number_format($f['file_size']/1024/1024,2); ?> MB</td>
+                                <td style="text-align:center;">
+                                    <?php $isExpired = ((int)($f['is_expired'] ?? 0) === 1); ?>
+                                    <input type="checkbox" disabled <?php echo $isExpired ? 'checked="checked"' : ''; ?> title="<?php echo $isExpired ? 'Sí' : 'No'; ?>" aria-label="<?php echo $isExpired ? 'Sí' : 'No'; ?>" />
+                                </td>
+                                <td style="text-align:center;">
+                                    <?php $never = ((int)($f['never_expire'] ?? 0) === 1); ?>
+                                    <input type="checkbox" disabled <?php echo $never ? 'checked="checked"' : ''; ?> title="<?php echo $never ? 'Sí' : 'No'; ?>" aria-label="<?php echo $never ? 'Sí' : 'No'; ?>" />
+                                </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-success" onclick="expiredDoActionSingle('restore', <?php echo $f['id']; ?>)">Restaurar</button>
-                                    <button type="button" class="btn btn-sm btn-warning" onclick="expiredDoActionSingle('never', <?php echo $f['id']; ?>)">Nunca expirar</button>
+                                    <?php
+                                        $expiredAt = $f['expired_at'] ?? null;
+                                        if (!empty($expiredAt) && strtotime($expiredAt) !== false) {
+                                            echo htmlspecialchars(date('Y-m-d H:i:s', strtotime($expiredAt)));
+                                        } else {
+                                            echo htmlspecialchars((string)$expiredAt);
+                                        }
+                                    ?>
+                                </td>
+                                <td><?php echo number_format($f['file_size']/1024/1024,2); ?> MB</td>
+                                <td class="actions" style="white-space:nowrap;">
+                                    <?php $neverFlag = ((int)($f['never_expire'] ?? 0) === 1); ?>
+                                    <div class="action-group" style="display:inline-flex; gap:0.25rem; align-items:center;">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="expiredDoActionSingle('restore', <?php echo $f['id']; ?>)">Restaurar</button>
+                                        <button type="button" class="btn btn-sm btn-warning" onclick="expiredDoActionSingle('never', <?php echo $f['id']; ?>)" <?php echo $neverFlag ? 'disabled="disabled"' : ''; ?>>Nunca expirar</button>
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="expiredDoActionSingle('reexpire', <?php echo $f['id']; ?>)" <?php echo $neverFlag ? '' : 'disabled="disabled"'; ?>>Re-expirar</button>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -463,7 +558,8 @@ function buildQuery(array $overrides = []) {
 
                 <div style="display:flex; gap:0.5rem; align-items:center; margin-top:1rem;">
                     <button class="btn btn-warning" onclick="expiredDoAction('restore')">Restaurar seleccionados</button>
-                    <button class="btn btn-info" onclick="expiredDoAction('never')">Marcar nunca expirar</button>
+                    <button id="bulkNeverBtn" class="btn btn-info" onclick="expiredDoAction('never')">Marcar nunca expirar</button>
+                    <button id="bulkReexpireBtn" class="btn btn-secondary" onclick="expiredDoAction('reexpire')">Re-expirar seleccionados</button>
                     <button class="btn btn-danger" onclick="expiredDoAction('delete')">Eliminar seleccionados</button>
                 </div>
 
@@ -493,18 +589,29 @@ function buildQuery(array $overrides = []) {
                 </div>
 
                 <!-- Floating actions (centered) -->
-                <div id="floatingActions" style="position:fixed; left:50%; transform:translateX(-50%); bottom:1rem; z-index:1000; display:none;">
-                    <div style="background:#fff; border:1px solid #ddd; padding:0.6rem 1rem; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.12); display:flex; gap:1rem; align-items:center; min-width:320px; justify-content:center;">
+                <div id="floatingActions" style="position:fixed; left:50%; transform:translateX(-50%); bottom:1rem; z-index:1000; display:none; max-width:95%;">
+                    <div style="background:#fff; border:1px solid #ddd; padding:0.5rem 0.75rem; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.12); display:flex; gap:0.5rem; align-items:center; min-width:520px; flex-wrap:nowrap; overflow-x:auto; justify-content:space-between;">
                         <span id="selectedCount">0 seleccionados</span>
                         <span id="selectedAllBadge" style="display:none; background:#007bff; color:#fff; padding:2px 6px; border-radius:12px; font-size:0.85em; margin-left:0.5rem;">Todos <?php echo $total; ?> seleccionados</span>
                         <a href="#" id="floatingSelectAllResults" style="margin-left:0.5rem;">Seleccionar los <?php echo $total; ?> resultados</a>
                         <div style="display:flex; gap:0.5rem;">
                             <button class="btn btn-warning" onclick="promptBulkAction('restore')">Restaurar</button>
-                            <button class="btn btn-info" onclick="promptBulkAction('never')">Nunca expirar</button>
+                            <button id="floatingNeverBtn" class="btn btn-info" onclick="promptBulkAction('never')">Nunca expirar</button>
+                            <button id="floatingReexpireBtn" class="btn btn-secondary" onclick="promptBulkAction('reexpire')">Re-expirar</button>
                             <button class="btn btn-danger" onclick="promptBulkAction('delete')">Eliminar</button>
                         </div>
                     </div>
                 </div>
+
+                <style>
+                    /* Ensure floating actions don't wrap buttons onto multiple lines */
+                    #floatingActions > div { -webkit-overflow-scrolling: touch; }
+                    #floatingActions .btn { white-space: nowrap; }
+                    /* Ensure per-row action buttons stay on one line */
+                    #expiredTable td.actions { white-space: nowrap; }
+                    #expiredTable td.actions .action-group { display: inline-flex; gap: 0.25rem; align-items: center; }
+                    #expiredTable td.actions .btn { white-space: nowrap; padding: 0.25rem 0.5rem; font-size: 0.86rem; }
+                </style>
 
                 <!-- Confirmation modal -->
                 <div id="confirmModal" style="display:none; position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
@@ -520,11 +627,9 @@ function buildQuery(array $overrides = []) {
 
                 <?php if ($totalPages > 1): ?>
                     <div class="pagination" style="margin-top:1rem;">
-                                <?php if ($page > 1): ?><a href="<?php echo buildQuery(['page'=>$page-1]); ?>">« Anterior</a><?php endif; ?>
-                                <?php for ($i = max(1,$page-2); $i <= min($totalPages,$page+2); $i++): ?>
-                                    <a href="<?php echo buildQuery(['page'=>$i]); ?>" class="<?php echo $i=== $page ? 'active' : ''; ?>"><?php echo $i; ?></a>
-                                <?php endfor; ?>
-                                <?php if ($page < $totalPages): ?><a href="<?php echo buildQuery(['page'=>$page+1]); ?>">Siguiente »</a><?php endif; ?>
+                        <?php if ($page > 1): ?><a href="<?php echo buildQuery(['page'=>$page-1]); ?>" class="page-link"><?php echo t('previous'); ?></a><?php endif; ?>
+                        <span class="page-info"><?php echo sprintf(t('page_of'), $page, $totalPages); ?></span>
+                        <?php if ($page < $totalPages): ?><a href="<?php echo buildQuery(['page'=>$page+1]); ?>" class="page-link"><?php echo t('next'); ?></a><?php endif; ?>
                     </div>
                 <?php endif; ?>
 
@@ -623,6 +728,46 @@ function buildQuery(array $overrides = []) {
                             $('#selectedAllBadge').hide();
                         }
                         if(cnt > 0 || selectAll){ $('#floatingActions').show(); } else { $('#floatingActions').hide(); $('#selectAllFlag').val('0'); }
+
+                        // Enable/disable bulk/floating action buttons depending on selection's never_expire state
+                        try {
+                            var selectedRows = Array.from(document.querySelectorAll('.expired-item:checked')).map(function(cb){ return cb.closest('tr'); });
+                            var allNever = selectedRows.length > 0 && selectedRows.every(function(r){ return r && r.dataset && r.dataset.never === '1'; });
+                            var allNotNever = selectedRows.length > 0 && selectedRows.every(function(r){ return r && r.dataset && r.dataset.never === '0'; });
+                            var floatingNever = document.getElementById('floatingNeverBtn');
+                            var floatingReexpire = document.getElementById('floatingReexpireBtn');
+                            var bulkNever = document.getElementById('bulkNeverBtn');
+                            var bulkReexpire = document.getElementById('bulkReexpireBtn');
+                            if (floatingNever) floatingNever.disabled = false;
+                            if (floatingReexpire) floatingReexpire.disabled = false;
+                            if (bulkNever) bulkNever.disabled = false;
+                            if (bulkReexpire) bulkReexpire.disabled = false;
+
+                            if (selectedRows.length === 0) {
+                                if (floatingNever) floatingNever.disabled = true;
+                                if (floatingReexpire) floatingReexpire.disabled = true;
+                                if (bulkNever) bulkNever.disabled = true;
+                                if (bulkReexpire) bulkReexpire.disabled = true;
+                            } else if (allNever) {
+                                // all are never: enable reexpire, disable never
+                                if (floatingNever) floatingNever.disabled = true;
+                                if (bulkNever) bulkNever.disabled = true;
+                                if (floatingReexpire) floatingReexpire.disabled = false;
+                                if (bulkReexpire) bulkReexpire.disabled = false;
+                            } else if (allNotNever) {
+                                // none are never: enable never, disable reexpire
+                                if (floatingNever) floatingNever.disabled = false;
+                                if (bulkNever) bulkNever.disabled = false;
+                                if (floatingReexpire) floatingReexpire.disabled = true;
+                                if (bulkReexpire) bulkReexpire.disabled = true;
+                            } else {
+                                // mixed: enable both
+                                if (floatingNever) floatingNever.disabled = false;
+                                if (floatingReexpire) floatingReexpire.disabled = false;
+                                if (bulkNever) bulkNever.disabled = false;
+                                if (bulkReexpire) bulkReexpire.disabled = false;
+                            }
+                        } catch(e) { /* fail silently */ }
                     }
                 });
 
@@ -651,7 +796,7 @@ function buildQuery(array $overrides = []) {
                     }
 
                     // fallback: process selected ids in batches (even small selections)
-                    const selectedInputs = Array.from(document.querySelectorAll('input[name="file_ids[]"]')).map(n => parseInt(n.value));
+                    const selectedInputs = Array.from(document.querySelectorAll('input[name="file_ids[]"]:checked')).map(n => parseInt(n.value));
                     if (!selectedInputs || selectedInputs.length === 0) { alert('No hay archivos seleccionados'); return; }
                     showProcessing('Procesando selección...', { clearLogs: true, percent: 0, status: 'Enviando' });
                     processIdsInBatches(selectedInputs, action, 50, function(){ hideProcessing(); window.location.reload(); });
@@ -706,19 +851,38 @@ function buildQuery(array $overrides = []) {
                         chunkFd.append('file_ids', JSON.stringify(chunk));
 
                         fetch(location.pathname + location.search, { method: 'POST', body: chunkFd, credentials: 'same-origin' })
-                            .then(Mimir.parseJsonResponse)
-                            .then(resp => {
+                            .then(function(resp){
+                                if (!resp.ok) {
+                                    // handle auth specifically
+                                    var err = new Error('HTTP ' + resp.status + ' ' + resp.statusText);
+                                    err.status = resp.status;
+                                    throw err;
+                                }
+                                return resp.json().catch(function(){ return null; });
+                            })
+                            .then(function(resp){
                                 if (resp && resp.success) {
                                     successTotal += (resp.deleted || resp.count || chunk.length);
-                                    appendProcessingLog(`Lote procesado: ${chunk.length} elementos` + (resp.message ? ` — ${resp.message}` : ''));
+                                    appendProcessingLog('Lote procesado: ' + chunk.length + ' elementos' + (resp.message ? ' — ' + resp.message : ''));
                                 } else {
                                     appendProcessingLog('Lote con error: ' + (resp && resp.message ? resp.message : 'Desconocido'));
                                 }
                                 processed += chunk.length;
-                                updateProcessingProgress((processed / ids.length) * 100, `Procesado ${processed} / ${ids.length}`);
-                                if (start + batchSize < ids.length) setTimeout(() => chunkProcess(start + batchSize), 150);
-                                else { updateProcessingProgress(100, 'Finalizado'); appendProcessingLog(`Operación finalizada. Procesados: ${processed}. Éxitos estimados: ${successTotal}`); if (typeof onComplete === 'function') setTimeout(onComplete, 600); }
-                            }).catch(err => { hideProcessing(); appendProcessingLog('Error de red: ' + err.message); alert('Error de red: ' + err.message); });
+                                updateProcessingProgress((processed / ids.length) * 100, 'Procesado ' + processed + ' / ' + ids.length);
+                                if (start + batchSize < ids.length) setTimeout(function(){ chunkProcess(start + batchSize); }, 150);
+                                else { updateProcessingProgress(100, 'Finalizado'); appendProcessingLog('Operación finalizada. Procesados: ' + processed + '. Éxitos estimados: ' + successTotal); if (typeof onComplete === 'function') setTimeout(onComplete, 600); }
+                            }).catch(function(err){
+                                hideProcessing();
+                                if (err && err.status === 401) {
+                                    appendProcessingLog('Error de red: Autenticación requerida (sesión expirada o no autorizado)');
+                                    alert('Error de red: Autenticación requerida (sesión expirada o no autorizado)');
+                                    // as a fallback, perform a full form submit to let server redirect to login or handle logout
+                                    try { document.getElementById('expiredForm').submit(); } catch(e) {}
+                                    return;
+                                }
+                                appendProcessingLog('Error de red: ' + (err && err.message ? err.message : 'Desconocido'));
+                                alert('Error de red: ' + (err && err.message ? err.message : 'Error desconocido'));
+                            });
                     }
 
                     chunkProcess(0);
