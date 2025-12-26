@@ -44,3 +44,4 @@ backup_*
 
 # Ignore public shared files folder (generated ZIPs and public copies)
 public/sfiles/
+!public/sfiles/.gitkeep
