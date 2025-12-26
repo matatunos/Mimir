@@ -389,4 +389,11 @@ return array (
   'link_deleted' => 'Link törölve',
   'protected' => 'Védett',
   'copy_prompt' => 'Másolja ezt a linket:',
+  'never' => 'Soha',
+  'expired' => 'Lejárt',
+  'expires_in_days' => '%s nap múlva jár le',
+  'expires_in_hours' => '%s órán belül lejár',
+  'expires_in_minutes' => '%s perc múlva lejár',
+  'set_infinite' => 'Végtelen időtartam beállítása',
+  'confirm_set_infinite' => 'Beállítja a kiválasztott megosztások időtartamát VÉGTELEN-re?',
 );

@@ -389,4 +389,11 @@ return array (
   'view_my_files' => 'Meine Dateien ansehen',
   'yes' => 'Ja',
   'zip_temp_failed' => 'Temporäres ZIP-Archiv konnte nicht erstellt werden',
-);
+    'never' => 'Nie',
+    'expired' => 'Abgelaufen',
+    'expires_in_days' => 'Läuft in %s Tagen ab',
+    'expires_in_hours' => 'Läuft in %s Stunden ab',
+    'expires_in_minutes' => 'Läuft in %s Minuten ab',
+    'set_infinite' => 'Unbegrenzte Dauer setzen',
+    'confirm_set_infinite' => 'Unbegrenzte Dauer für ausgewählte Freigaben setzen?',
+  );

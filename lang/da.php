@@ -389,4 +389,11 @@ return array (
   'link_deleted' => 'Link slettet',
   'protected' => 'Beskyttet',
   'copy_prompt' => 'Kopiér dette link:',
+  'never' => 'Aldrig',
+  'expired' => 'Udløbet',
+  'expires_in_days' => 'Udløber om %s dage',
+  'expires_in_hours' => 'Udløber om %s timer',
+  'expires_in_minutes' => 'Udløber om %s minutter',
+  'set_infinite' => 'Indstil uendelig varighed',
+  'confirm_set_infinite' => 'Indstil varigheden til UENDELIG for valgte delinger?',
 );

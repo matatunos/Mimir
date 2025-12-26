@@ -390,3 +390,12 @@ return array (
   'protected' => 'Protegido',
   'copy_prompt' => 'Copie este link :',
 );
+
+    'never' => 'Nunca',
+    'expired' => 'Expirado',
+    'expires_in_days' => 'Expira em %s dias',
+    'expires_in_hours' => 'Expira em %s horas',
+    'expires_in_minutes' => 'Expira em %s minutos',
+    'set_infinite' => 'Definir duração infinita',
+    'confirm_set_infinite' => 'Definir duração INFINITA para os links selecionados?',
+  );

@@ -389,4 +389,11 @@ return array (
   'view_my_files' => 'Voir mes fichiers',
   'yes' => 'Oui',
   'zip_temp_failed' => 'Impossible de créer l’archive ZIP temporaire',
+  'never' => 'Jamais',
+  'expired' => 'Expiré',
+  'expires_in_days' => 'Expire dans %s jours',
+  'expires_in_hours' => 'Expire dans %s heures',
+  'expires_in_minutes' => 'Expire dans %s minutes',
+  'set_infinite' => 'Définir durée infinie',
+  'confirm_set_infinite' => 'Définir la durée sur INFINIE pour les partages sélectionnés ?',
 );

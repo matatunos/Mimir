@@ -389,4 +389,11 @@ return array (
   'link_deleted' => 'Link usunięty',
   'protected' => 'Chronione',
   'copy_prompt' => 'Skopiuj ten link:',
+  'never' => 'Nigdy',
+  'expired' => 'Wygasło',
+  'expires_in_days' => 'Wygasa za %s dni',
+  'expires_in_hours' => 'Wygasa za %s godzin',
+  'expires_in_minutes' => 'Wygasa za %s minut',
+  'set_infinite' => 'Ustaw czas trwania na nieskończony',
+  'confirm_set_infinite' => 'Ustawić czas trwania NA NIESKOŃCZONY dla wybranych udostępnień?',
 );

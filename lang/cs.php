@@ -389,4 +389,11 @@ return array (
   'view_my_files' => 'Zobrazit moje soubory',
   'yes' => 'Ano',
   'zip_temp_failed' => 'Nelze vytvořit dočasný soubor ZIP',
+  'never' => 'Nikdy',
+  'expired' => 'Vypršelo',
+  'expires_in_days' => 'Vyprší za %s dní',
+  'expires_in_hours' => 'Vyprší za %s hodin',
+  'expires_in_minutes' => 'Vyprší za %s minut',
+  'set_infinite' => 'Nastavit nekonečnou dobu trvání',
+  'confirm_set_infinite' => 'Nastavit dobu trvání na NEKONEČNOU pro vybraná sdílení?',
 );

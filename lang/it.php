@@ -389,4 +389,11 @@ return array (
   'link_deleted' => 'Collegamento eliminato',
   'protected' => 'Protetto',
   'copy_prompt' => 'Copia questo collegamento:',
+  'never' => 'Mai',
+  'expired' => 'Scaduto',
+  'expires_in_days' => 'Scade tra %s giorni',
+  'expires_in_hours' => 'Scade tra %s ore',
+  'expires_in_minutes' => 'Scade tra %s minuti',
+  'set_infinite' => 'Imposta durata infinita',
+  'confirm_set_infinite' => 'Impostare DURATA INFINITA per le condivisioni selezionate?',
 );

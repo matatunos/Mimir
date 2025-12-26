@@ -396,4 +396,11 @@ return array (
   'view_my_files' => 'Ver mis archivos',
   'yes' => 'Sí',
   'zip_temp_failed' => 'No se pudo crear el archivo ZIP temporal',
+  'never' => 'Nunca',
+  'expired' => 'Expirado',
+  'expires_in_days' => 'Expira en %s días',
+  'expires_in_hours' => 'Expira en %s horas',
+  'expires_in_minutes' => 'Expira en %s minutos',
+  'set_infinite' => 'Establecer duración infinita',
+  'confirm_set_infinite' => '¿Establecer duración INFINITA para las comparticiones seleccionadas?',
 );

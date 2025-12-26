@@ -149,30 +149,44 @@ renderHeader(t('my_shared_links'), $user);
                                 </td>
                                 <td>
                                     <?php 
-                                        $now = time();
-                                        $expires = strtotime($share['expires_at']);
-                                        $diff = $expires - $now;
-                                        $color = 'var(--success)';
-                                        if ($diff < 86400) $color = 'var(--warning)'; // Menos de 1 día
-                                        if ($diff < 3600) $color = 'var(--danger)'; // Menos de 1 hora
-                                        
-                                        if ($diff > 86400) {
-                                            $timeText = ceil($diff / 86400) . ' días';
-                                        } elseif ($diff > 3600) {
-                                            $timeText = ceil($diff / 3600) . ' horas';
-                                        } else {
-                                            $timeText = ceil($diff / 60) . ' minutos';
-                                        }
-                                    ?>
-                                    <span style="font-weight: 600; color: <?php echo $color; ?>;">
-                                        <i class="fas fa-clock"></i> <?php echo $timeText; ?>
-                                    </span>
+                                            $now = time();
+                                            $color = 'var(--text-muted)';
+                                            $timeText = t('never');
+
+                                            if (!empty($share['expires_at'])) {
+                                                $expires = strtotime($share['expires_at']);
+                                                if ($expires !== false) {
+                                                    $diff = $expires - $now;
+                                                    if ($diff <= 0) {
+                                                        $timeText = t('expired');
+                                                        $color = 'var(--danger)';
+                                                    } else {
+                                                        if ($diff > 86400) {
+                                                            $n = ceil($diff / 86400);
+                                                            $timeText = sprintf(t('expires_in_days'), $n);
+                                                            $color = 'var(--success)';
+                                                        } elseif ($diff > 3600) {
+                                                            $n = ceil($diff / 3600);
+                                                            $timeText = sprintf(t('expires_in_hours'), $n);
+                                                            $color = 'var(--warning)';
+                                                        } else {
+                                                            $n = ceil($diff / 60);
+                                                            $timeText = sprintf(t('expires_in_minutes'), $n);
+                                                            $color = 'var(--danger)';
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ?>
+                                        <span style="font-weight: 600; color: <?php echo $color; ?>;">
+                                            <i class="fas fa-clock"></i> <?php echo htmlspecialchars($timeText); ?>
+                                        </span>
                                 </td>
                                 <td style="color: var(--text-muted);">
                                     <?php echo date('d/m/Y H:i', strtotime($share['created_at'])); ?>
                                 </td>
                                 <td>
-                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <div style="display: flex; gap: 0.5rem; flex-wrap: nowrap; align-items: center;">
                                         <button type="button" class="btn btn-sm btn-primary copy-link-btn" data-url="<?php echo htmlspecialchars($isGalleryImage ? $shareRawUrl : $shareUrl); ?>" title="<?php echo t('copy'); ?>"><i class="fas fa-clipboard"></i> <?php echo t('copy'); ?></button>
                                         <a href="<?php echo $shareUrl; ?>" target="_blank" class="btn btn-sm btn-success" title="<?php echo t('open_link'); ?>"><i class="fas fa-link"></i> <?php echo t('open_link'); ?></a>
                                         <button type="button" class="btn btn-sm btn-secondary copy-raw-btn" data-url="<?php echo htmlspecialchars($shareRawUrl); ?>" title="<?php echo t('direct_link'); ?>"><i class="fas fa-external-link-alt"></i> <?php echo t('direct_link'); ?></button>

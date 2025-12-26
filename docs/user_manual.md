@@ -76,6 +76,10 @@ Consejos:
 
 (Sugerencia de capturas: `screenshots/04-upload-select.png`, `screenshots/05-upload-result.png`)
 
+![Upload select](/docs/screenshots/04-upload-select.png)
+
+![Upload result](/docs/screenshots/05-upload-result.png)
+
 
 **5. Carpetas y organización**
 

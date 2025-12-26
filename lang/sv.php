@@ -389,4 +389,11 @@ return array (
   'link_deleted' => 'Länken raderad',
   'protected' => 'Skyddad',
   'copy_prompt' => 'Kopiera denna länk:',
+  'never' => 'Aldrig',
+  'expired' => 'Utgått',
+  'expires_in_days' => 'Går ut om %s dagar',
+  'expires_in_hours' => 'Går ut om %s timmar',
+  'expires_in_minutes' => 'Går ut om %s minuter',
+  'set_infinite' => 'Ställ in oändlig varaktighet',
+  'confirm_set_infinite' => 'Ställ in varaktigheten till OÄNDLIG för valda delningar?',
 );

@@ -389,4 +389,11 @@ return array (
   'link_deleted' => 'Linkki poistettu',
   'protected' => 'Suojattu',
   'copy_prompt' => 'Kopioi tämä linkki:',
+  'never' => 'Ei koskaan',
+  'expired' => 'Vanhentunut',
+  'expires_in_days' => 'Vanhenee %s päivän kuluttua',
+  'expires_in_hours' => 'Vanhenee %s tunnin kuluttua',
+  'expires_in_minutes' => 'Vanhenee %s minuutin kuluttua',
+  'set_infinite' => 'Aseta ääretön voimassaoloaika',
+  'confirm_set_infinite' => 'Asetetaanko voimassaolo AJATTOMAKSI valituille jaoille?',
 );

@@ -210,6 +210,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && !empty(
                             }
                         }
                     break;
+                case 'set_infinite':
+                    // Set expiration to NULL (infinite) and ensure share is active
+                    try {
+                        $stmt = $db->prepare("UPDATE shares SET expires_at = NULL, is_active = 1 WHERE id = ?");
+                        if ($stmt->execute([$sid])) {
+                            $logger = new Logger();
+                            $logger->log($user['id'], 'share_set_infinite', 'share', $sid, 'Admin set share duration to infinite');
+                            $success++;
+                        } else {
+                            $errors++;
+                        }
+                    } catch (Exception $e) {
+                        $errors++;
+                    }
+                    break;
                 default:
                     $errors++;
                     break;
@@ -322,6 +337,7 @@ renderHeader('Comparticiones del Sistema', $user);
                                                                 echo sort_link('owner_username', 'Usuario', $sortBy, $sortOrder, $perPage, $search);
                                                                 echo sort_link('is_active', 'Estado', $sortBy, $sortOrder, $perPage, $search);
                                                                 echo sort_link('download_count', 'Descargas', $sortBy, $sortOrder, $perPage, $search);
+                                                                echo sort_link('expires_at', t('table_expires_in'), $sortBy, $sortOrder, $perPage, $search);
                                                                 echo sort_link('created_at', 'Creado', $sortBy, $sortOrder, $perPage, $search);
                                 echo '<th>Acciones</th>'; 
                                 ?>
@@ -356,9 +372,42 @@ renderHeader('Comparticiones del Sistema', $user);
                                 <td><?php echo htmlspecialchars($share['owner_username']); ?></td>
                                 <td><span class="badge badge-<?php echo $share['is_active'] ? 'success' : 'secondary'; ?>"><?php echo $share['is_active'] ? 'Activo' : 'Inactivo'; ?></span></td>
                                 <td><?php echo $share['download_count']; ?></td>
+                                <td>
+                                    <?php
+                                        $now = time();
+                                        $expiresText = t('never');
+                                        $expiresColor = 'var(--text-muted)';
+                                        if (!empty($share['expires_at'])) {
+                                            $expTs = strtotime($share['expires_at']);
+                                            if ($expTs !== false) {
+                                                $diff = $expTs - $now;
+                                                if ($diff <= 0) {
+                                                    $expiresText = t('expired');
+                                                    $expiresColor = 'var(--danger)';
+                                                } else {
+                                                    if ($diff > 86400) {
+                                                        $n = ceil($diff / 86400);
+                                                        $expiresText = sprintf(t('expires_in_days'), $n);
+                                                        $expiresColor = 'var(--success)';
+                                                    } elseif ($diff > 3600) {
+                                                        $n = ceil($diff / 3600);
+                                                        $expiresText = sprintf(t('expires_in_hours'), $n);
+                                                        $expiresColor = 'var(--warning)';
+                                                    } else {
+                                                        $n = ceil($diff / 60);
+                                                        $expiresText = sprintf(t('expires_in_minutes'), $n);
+                                                        $expiresColor = 'var(--danger)';
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ?>
+                                    <span style="font-weight:600; color: <?php echo $expiresColor; ?>;"><?php echo htmlspecialchars($expiresText); ?></span>
+                                </td>
                                 <td><?php echo date('d/m/Y', strtotime($share['created_at'])); ?></td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-info" onclick="openResendModalForShare(<?php echo $share['id']; ?>)"><i class="fas fa-envelope"></i> <?php echo t('resend'); ?></button>
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="adminSharesSetInfiniteSingle(<?php echo $share['id']; ?>)" title="<?php echo htmlspecialchars(t('set_infinite')); ?>"><i class="fas fa-infinity"></i></button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -372,6 +421,7 @@ renderHeader('Comparticiones del Sistema', $user);
                     <button type="button" class="btn btn-danger" onclick="adminSharesDoAction('delete')"><i class="fas fa-trash"></i> Eliminar seleccionadas</button>
                     <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="adminSharesClearSelection()"><?php echo htmlspecialchars(t('cancel')); ?></button>
                     <button type="button" class="btn btn-info" onclick="adminSharesDoAction('resend_notification')"><i class="fas fa-envelope"></i> <?php echo t('resend_notification'); ?></button>
+                    <button type="button" class="btn btn-secondary" onclick="adminSharesDoAction('set_infinite')"><i class="fas fa-infinity"></i> <?php echo htmlspecialchars(t('set_infinite')); ?></button>
                 </div>
                 
                 <!-- Resend override modal -->
@@ -480,6 +530,21 @@ renderHeader('Comparticiones del Sistema', $user);
                     }
                     items.forEach(i => i.addEventListener('change', updateBar));
                 });
+
+                    function adminSharesSetInfiniteSingle(shareId) {
+                        // Uncheck all and check only the provided share, then trigger bulk action
+                        document.querySelectorAll('.share-item').forEach(i => i.checked = false);
+                        const checkbox = document.getElementById('share_checkbox_' + shareId) || document.querySelector('.share-item[value="' + shareId + '"]');
+                        if (checkbox) checkbox.checked = true;
+                        updateAdminCountAndShowBar();
+                        adminSharesDoAction('set_infinite');
+                    }
+
+                    function updateAdminCountAndShowBar() {
+                        const checked = document.querySelectorAll('.share-item:checked').length;
+                        document.getElementById('adminSharesCount').textContent = checked;
+                        if (checked > 0) document.getElementById('adminSharesBulkBar').classList.add('show'); else document.getElementById('adminSharesBulkBar').classList.remove('show');
+                    }
 
                 function openResendModal() {
                     const modal = document.getElementById('resendModal');
@@ -606,7 +671,11 @@ renderHeader('Comparticiones del Sistema', $user);
                         openResendModal();
                         return;
                     }
-                    if (!confirm(<?php echo json_encode(t('confirm_action_shares')); ?>)) return;
+                    if (action === 'set_infinite') {
+                        if (!confirm(<?php echo json_encode(t('confirm_set_infinite')); ?>)) return;
+                    } else {
+                        if (!confirm(<?php echo json_encode(t('confirm_action_shares')); ?>)) return;
+                    }
                     document.getElementById('adminSharesAction').value = action;
                     document.getElementById('adminSharesForm').submit();
                 }

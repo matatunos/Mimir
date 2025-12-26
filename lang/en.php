@@ -403,6 +403,13 @@ $LANG = [
     'link_deleted' => 'Link deleted',
     'protected' => 'Protected',
     'copy_prompt' => 'Copy this link:',
+    'never' => 'Never',
+    'expired' => 'Expired',
+    'expires_in_days' => 'Expires in %s days',
+    'expires_in_hours' => 'Expires in %s hours',
+    'expires_in_minutes' => 'Expires in %s minutes',
+    'set_infinite' => 'Set infinite duration',
+    'confirm_set_infinite' => 'Set duration to INFINITE for selected shares?',
 ];
 
 return $LANG;

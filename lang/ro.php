@@ -389,4 +389,11 @@ return array (
   'link_deleted' => 'Link șters',
   'protected' => 'Protejat',
   'copy_prompt' => 'Copiați acest link:',
+  'never' => 'Niciodată',
+  'expired' => 'Expirat',
+  'expires_in_days' => 'Expiră în %s zile',
+  'expires_in_hours' => 'Expiră în %s ore',
+  'expires_in_minutes' => 'Expiră în %s minute',
+  'set_infinite' => 'Setează durată infinită',
+  'confirm_set_infinite' => 'Setează durata la INFINIT pentru partajările selectate?',
 );

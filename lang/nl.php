@@ -389,4 +389,11 @@ return array (
   'link_deleted' => 'Link verwijderd',
   'protected' => 'Beschermd',
   'copy_prompt' => 'Kopieer deze link:',
+  'never' => 'Nooit',
+  'expired' => 'Vervallen',
+  'expires_in_days' => 'Verloopt over %s dagen',
+  'expires_in_hours' => 'Verloopt over %s uur',
+  'expires_in_minutes' => 'Verloopt over %s minuten',
+  'set_infinite' => 'Stel oneindige duur in',
+  'confirm_set_infinite' => 'Duur instellen op ONEINDIG voor geselecteerde delen?',
 );
