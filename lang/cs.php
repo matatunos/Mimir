@@ -271,6 +271,7 @@ return array (
   'options' => 'Možnosti',
   'orphan_files' => 'Soubory sirotků',
   'orphan_files_desc' => 'Soubory bez přiřazeného vlastníka',
+  'previous_owner' => 'Vlastník (bývalý vlastník)',
   'override_recipient_label' => 'Cílový e-mail (volitelné)',
   'page_of' => 'Strana %s z %s',
   'page_title' => 'Správa systému',

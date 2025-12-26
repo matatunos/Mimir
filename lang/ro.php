@@ -129,6 +129,7 @@ return array (
   'selected_files_count' => '%s fișiere selectate',
   'search_user_target' => 'Căutați utilizatorul țintă',
   'orphan_files_desc' => 'Fișiere fără un proprietar atribuit',
+  'previous_owner' => 'Proprietar (fost proprietar)',
   'no_orphans' => '✅ Nu există fișiere orfane în acest moment',
   'no_orphans_search' => 'Nu s-au găsit fișiere orfane pentru aceste criterii',
   'select_all' => 'Selectați toate',

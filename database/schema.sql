@@ -571,6 +571,48 @@ LOCK TABLES `security_events` WRITE;
 /*!40000 ALTER TABLE `security_events` DISABLE KEYS */;
 set autocommit=0;
 /*!40000 ALTER TABLE `security_events` ENABLE KEYS */;
+
+-- Table to track ownership history of files
+DROP TABLE IF EXISTS `file_ownership_history`;
+CREATE TABLE `file_ownership_history` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `file_id` INT NOT NULL,
+  `old_user_id` INT DEFAULT NULL,
+  `new_user_id` INT DEFAULT NULL,
+  `changed_by_user_id` INT DEFAULT NULL,
+  `reason` VARCHAR(100) DEFAULT NULL,
+  `note` TEXT DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `file_id` (`file_id`),
+  KEY `old_user_id` (`old_user_id`),
+  KEY `new_user_id` (`new_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Trigger to capture changes to files.user_id (uses @current_actor_id if set by application)
+DROP TRIGGER IF EXISTS `files_owner_change`;
+DELIMITER $$
+CREATE TRIGGER `files_owner_change`
+AFTER UPDATE ON `files`
+FOR EACH ROW
+BEGIN
+  IF NOT (OLD.user_id <=> NEW.user_id) THEN
+    INSERT INTO file_ownership_history (file_id, old_user_id, new_user_id, changed_by_user_id, reason, note)
+    VALUES (
+      OLD.id,
+      OLD.user_id,
+      NEW.user_id,
+      NULLIF(@current_actor_id, 0),
+      CASE
+        WHEN OLD.user_id IS NULL AND NEW.user_id IS NOT NULL THEN 'assigned'
+        WHEN OLD.user_id IS NOT NULL AND NEW.user_id IS NULL THEN 'orphaned'
+        ELSE 'reassign'
+      END,
+      CONCAT('triggered_by_variable=', COALESCE(CAST(@current_actor_id AS CHAR), 'NULL'), '; note=', COALESCE(@current_actor_note, ''))
+    );
+  END IF;
+END$$
+DELIMITER ;
 UNLOCK TABLES;
 commit;
 

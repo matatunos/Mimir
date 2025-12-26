@@ -716,20 +716,26 @@ class File {
      */
     public function getOrphans($filters = [], $limit = 50, $offset = 0) {
         try {
-            $where = ["user_id IS NULL"];
+            $where = ["f.user_id IS NULL"];
             $params = [];
-            
+
             if (!empty($filters['search'])) {
-                $where[] = "original_name LIKE ?";
+                // search original name or last assignment description
+                $where[] = "(f.original_name LIKE ? OR (SELECT al.description FROM activity_log al WHERE al.entity_type = 'file' AND al.entity_id = f.id AND al.action IN ('file_reassigned','orphan_assigned') ORDER BY al.created_at DESC LIMIT 1) LIKE ? )";
+                $params[] = '%' . $filters['search'] . '%';
                 $params[] = '%' . $filters['search'] . '%';
             }
-            
-            $sql = "SELECT * FROM files WHERE " . implode(' AND ', $where) . 
-                   " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-            
+
+            $sql = "SELECT f.*, u.username, u.full_name as owner_name, 
+                       (SELECT al.description FROM activity_log al WHERE al.entity_type = 'file' AND al.entity_id = f.id AND al.action IN ('file_reassigned','orphan_assigned') ORDER BY al.created_at DESC LIMIT 1) as last_assignment_description
+                    FROM files f
+                    LEFT JOIN users u ON f.user_id = u.id
+                    WHERE " . implode(' AND ', $where) . "
+                    ORDER BY f.created_at DESC LIMIT ? OFFSET ?";
+
             $params[] = $limit;
             $params[] = $offset;
-            
+
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
             return $stmt->fetchAll();
@@ -744,16 +750,17 @@ class File {
      */
     public function countOrphans($filters = []) {
         try {
-            $where = ["user_id IS NULL"];
+            $where = ["f.user_id IS NULL"];
             $params = [];
-            
+
             if (!empty($filters['search'])) {
-                $where[] = "original_name LIKE ?";
+                $where[] = "(f.original_name LIKE ? OR (SELECT al.description FROM activity_log al WHERE al.entity_type = 'file' AND al.entity_id = f.id AND al.action IN ('file_reassigned','orphan_assigned') ORDER BY al.created_at DESC LIMIT 1) LIKE ? )";
+                $params[] = '%' . $filters['search'] . '%';
                 $params[] = '%' . $filters['search'] . '%';
             }
-            
-            $sql = "SELECT COUNT(*) as count FROM files WHERE " . implode(' AND ', $where);
-            
+
+            $sql = "SELECT COUNT(*) as count FROM files f WHERE " . implode(' AND ', $where);
+
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
             return $stmt->fetch()['count'] ?? 0;
@@ -785,24 +792,44 @@ class File {
             if (!$this->userClass->hasStorageAvailable($newUserId, $file['file_size'])) {
                 throw new Exception("New user storage quota exceeded");
             }
-                    // Map blocked extension events to an allowed enum value to avoid enum truncation warnings
-                    $stmt = $this->db->prepare("
-                        INSERT INTO security_events 
-                        (event_type, username, severity, user_id, ip_address, user_agent, description, details)
-                        VALUES ('malware_upload', ?, 'medium', ?, ?, ?, ?, ?)
-                    ");
-            $stmt->execute([$newUserId, $fileId]);
-            
-            // Update storage used for new user
-            $this->userClass->updateStorageUsed($newUserId, $file['file_size']);
-            
-            // Update storage used for old user if exists
-            if ($oldUserId) {
-                $this->userClass->updateStorageUsed($oldUserId, -$file['file_size']);
+
+            // Perform update and set DB actor variable so trigger can record who changed ownership
+            $manageTx = false;
+            if (!$this->db->inTransaction()) {
+                $this->db->beginTransaction();
+                $manageTx = true;
             }
-            
-            $this->db->commit();
-            
+            try {
+                // set actor for trigger (use session user if available)
+                $actor = $_SESSION['user_id'] ?? null;
+                try {
+                    $s = $this->db->prepare("SET @current_actor_id = ?");
+                    $s->execute([$actor]);
+                } catch (Exception $e) {
+                    // ignore if cannot set variable
+                }
+
+                // Update the files table owner
+                $upd = $this->db->prepare("UPDATE files SET user_id = ? WHERE id = ?");
+                $upd->execute([$newUserId, $fileId]);
+
+                // Update storage used for new user
+                $this->userClass->updateStorageUsed($newUserId, $file['file_size']);
+
+                // Update storage used for old user if exists
+                if ($oldUserId) {
+                    $this->userClass->updateStorageUsed($oldUserId, -$file['file_size']);
+                }
+
+                // Clear actor variable
+                try { $this->db->query("SET @current_actor_id = NULL"); } catch (Exception $e) {}
+
+                if ($manageTx) $this->db->commit();
+            } catch (Exception $e) {
+                if ($manageTx) $this->db->rollBack();
+                throw $e;
+            }
+
             $this->logger->log(
                 $_SESSION['user_id'] ?? null,
                 'file_reassigned',
@@ -810,7 +837,7 @@ class File {
                 $fileId,
                 "File '{$file['original_name']}' reassigned to user {$newUser['username']}"
             );
-            
+
             return true;
         } catch (Exception $e) {
             $this->db->rollBack();

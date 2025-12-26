@@ -129,6 +129,7 @@ return array (
   'selected_files_count' => '%s fájl kiválasztva',
   'search_user_target' => 'Célfelhasználó keresése',
   'orphan_files_desc' => 'Fájlok hozzárendelt tulajdonos nélkül',
+  'previous_owner' => 'Tulajdonos (korábbi tulajdonos)',
   'no_orphans' => '✅ Jelenleg nincsenek árva fájlok',
   'no_orphans_search' => 'Nem található árva fájl az adott kritériumhoz',
   'select_all' => 'Válassza ki az összeset',

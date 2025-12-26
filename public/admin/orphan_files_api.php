@@ -199,6 +199,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         $db = Database::getInstance()->getConnection();
+        // Provide actor info to DB trigger (optional but recommended)
+        try {
+            $set = $db->prepare("SET @current_actor_id = ?");
+            $set->execute([ $adminUser['id'] ?? null ]);
+        } catch (Exception $e) {
+            // ignore; trigger will still record old/new ids without actor
+        }
         $successCount = 0;
         $failedFiles = [];
         
@@ -230,6 +237,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $failedFiles[] = $file['original_name'] . " (error: {$e->getMessage()})";
             }
         }
+
+        // clear actor variable
+        try { $db->query("SET @current_actor_id = NULL"); } catch (Exception $e) {}
         
         if ($successCount > 0 && empty($failedFiles)) {
             echo json_encode(['success' => true, 'count' => $successCount]);
@@ -252,6 +262,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userId = intval($_POST['user_id'] ?? 0);
 
         $db = Database::getInstance()->getConnection();
+        // provide actor for trigger
+        try {
+            $db->prepare("SET @current_actor_id = ?")->execute([ $adminUser['id'] ?? null ]);
+        } catch (Exception $e) {}
 
         // Collect file IDs
         $fileIds = [];
@@ -345,6 +359,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $failedFiles[] = $file['original_name'] . " (error: {$e->getMessage()})";
             }
         }
+
+        // clear actor variable
+        try { $db->query("SET @current_actor_id = NULL"); } catch (Exception $e) {}
 
         if ($successCount > 0 && empty($failedFiles)) {
             echo json_encode(['success' => true, 'count' => $successCount]);

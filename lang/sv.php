@@ -129,6 +129,7 @@ return array (
   'selected_files_count' => '%s filer valda',
   'search_user_target' => 'Sök målanvändare',
   'orphan_files_desc' => 'Filer utan tilldelad ägare',
+  'previous_owner' => 'Ägare (tidigare ägare)',
   'no_orphans' => '✅ Inga föräldralösa filer just nu',
   'no_orphans_search' => 'Inga föräldralösa filer hittades för det kriteriet',
   'select_all' => 'Välj alla',

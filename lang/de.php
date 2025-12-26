@@ -271,6 +271,7 @@ return array (
   'options' => 'Optionen',
   'orphan_files' => 'Waisen-Dateien',
   'orphan_files_desc' => 'Dateien ohne zugewiesenen Besitzer',
+  'previous_owner' => 'Eigentümer (vorheriger Eigentümer)',
   'override_recipient_label' => 'Empfänger-E-Mail (optional)',
   'page_of' => 'Seite %s von %s',
   'page_title' => 'Systemverwaltung',

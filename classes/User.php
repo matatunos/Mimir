@@ -286,9 +286,20 @@ class User {
             $stmt->execute([$id]);
             $fileCount = $stmt->fetch()['count'] ?? 0;
 
+            // Inform DB trigger who performed this action (if available)
+            try {
+                $s = $this->db->prepare("SET @current_actor_id = ?");
+                $s->execute([ $_SESSION['user_id'] ?? null ]);
+            } catch (Exception $e) {
+                // ignore
+            }
+
             // Delete user (files will become orphans with user_id = NULL due to ON DELETE SET NULL)
             $stmt = $this->db->prepare("DELETE FROM users WHERE id = ?");
             $stmt->execute([$id]);
+
+            // clear actor variable
+            try { $this->db->query("SET @current_actor_id = NULL"); } catch (Exception $e) {}
 
             $message = "User deleted: {$user['username']}";
             if ($fileCount > 0) {

@@ -129,6 +129,7 @@ return array (
   'selected_files_count' => 'Wybrano pliki %s',
   'search_user_target' => 'Wyszukaj docelowego użytkownika',
   'orphan_files_desc' => 'Pliki bez przypisanego właściciela',
+  'previous_owner' => 'Właściciel (były właściciel)',
   'no_orphans' => '✅ W tej chwili nie ma żadnych plików osieroconych',
   'no_orphans_search' => 'Nie znaleziono plików osieroconych dla tego kryterium',
   'select_all' => 'Zaznacz wszystko',

@@ -129,6 +129,7 @@ return array (
   'selected_files_count' => '%s file selezionati',
   'search_user_target' => 'Cerca l\'utente di destinazione',
   'orphan_files_desc' => 'File senza proprietario assegnato',
+  'previous_owner' => 'Proprietario (ex-propietario)',
   'no_orphans' => '✅ Nessun file orfano in questo momento',
   'no_orphans_search' => 'Nessun file orfano trovato per questi criteri',
   'select_all' => 'Seleziona tutto',

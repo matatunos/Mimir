@@ -129,6 +129,7 @@ return array (
   'selected_files_count' => '%s bestanden geselecteerd',
   'search_user_target' => 'Doelgebruiker zoeken',
   'orphan_files_desc' => 'Bestanden zonder toegewezen eigenaar',
+  'previous_owner' => 'Eigenaar (voormalige eigenaar)',
   'no_orphans' => '✅ Momenteel geen weesbestanden',
   'no_orphans_search' => 'Er zijn geen weesbestanden gevonden voor dat criterium',
   'select_all' => 'Selecteer alles',

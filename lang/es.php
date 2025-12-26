@@ -278,6 +278,7 @@ return array (
   'options' => 'Opciones',
   'orphan_files' => 'Archivos Huérfanos',
   'orphan_files_desc' => 'Archivos sin propietario asignado',
+  'previous_owner' => 'Propietario (ex-propietario)',
   'override_recipient_label' => 'Correo destino (opcional)',
   'page_of' => 'Página %s de %s',
   'page_title' => 'Administración del sistema',

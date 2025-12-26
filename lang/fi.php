@@ -129,6 +129,7 @@ return array (
   'selected_files_count' => '%s tiedostoa valittu',
   'search_user_target' => 'Hae kohdekäyttäjää',
   'orphan_files_desc' => 'Tiedostot ilman omistajaa',
+  'previous_owner' => 'Omistaja (entinen omistaja)',
   'no_orphans' => '✅ Ei orpotiedostoja tällä hetkellä',
   'no_orphans_search' => 'Tälle kriteerille ei löytynyt orpotiedostoja',
   'select_all' => 'Valitse kaikki',

@@ -186,6 +186,7 @@ renderHeader(t('orphan_files'), $user);
                         <tr>
                             <th style="width: 50px;"></th>
                             <th>Archivo</th>
+                            <th style="width: 180px;"><?php echo htmlspecialchars(t('previous_owner')); ?></th>
                             <th style="width: 120px;">Tamaño</th>
                             <th style="width: 180px;">Subido</th>
                             <th style="width: 200px; text-align: right;">Acciones</th>
@@ -199,8 +200,8 @@ renderHeader(t('orphan_files'), $user);
                                            onchange="updateBulkActions()">
                                 </td>
                                 <td>
-                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                        <span style="font-size: 1.5rem;"><?php echo getFileIcon($file['original_name'] ?? ''); ?></span>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span style="font-size: 1.125rem;"><?php echo getFileIcon($file['original_name'] ?? ''); ?></span>
                                         <div>
                                             <strong><?php echo htmlspecialchars($file['original_name'] ?? 'Sin nombre'); ?></strong>
                                             <?php if (!empty($file['stored_name']) && $file['stored_name'] !== $file['original_name']): ?>
@@ -208,6 +209,29 @@ renderHeader(t('orphan_files'), $user);
                                             <?php endif; ?>
                                         </div>
                                     </div>
+                                </td>
+                                <td>
+                                    <?php
+                                    // Show current owner if present, otherwise try to show last assignment description (previous owner)
+                                    $ownerDisplay = '-';
+                                    if (!empty($file['owner_name']) || !empty($file['username'])) {
+                                        $ownerDisplay = htmlspecialchars(trim(($file['owner_name'] ?: $file['username']) ?: '-'));
+                                    } elseif (!empty($file['last_assignment_description'])) {
+                                        // Try to extract username from description like "... asignado a username"
+                                        $desc = $file['last_assignment_description'];
+                                        $prev = '-';
+                                        if (preg_match('/asignado a\s+([A-Za-z0-9_\-\.]+)/i', $desc, $m)) {
+                                            $prev = $m[1];
+                                        } elseif (preg_match('/assigned to\s+([A-Za-z0-9_\-\.]+)/i', $desc, $m)) {
+                                            $prev = $m[1];
+                                        } else {
+                                            // fallback to showing the description truncated
+                                            $prev = mb_substr($desc, 0, 60);
+                                        }
+                                        $ownerDisplay = htmlspecialchars($prev);
+                                    }
+                                    echo $ownerDisplay;
+                                    ?>
                                 </td>
                                 <td><?php echo formatFileSize($file['file_size'] ?? 0); ?></td>
                                 <td>

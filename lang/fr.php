@@ -271,6 +271,7 @@ return array (
   'options' => 'Possibilités',
   'orphan_files' => 'Fichiers orphelins',
   'orphan_files_desc' => 'Fichiers sans propriétaire attribué',
+  'previous_owner' => 'Propriétaire (ancien propriétaire)',
   'override_recipient_label' => 'Email destinataire (optionnel)',
   'page_of' => 'Page %s sur %s',
   'page_title' => 'Administration du système',

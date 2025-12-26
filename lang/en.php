@@ -139,6 +139,7 @@ $LANG = [
     'search_user_target' => 'Search target user',
     'orphan_files' => 'Orphan Files',
     'orphan_files_desc' => 'Files without an assigned owner',
+    'previous_owner' => 'Owner (previous owner)',
     'no_orphans' => '✅ No orphan files at this time',
     'no_orphans_search' => 'No orphan files found for that criteria',
     'select_all' => 'Select all',
