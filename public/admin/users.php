@@ -633,16 +633,18 @@ renderHeader('Gestión de Usuarios', $user);
                                 </td>
                                 <td class="col-storage">
                                     <?php 
-                                    $usedGB = $u['used_storage'] / 1024 / 1024 / 1024;
-                                    $quotaGB = $u['storage_quota'] / 1024 / 1024 / 1024;
-                                    $percentage = $quotaGB > 0 ? ($usedGB / $quotaGB) * 100 : 0;
+                                    $usedGB = ($u['used_storage'] ?? 0) / 1024 / 1024 / 1024;
+                                    $quotaGB = (isset($u['storage_quota']) && $u['storage_quota'] !== null) ? ($u['storage_quota'] / 1024 / 1024 / 1024) : null;
+                                    $percentage = ($quotaGB !== null && $quotaGB > 0) ? ($usedGB / $quotaGB) * 100 : 0;
                                     ?>
                                     <div style="font-size: 0.875rem;">
-                                        <?php echo number_format($usedGB, 2); ?> / <?php echo number_format($quotaGB, 1); ?> GB
+                                        <?php echo number_format($usedGB, 2); ?> / <?php echo $quotaGB !== null ? number_format($quotaGB, 1) . ' GB' : '<strong>Ilimitado</strong>'; ?>
                                     </div>
-                                    <div style="background: var(--bg-secondary); border-radius: 0.25rem; height: 6px; margin-top: 0.25rem; overflow: hidden;">
-                                        <div style="background: <?php echo $percentage > 90 ? '#e74c3c' : ($percentage > 75 ? '#f39c12' : 'var(--primary)'); ?>; height: 100%; width: <?php echo min($percentage, 100); ?>%;"></div>
-                                    </div>
+                                    <?php if ($quotaGB !== null): ?>
+                                        <div style="background: var(--bg-secondary); border-radius: 0.25rem; height: 6px; margin-top: 0.25rem; overflow: hidden;">
+                                            <div style="background: <?php echo $percentage > 90 ? '#e74c3c' : ($percentage > 75 ? '#f39c12' : 'var(--primary)'); ?>; height: 100%; width: <?php echo min($percentage, 100); ?>%;"></div>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="col-created">
                                     <div><?php echo date('d/m/Y', strtotime($u['created_at'])); ?></div>

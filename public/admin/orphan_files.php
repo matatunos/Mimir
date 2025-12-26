@@ -98,32 +98,21 @@ renderHeader(t('orphan_files'), $user);
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 1rem;
+    bottom: 1.25rem;
     z-index: 2147483647;
     display: none;
 }
-.floating-action-bar .bar, #floatingBar .bar {
-    background: #fff;
-    border: 1px solid var(--border-color);
-    color: var(--text);
-    padding: 0.6rem 1rem;
-    border-radius: 8px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    min-width: 320px;
-    justify-content: center;
-}
-.floating-action-bar .bar .btn, #floatingBar .bar .btn { font-size: 0.95rem; }
+
+.bulk-actions-bar { /* using global styles in public/assets/css/style.css */ }
+.bulk-actions-bar .btn { padding: 0.25rem 0.45rem; min-width:36px; }
 </style>
 
 <!-- Floating actions bar (appears when files selected) -->
 <div id="floatingBar" style="position:fixed; left:50%; transform:translateX(-50%); bottom:1rem; z-index:2147483647; display:none;">
-    <div class="bar" style="display:flex; gap:0.5rem; align-items:center; background:#fff; padding:0.6rem 1rem; border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.18); border:1px solid rgba(0,0,0,0.06); color:#111;">
-        <div id="floatingCount" style="font-weight:600; margin-right:0.5rem;">0 seleccionado(s)</div>
-        <button class="btn btn-primary btn-sm" id="floatingAssignBtn" onclick="bulkAssign()" title="<?php echo htmlspecialchars(t('assign_selected')); ?>" aria-label="<?php echo htmlspecialchars(t('assign_selected')); ?>">👤</button>
-        <button class="btn btn-danger btn-sm" id="floatingDeleteBtn" onclick="bulkDelete()" title="<?php echo htmlspecialchars(t('delete_selected')); ?>" aria-label="<?php echo htmlspecialchars(t('delete_selected')); ?>">🗑️</button>
+    <div class="bulk-actions-bar" id="bulkActionsBar">
+        <div id="bulkSelectedCount" style="font-weight:600; margin-right:0.5rem;">0 seleccionado(s)</div>
+        <button class="btn btn-primary btn-sm" id="floatingAssignBtn" onclick="bulkAssign()" title="<?php echo htmlspecialchars(t('assign_selected')); ?>" aria-label="<?php echo htmlspecialchars(t('assign_selected')); ?>"><i class="fas fa-user"></i> <span class="btn-label"><?php echo htmlspecialchars(t('assign_selected')); ?></span></button>
+        <button class="btn btn-danger btn-sm" id="floatingDeleteBtn" onclick="bulkDelete()" title="<?php echo htmlspecialchars(t('delete_selected')); ?>" aria-label="<?php echo htmlspecialchars(t('delete_selected')); ?>"><i class="fas fa-trash"></i> <span class="btn-label"><?php echo htmlspecialchars(t('delete_selected')); ?></span></button>
         <button class="btn btn-outline btn-sm" id="floatingSelectAllBtn" onclick="selectAllFiles()" title="<?php echo htmlspecialchars(t('select_all')); ?>" aria-label="<?php echo htmlspecialchars(t('select_all')); ?>"><?php echo htmlspecialchars(t('select_all')); ?></button>
     </div>
 </div>
@@ -684,7 +673,7 @@ function toggleFloatingBar(selectedCount) {
     if (!bar) return;
     console.log('[orphan_files] toggleFloatingBar selectedCount=', selectedCount, 'allFilesSelected=', allFilesSelected);
     if ((selectedCount > 0) || allFilesSelected) {
-        document.getElementById('floatingCount').textContent = (allFilesSelected ? totalOrphans : selectedCount) + ' seleccionado(s)';
+        document.getElementById('bulkSelectedCount').textContent = (allFilesSelected ? totalOrphans : selectedCount) + ' seleccionado(s)';
         // force visibility and strong styles in case theme overwrote CSS
         try {
             bar.style.setProperty('display', 'block', 'important');
@@ -692,22 +681,27 @@ function toggleFloatingBar(selectedCount) {
             bar.style.setProperty('transform', 'translateX(-50%)', 'important');
             bar.style.setProperty('bottom', '1rem', 'important');
             bar.style.setProperty('z-index', '2147483647', 'important');
-            const inner = bar.querySelector('.bar');
-            if (inner) {
-                inner.style.setProperty('display', 'flex', 'important');
-                inner.style.setProperty('background', '#fff', 'important');
-                inner.style.setProperty('border', '2px solid #d0d0d0', 'important');
-                inner.style.setProperty('box-shadow', '0 8px 30px rgba(0,0,0,0.2)', 'important');
-                inner.style.setProperty('color', '#111', 'important');
-                inner.style.setProperty('padding', '0.6rem 1rem', 'important');
-                inner.style.setProperty('border-radius', '8px', 'important');
+            // if using new bulk-actions-bar markup, ensure its visible
+            const innerBulk = bar.querySelector('.bulk-actions-bar');
+            if (innerBulk) {
+                innerBulk.classList.add('show');
+                // clear any inline old .bar styles
+                innerBulk.style.removeProperty('background');
+            } else {
+                const inner = bar.querySelector('.bar');
+                if (inner) {
+                    inner.style.setProperty('display', 'flex', 'important');
+                }
             }
         } catch (e) {
             // fallback
             bar.style.display = 'block';
         }
     } else {
-        try { bar.style.setProperty('display', 'none', 'important'); } catch(e) { bar.style.display = 'none'; }
+        try { 
+            bar.style.setProperty('display', 'none', 'important'); 
+            const innerBulk = bar.querySelector('.bulk-actions-bar'); if (innerBulk) innerBulk.classList.remove('show');
+        } catch(e) { bar.style.display = 'none'; }
     }
 }
 

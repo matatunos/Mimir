@@ -309,33 +309,8 @@ renderHeader('Gestión de Archivos', $user);
     color: var(--primary);
     font-weight: 700;
 }
-.bulk-actions-bar {
-    position: fixed;
-    bottom: 1.25rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #4a90e2, #50c878);
-    color: white;
-    padding: 0.45rem 0.75rem;
-    border-radius: 999px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
-    display: none;
-    z-index: 1000;
-    animation: slideUp 0.18s ease-out;
-    max-width: calc(100% - 2rem);
-    white-space: nowrap;
-    overflow: hidden;
-    align-items: center;
-}
-@keyframes slideUp {
-    from { transform: translateX(-50%) translateY(100px); opacity: 0; }
-    to { transform: translateX(-50%) translateY(0); opacity: 1; }
-}
-.bulk-actions-bar.show {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
+.bulk-actions-bar { /* using global styles in public/assets/css/style.css */ }
+.bulk-actions-bar.show { display: flex; }
 .file-checkbox {
     width: 18px;
     height: 18px;
@@ -592,8 +567,8 @@ renderHeader('Gestión de Archivos', $user);
 </div>
 
 <!-- Compact Bulk Actions Bar (match user UI style) -->
-<div class="bulk-actions-bar" id="userBulkActionsBar">
-    <span id="userSelectedCount">0</span>
+<div class="bulk-actions-bar" id="bulkActionsBar">
+    <span id="bulkSelectedCount">0</span>
     <div style="display:inline-flex; align-items:center; gap:0.4rem; margin-left:0.5rem;">
         <button type="button" class="btn btn-danger" onclick="confirmBulkAction('delete')" title="<?php echo t('delete'); ?>">
             <i class="fas fa-trash"></i>
@@ -640,8 +615,8 @@ if (!window._setSelectAllFilteredActive) window._setSelectAllFilteredActive = fu
     document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const fileCheckboxes = Array.from(document.querySelectorAll('.user-file-item'));
-    const bulkActionsBar = document.getElementById('userBulkActionsBar');
-    const selectedCountSpan = document.getElementById('userSelectedCount');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCountSpan = document.getElementById('bulkSelectedCount');
     // total number of files matching current filters (populated server-side)
     let selectAllFilteredActive = false;
 
@@ -737,16 +712,16 @@ function selectAllFiltered() {
     // set hidden flag
     const s = document.getElementById('userSelectAll'); if (s) s.value = '1';
     window._setSelectAllFilteredActive(true);
-    document.getElementById('userSelectedCount').textContent = totalFilteredFiles;
-    const bar = document.getElementById('userBulkActionsBar'); if (bar) bar.classList.add('show');
+    document.getElementById('bulkSelectedCount').textContent = totalFilteredFiles;
+    const bar = document.getElementById('bulkActionsBar'); if (bar) bar.classList.add('show');
 }
 
 function clearSelection() {
     document.querySelectorAll('.user-file-item').forEach(cb => cb.checked = false);
     const sel = document.getElementById('selectAll'); if (sel) sel.checked = false;
-    const bar = document.getElementById('userBulkActionsBar'); if (bar) bar.classList.remove('show');
+    const bar = document.getElementById('bulkActionsBar'); if (bar) bar.classList.remove('show');
     if (window._setSelectAllFilteredActive) window._setSelectAllFilteredActive(false);
-    const sc = document.getElementById('userSelectedCount'); if (sc) sc.textContent = '0';
+    const sc = document.getElementById('bulkSelectedCount'); if (sc) sc.textContent = '0';
 }
 
 function confirmBulkAction(action) {
@@ -792,7 +767,7 @@ function confirmBulkAction(action) {
         }
         document.getElementById('userBulkAction').value = action;
         // hide the bulk actions bar and clear selection so UI doesn't remain selected
-        try { const b = document.getElementById('userBulkActionsBar'); if (b) b.classList.remove('show'); } catch (e) {}
+        try { const b = document.getElementById('bulkActionsBar'); if (b) b.classList.remove('show'); } catch (e) {}
         try { clearSelection(); } catch (e) {}
         document.getElementById('userBulkForm').submit();
     }

@@ -345,6 +345,11 @@ $dailySizesValues = array_map(function($size) {
 }, array_values($dailySizes));
 $dailyUsersValues = array_values($dailyUsers);
 
+// precompute maxima for initial chart scaling (avoid zero max)
+$chartMaxCount = max($dailyCountsValues) ?: 1;
+$chartMaxSize = max($dailySizesValues) ?: 1;
+$chartMaxUsers = max($dailyUsersValues) ?: 1;
+
 // Current period totals for uploads chart (used in right-side summary)
 $currentUploadsTotal = array_sum($dailyCountsValues);
 $currentVolumeMBTotal = array_sum($dailySizesValues);
@@ -1325,7 +1330,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         title: {
                             display: true,
                             text: 'Archivos'
-                        }
+                        },
+                        ticks: { beginAtZero: true },
+                        suggestedMax: <?php echo json_encode(ceil($chartMaxCount * 1.2)); ?>
                     },
                     y1: {
                         type: 'linear',
@@ -1338,11 +1345,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         grid: {
                             drawOnChartArea: false,
                         },
+                        ticks: { beginAtZero: true },
+                        suggestedMax: <?php echo json_encode(ceil($chartMaxSize * 1.2)); ?>
                     },
                     y2: {
                         type: 'linear',
-                        display: false,
+                        display: true,
                         position: 'right',
+                        title: { display: true, text: 'Usuarios' },
+                        grid: { drawOnChartArea: false },
+                        ticks: { beginAtZero: true },
+                        suggestedMax: <?php echo json_encode(ceil($chartMaxUsers * 1.2)); ?>
                     },
                     x: {
                         // ensure labels are plotted left->right chronological
@@ -1370,6 +1383,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (window.systemChart.data.datasets[2]) {
                 window.systemChart.data.datasets[2].data = data.users || [];
             }
+            // Update axis maxima based on incoming data so each series uses an appropriate scale
+            try {
+                var counts = (data.counts && data.counts.length) ? data.counts.map(Number) : [0];
+                var sizes = (data.sizes && data.sizes.length) ? data.sizes.map(Number) : [0];
+                var users = (data.users && data.users.length) ? data.users.map(Number) : [0];
+                var maxCount = Math.max.apply(null, counts.concat([1]));
+                var maxSize = Math.max.apply(null, sizes.concat([1]));
+                var maxUsers = Math.max.apply(null, users.concat([1]));
+                if (window.systemChart.options && window.systemChart.options.scales) {
+                    if (window.systemChart.options.scales.y) window.systemChart.options.scales.y.suggestedMax = Math.ceil(maxCount * 1.2);
+                    if (window.systemChart.options.scales.y1) window.systemChart.options.scales.y1.suggestedMax = Math.ceil(maxSize * 1.2);
+                    if (window.systemChart.options.scales.y2) window.systemChart.options.scales.y2.suggestedMax = Math.ceil(maxUsers * 1.2);
+                }
+            } catch(e) {}
             window.systemChart.update();
         }
 

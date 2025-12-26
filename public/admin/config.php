@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../classes/Config.php';
 require_once __DIR__ . '/../../classes/Logger.php';
+require_once __DIR__ . '/../../classes/ForensicLogger.php';
 require_once __DIR__ . '/../../includes/lang.php';
 
 $auth = new Auth();
@@ -13,6 +14,12 @@ $auth->requireAdmin();
 $user = $auth->getUser();
 $configClass = new Config();
 $logger = new Logger();
+// Forensic logger (best-effort)
+try {
+    $forensicLogger = new ForensicLogger();
+} catch (Throwable $e) {
+    $forensicLogger = null;
+}
 // Expose this Config instance globally so layout/header reuse the same cache
 $GLOBALS['config_instance'] = $configClass;
 
@@ -848,15 +855,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         break;
                     }
                 }
-                
+
                 // Determine type
                 $type = $existingConfig ? $existingConfig['config_type'] : 'string';
-                
+
                 // Handle boolean checkboxes (unchecked = not in POST)
                 if ($type === 'boolean' && !isset($_POST[$key])) {
                     $value = '0';
                 }
-                
+
+                // Special handling for password fields: only update if a non-empty value is provided
+                // or if an explicit clear checkbox was checked by the admin. This prevents accidental
+                // overwrites when the form leaves the field blank.
+                if (substr($key, -9) === '_password') {
+                    $clearMarker = isset($_POST[$key . '_clear']) && $_POST[$key . '_clear'];
+                    if (trim((string)$value) === '' && !$clearMarker) {
+                        // Skip updating this password
+                        continue;
+                    }
+
+                    // Audit log only that the credential changed; never log the secret itself.
+                    $oldVal = $existingConfig['config_value'] ?? '';
+                    $isCleared = (trim((string)$value) === '' && $clearMarker);
+                    $isChanged = $isCleared || (trim((string)$value) !== '' && $value !== $oldVal);
+                    if ($isChanged) {
+                        try {
+                            $logger->log($user['id'] ?? null, 'config_credential_change', 'system', null, 'Credential updated', ['key' => $key, 'cleared' => $isCleared ? 1 : 0]);
+                        } catch (Throwable $e) {
+                            // best-effort logging
+                        }
+                        // Also emit forensic/security event (do not include secret values)
+                        try {
+                            if (!empty($forensicLogger) && method_exists($forensicLogger, 'logSecurityEvent')) {
+                                $forensicLogger->logSecurityEvent('config_credential_change', 'high', 'Admin updated credential', ['key' => $key, 'cleared' => $isCleared ? 1 : 0], $user['id'] ?? null);
+                            }
+                        } catch (Throwable $e) {
+                            error_log('ForensicLogger error (credential change): ' . $e->getMessage());
+                        }
+                    }
+                }
+
                 $configClass->set($key, $value, $type);
             }
             
@@ -1505,6 +1543,12 @@ renderHeader(t('system_config_header'), $user, $auth);
                             >
                             <?php if (substr($cfg['config_key'], -9) === '_password'): ?>
                                 <small class="form-text text-muted">Dejar vacío para no cambiar la contraseña existente.</small>
+                                <div style="margin-top:0.5rem;">
+                                    <label style="display:inline-flex; align-items:center; gap:0.5rem; font-weight:600;">
+                                        <input type="checkbox" name="<?php echo htmlspecialchars($cfg['config_key'] . '_clear'); ?>" value="1">
+                                        <?php echo htmlspecialchars(t('clear_password')); ?>
+                                    </label>
+                                </div>
                             <?php endif; ?>
                         <?php endif; ?>
                         
@@ -1808,6 +1852,25 @@ document.addEventListener('DOMContentLoaded', function(){
             var existing = input.getAttribute('aria-describedby');
             input.setAttribute('aria-describedby', (existing ? existing + ' ' : '') + help.id);
         }
+    });
+});
+</script>
+
+<script>
+// Confirm when admin attempts to clear stored credentials via the clear checkbox
+document.addEventListener('DOMContentLoaded', function(){
+    var form = document.querySelector('form');
+    if (!form) return;
+    form.addEventListener('submit', function(e){
+        try {
+            var clears = Array.from(document.querySelectorAll('input[name$="_clear"]:checked'));
+            if (clears.length === 0) return;
+            var msg = '<?php echo addslashes(htmlspecialchars(t('confirm_clear_password'))); ?>';
+            if (!confirm(msg)) {
+                e.preventDefault();
+                return false;
+            }
+        } catch (err) { /* ignore */ }
     });
 });
 </script>

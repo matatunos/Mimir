@@ -41,9 +41,9 @@ try {
             $rows = $stmt->fetchAll();
             foreach ($rows as $r) $fileIds[] = $r['id'];
         } elseif (!empty($folder)) {
-            // Get folder contents (includes subfolders/files only one level)
-            $items = $fileClass->getFolderContents($user['id'], (int)$folder);
-            foreach ($items as $it) $fileIds[] = $it['id'];
+            // Collect all files inside the folder recursively so downloads include nested files
+            $filesInFolder = $fileClass->getFilesInFolderRecursive($user['id'], (int)$folder);
+            foreach ($filesInFolder as $f) $fileIds[] = $f['id'];
         } else {
             // All user files
             $stmt = $db->prepare("SELECT id FROM files WHERE user_id = ?");
@@ -73,13 +73,49 @@ try {
 
         $added = 0;
         $namesSeen = [];
+        // If folder download requested, determine root folder id and name for relative paths
+        $rootFolderId = isset($_POST['folder']) && $_POST['folder'] !== '' ? (int)$_POST['folder'] : null;
+        $rootFolderName = null;
+        if ($rootFolderId) {
+            $rf = $fileClass->getById($rootFolderId);
+            $rootFolderName = $rf ? $rf['original_name'] : null;
+        }
         foreach ($fileIds as $fid) {
             $f = $fileClass->getById($fid);
             if (!$f || $f['user_id'] != $user['id']) continue;
             if ($f['is_folder']) continue;
-            if (!is_file($f['file_path'])) continue;
+
+            // Normalize file path: support installations that store relative paths
+            $filePath = $f['file_path'] ?? '';
+            if (!empty($filePath) && !preg_match('#^(\/|[A-Za-z]:\\\\)#', $filePath)) {
+                if (defined('UPLOADS_PATH') && UPLOADS_PATH) {
+                    $filePath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($filePath, '/');
+                } else {
+                    $filePath = rtrim(constant('BASE_PATH'), '/') . '/' . ltrim($filePath, '/');
+                }
+            }
+            if (empty($filePath) || !is_file($filePath)) continue;
 
             $name = $f['original_name'];
+            // If downloading a folder, compute a relative path inside the zip to preserve hierarchy
+            if ($rootFolderId) {
+                // Build path segments from file's parents up to (but not including) the root folder
+                $segments = [];
+                $currentParent = $f['parent_folder_id'] ?? null;
+                while ($currentParent && $currentParent != $rootFolderId) {
+                    $parent = $fileClass->getById($currentParent);
+                    if (!$parent) break;
+                    array_unshift($segments, $parent['original_name']);
+                    $currentParent = $parent['parent_folder_id'] ?? null;
+                }
+                // Sanitize segments and filename
+                $sanitize = function($s){ return preg_replace('/[^A-Za-z0-9_\-\. ]+/', '_', $s); };
+                $safeName = $sanitize($name);
+                $safeRoot = $rootFolderName ? $sanitize($rootFolderName) : 'folder';
+                $safeSegments = array_map($sanitize, $segments);
+                $pathPrefix = $safeRoot . (empty($safeSegments) ? '' : '/' . implode('/', $safeSegments));
+                $name = ltrim($pathPrefix . '/' . $safeName, '/');
+            }
             // Avoid duplicate names inside zip
             if (isset($namesSeen[$name])) {
                 $ext = pathinfo($name, PATHINFO_EXTENSION);
@@ -90,7 +126,7 @@ try {
                 $namesSeen[$f['original_name']] = 1;
             }
 
-            $zip->addFile($f['file_path'], $name);
+            $zip->addFile($filePath, $name);
             $added++;
         }
 

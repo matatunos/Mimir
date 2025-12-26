@@ -380,7 +380,7 @@ $offset = ($page - 1) * $perPage;
 
 // Search / filter / sort parameters
 $q = trim((string)($_GET['q'] ?? ''));
-$filter = 'expired'; // force view to only show expired files
+ $filter = $_GET['filter'] ?? 'expired'; // expired | not | all | never
 $expiredFrom = trim((string)($_GET['expired_from'] ?? ''));
 $expiredTo = trim((string)($_GET['expired_to'] ?? ''));
 $sortBy = $_GET['sort_by'] ?? 'expired_at';
@@ -479,8 +479,12 @@ function buildQuery(array $overrides = []) {
         <input type="hidden" name="sort_by" value="<?php echo htmlspecialchars($sortBy); ?>">
         <input type="hidden" name="sort_order" value="<?php echo htmlspecialchars(strtolower($sortOrder) === 'asc' ? 'asc' : 'desc'); ?>">
         <input type="text" name="q" value="<?php echo htmlspecialchars($q); ?>" placeholder="<?php echo t('search'); ?>" class="form-control" />
-        <input type="hidden" name="filter" value="expired">
-        <div style="padding:0.35rem 0.5rem; color:var(--text-muted);">Mostrando solo archivos expirados</div>
+        <select name="filter" class="form-control">
+            <option value="expired" <?php echo $filter==='expired' ? 'selected' : ''; ?>>Solo expirados</option>
+            <option value="not" <?php echo $filter==='not' ? 'selected' : ''; ?>>No expirados</option>
+            <option value="never" <?php echo $filter==='never' ? 'selected' : ''; ?>>Marcados como "Nunca expirar"</option>
+            <option value="all" <?php echo $filter==='all' ? 'selected' : ''; ?>>Todos</option>
+        </select>
         <label style="display:flex; gap:.25rem; align-items:center;">Desde: <input type="date" name="expired_from" value="<?php echo htmlspecialchars($expiredFrom); ?>" class="form-control" /></label>
         <label style="display:flex; gap:.25rem; align-items:center;">Hasta: <input type="date" name="expired_to" value="<?php echo htmlspecialchars($expiredTo); ?>" class="form-control" /></label>
         <button class="btn btn-primary" type="submit"><?php echo t('search'); ?></button>
@@ -590,15 +594,15 @@ function buildQuery(array $overrides = []) {
 
                 <!-- Floating actions (centered) -->
                 <div id="floatingActions" style="position:fixed; left:50%; transform:translateX(-50%); bottom:1rem; z-index:1000; display:none; max-width:95%;">
-                    <div style="background:#fff; border:1px solid #ddd; padding:0.5rem 0.75rem; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.12); display:flex; gap:0.5rem; align-items:center; min-width:520px; flex-wrap:nowrap; overflow-x:auto; justify-content:space-between;">
-                        <span id="selectedCount">0 seleccionados</span>
+                    <div class="bulk-actions-bar" id="bulkActionsBar">
+                        <span id="bulkSelectedCount">0</span> <span id="bulkSelectedLabel">seleccionados</span>
                         <span id="selectedAllBadge" style="display:none; background:#007bff; color:#fff; padding:2px 6px; border-radius:12px; font-size:0.85em; margin-left:0.5rem;">Todos <?php echo $total; ?> seleccionados</span>
-                        <a href="#" id="floatingSelectAllResults" style="margin-left:0.5rem;">Seleccionar los <?php echo $total; ?> resultados</a>
+                        <a href="#" id="floatingSelectAllResults" style="margin-left:0.5rem; color:inherit;">Seleccionar los <?php echo $total; ?> resultados</a>
                         <div style="display:flex; gap:0.5rem;">
-                            <button class="btn btn-warning" onclick="promptBulkAction('restore')">Restaurar</button>
-                            <button id="floatingNeverBtn" class="btn btn-info" onclick="promptBulkAction('never')">Nunca expirar</button>
-                            <button id="floatingReexpireBtn" class="btn btn-secondary" onclick="promptBulkAction('reexpire')">Re-expirar</button>
-                            <button class="btn btn-danger" onclick="promptBulkAction('delete')">Eliminar</button>
+                            <button class="btn btn-warning" onclick="promptBulkAction('restore')"><i class="fas fa-undo"></i> <span class="btn-label">Restaurar</span></button>
+                            <button id="floatingNeverBtn" class="btn btn-info" onclick="promptBulkAction('never')"><i class="fas fa-ban"></i> <span class="btn-label">Nunca expirar</span></button>
+                            <button id="floatingReexpireBtn" class="btn btn-secondary" onclick="promptBulkAction('reexpire')"><i class="fas fa-infinity"></i> <span class="btn-label">Re-expirar</span></button>
+                            <button class="btn btn-danger" onclick="promptBulkAction('delete')"><i class="fas fa-trash"></i> <span class="btn-label">Eliminar</span></button>
                         </div>
                     </div>
                 </div>
@@ -611,6 +615,30 @@ function buildQuery(array $overrides = []) {
                     #expiredTable td.actions { white-space: nowrap; }
                     #expiredTable td.actions .action-group { display: inline-flex; gap: 0.25rem; align-items: center; }
                     #expiredTable td.actions .btn { white-space: nowrap; padding: 0.25rem 0.5rem; font-size: 0.86rem; }
+
+                    /* Unified pill-style bulk bar to match admin/files.php */
+                    .bulk-actions-bar {
+                        position: fixed;
+                        bottom: 1.25rem;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        display: none;
+                        z-index: 1200;
+                        padding: 0.2rem 0.4rem;
+                        gap: 0.4rem;
+                        align-items: center;
+                        background: transparent;
+                        color: inherit;
+                        border-radius: 0.375rem;
+                        box-sizing: border-box;
+                        font-size: 0.9rem;
+                        white-space: nowrap;
+                    }
+                    .bulk-actions-bar.show { display: flex; }
+                    .bulk-actions-bar .btn { padding: 0.25rem 0.45rem; min-width:36px; }
+                    .bulk-actions-bar .btn-label { display: none; }
+                    .bulk-actions-bar:hover .btn-label { display: inline-block; margin-left:0.25rem; }
+                    @media (min-width: 900px) { .bulk-actions-bar .btn-label { display: inline-block; } }
                 </style>
 
                 <!-- Confirmation modal -->
@@ -720,14 +748,24 @@ function buildQuery(array $overrides = []) {
                     function updateSelectedCount(){
                         var selectAll = $('#selectAllFlag').val() === '1';
                         var cnt = $('.expired-item:checked').length;
-                        if(selectAll){
-                            $('#selectedCount').text('Todos ' + <?php echo (int)$total; ?> + ' seleccionados');
+                        if(selectAll){ 
+                            // When 'select all results' is active, show the blue badge and hide the numeric label
+                            $('#bulkSelectedCount').hide();
+                            $('#bulkSelectedLabel').hide();
                             $('#selectedAllBadge').show();
-                        } else {
-                            $('#selectedCount').text(cnt + ' seleccionados');
+                        } else { 
+                            $('#bulkSelectedCount').show().text(cnt);
+                            $('#bulkSelectedLabel').show();
                             $('#selectedAllBadge').hide();
                         }
-                        if(cnt > 0 || selectAll){ $('#floatingActions').show(); } else { $('#floatingActions').hide(); $('#selectAllFlag').val('0'); }
+                        if(cnt > 0 || selectAll){ 
+                            $('#floatingActions').show(); 
+                            try { const inner = document.querySelector('#floatingActions .bulk-actions-bar'); if (inner) inner.classList.add('show'); } catch(e) {}
+                        } else { 
+                            $('#floatingActions').hide(); 
+                            try { const inner = document.querySelector('#floatingActions .bulk-actions-bar'); if (inner) inner.classList.remove('show'); } catch(e) {}
+                            $('#selectAllFlag').val('0'); 
+                        }
 
                         // Enable/disable bulk/floating action buttons depending on selection's never_expire state
                         try {

@@ -74,12 +74,14 @@ class Email {
         $headers = [];
         $headers[] = 'From: ' . ($fromName ? ($fromName . ' <' . $fromEmail . '>') : $fromEmail);
         $headers[] = 'MIME-Version: 1.0';
-        $headers[] = 'Content-Type: text/html; charset=UTF-8';
+        // Use multipart/alternative so mail clients reliably render HTML and provide a plain-text fallback
+        $boundary = '==MIMIR_' . md5(uniqid((string)microtime(true), true));
+        $headers[] = 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
         $headers[] = 'X-Mailer: Mimir PHP/' . phpversion();
 
         // Try SMTP with primary settings; on failure attempt fallback to 465/ssl once
         try {
-            $this->smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $pass_decryption_failed);
+            $this->smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $boundary, $pass_decryption_failed);
             $logger->log($actor, 'email_sent', 'email', null, "Sent email to {$to} via SMTP", ['to' => $to, 'subject' => $subject, 'method' => 'smtp', 'from' => $fromEmail]);
             try { $this->auditEmailEvent($actor, $to, $subject, 'email_sent', 'smtp'); } catch (Throwable $e) {}
             return true;
@@ -89,7 +91,7 @@ class Email {
                 if (!($enc === 'ssl' || $port === 465)) {
                     $fallbackPort = 465;
                     $fallbackEnc = 'ssl';
-                    $this->smtpSendRaw($host, $fallbackPort, $fallbackEnc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $pass_decryption_failed);
+                    $this->smtpSendRaw($host, $fallbackPort, $fallbackEnc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $boundary, $pass_decryption_failed);
                     $logger->log($actor, 'email_sent', 'email', null, "Sent email to {$to} via SMTP fallback", ['to' => $to, 'subject' => $subject, 'method' => 'smtp', 'from' => $fromEmail, 'fallback' => '465/ssl']);
                     try { $this->auditEmailEvent($actor, $to, $subject, 'email_sent', 'smtp'); } catch (Throwable $e) {}
                     return true;
@@ -130,7 +132,7 @@ class Email {
      * Perform the low-level SMTP send using provided connection parameters.
      * Throws Exception on failure.
      */
-    private function smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $pass_decryption_failed = false) {
+    private function smtpSendRaw($host, $port, $enc, $user, $pass, $fromEmail, $to, $subject, $body, $headers, $boundary = null, $pass_decryption_failed = false) {
         $timeout = 10;
         $connected = false;
         $fp = null;
@@ -217,11 +219,27 @@ class Email {
         $this->smtpSend($fp, 'DATA');
         $this->smtpGetLine($fp);
 
-        // Construct message
+        // Ensure we have a boundary value: prefer explicit param, else try to extract from headers
+        if (empty($boundary) && is_array($headers)) {
+            foreach ($headers as $h) {
+                if (preg_match('/boundary\s*=\s*"?([^";]+)"?/i', $h, $m)) { $boundary = $m[1]; break; }
+            }
+        }
+
+        // Construct multipart message (plain text + HTML)
+        $altBody = strip_tags(str_replace(["\r\n", "\r", "\n"], ["\n", "\n", "\n"], $body));
         $message = "Subject: " . $this->escapeHeader($subject) . "\r\n";
         foreach ($headers as $h) { $message .= $h . "\r\n"; }
         $message .= "\r\n";
-        $message .= $body . "\r\n";
+        $message .= "--" . $boundary . "\r\n";
+        $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
+        $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+        $message .= $altBody . "\r\n\r\n";
+        $message .= "--" . $boundary . "\r\n";
+        $message .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+        $message .= $body . "\r\n\r\n";
+        $message .= "--" . $boundary . "--\r\n";
         $message .= ".\r\n";
 
         fwrite($fp, $message);
@@ -250,9 +268,23 @@ class Email {
         $fromName = $options['from_name'] ?? $this->config->get('email_from_name', 'Mimir');
         $headers = "From: " . ($fromName ? ($fromName . ' <' . $fromEmail . '>') : $fromEmail) . "\r\n";
         $headers .= "MIME-Version: 1.0\r\n";
-        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $boundary = '==MIMIR_' . md5(uniqid((string)microtime(true), true));
+        $headers .= 'Content-Type: multipart/alternative; boundary="' . $boundary . '"' . "\r\n";
         $headers .= "X-Mailer: Mimir PHP/" . phpversion();
-            $res = @mail($to, $subject, $body, $headers);
+
+        // Build multipart body for mail() fallback
+        $altBody = strip_tags(str_replace(["\r\n", "\r", "\n"], ["\n", "\n", "\n"], $body));
+        $multipart = "--" . $boundary . "\r\n";
+        $multipart .= "Content-Type: text/plain; charset=UTF-8\r\n";
+        $multipart .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+        $multipart .= $altBody . "\r\n\r\n";
+        $multipart .= "--" . $boundary . "\r\n";
+        $multipart .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $multipart .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+        $multipart .= $body . "\r\n\r\n";
+        $multipart .= "--" . $boundary . "--\r\n";
+
+        $res = @mail($to, $subject, $multipart, $headers);
             $logger->log($actor, $res ? 'email_sent' : 'email_failed', 'email', null, ($res ? "Sent email to {$to} via mail()" : "Failed to send email to {$to} via mail()"), ['to' => $to, 'subject' => $subject, 'method' => 'mail', 'from' => $fromEmail]);
             try {
                 $this->auditEmailEvent($actor, $to, $subject, $res ? 'email_sent' : 'email_failed', 'mail');

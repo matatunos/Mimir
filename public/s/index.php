@@ -137,16 +137,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $validation = $shareClass->validateAccess($token);
     
     if (is_array($validation) && !empty($validation['valid'])) {
-        // No password needed — show download page and require user to click the button
+        // No password needed — either trigger immediate download (if requested) or show download page
         $share = $shareClass->getByToken($token);
         if ($share) {
             $shareId = $share['share_id'] ?? $share['id'] ?? null;
             $fileSize = $share['file_size'] ?? null;
             if ($shareId !== null) {
-                // Log a view event; actual download will be logged when user clicks
+                // Log a view event for page views
                 $forensicLogger->logShareAccess($shareId, 'view', $fileSize);
             }
         }
+
+        // If download requested via GET param, perform download immediately
+        if (!empty($_GET['download'])) {
+            // Log download and forensic entries similar to POST flow
+            if ($share) {
+                $shareId = $share['share_id'] ?? $share['id'] ?? null;
+                if ($shareId !== null) {
+                    $forensicLogger->logShareAccess($shareId, 'download', $fileSize);
+                    $downloadLogId = $forensicLogger->logDownload($share['file_id'] ?? null, $shareId, null);
+                }
+            }
+            $dlRes = $shareClass->download($token, null, $downloadLogId ?? null);
+            if (is_array($dlRes) && !empty($dlRes['error'])) {
+                $error = $dlRes['error'];
+                $needsPassword = false;
+                $share = $shareClass->getByToken($token);
+            } else {
+                exit;
+            }
+        }
+
         // Ensure we render the page with a download button (do not auto-stream)
         $needsPassword = false;
         // $share is set and page will show download button below
@@ -200,8 +221,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h2 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars($share['original_name']); ?></h2>
                     <p style="color: var(--text-muted);">
-                        <?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB
-                    </p>
+                            <?php if (!empty($share['is_folder'])): ?>Carpeta compartida<?php else: ?><?php echo number_format($share['file_size'] / 1024 / 1024, 2); ?> MB<?php endif; ?>
+                        </p>
                     <p style="margin-top: 1rem;"><?php echo t('protected_file_notice'); ?></p>
                 </div>
                 

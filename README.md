@@ -166,6 +166,19 @@ nohup php /opt/Mimir/tools/notification_worker.php > /var/log/mimir_notification
 
 Nota: se recomienda systemd para reinicios automáticos y supervisión.
 
+## 🗑️ Política de eliminación de comparticiones (shares)
+
+Se ha añadido una política de eliminación en dos pasos para reducir riesgos de borrados accidentales:
+
+- **Eliminar (soft-delete)**: la acción "Eliminar" disponible en el panel de administración marca la compartición como inactiva (`is_active = 0`) pero **no borra** la fila de la base de datos ni los artefactos públicos en `public/sfiles/`. Esto facilita auditoría y recuperación si se eliminó por error.
+- **Purgar (permanent delete)**: la acción "Purgar permanentemente" borra de forma irreversible la fila en la tabla `shares` y los artefactos públicos asociados (archivo tokenizado y `.zip` si procede). Úsese solo cuando se requiera eliminación definitiva.
+
+Recomendación operativa:
+
+- Use primero la acción de "Eliminar" para retirar temporalmente el enlace; espere el periodo de retención que su política de datos requiera y aplique la purga definitiva solo cuando esté seguro.
+- Las utilidades CLI de mantenimiento (`tools/delete_test_share.php`) han sido actualizadas para invocar la operación de purga en vez de ejecutar SQL `DELETE` directo.
+
+
 
 El script de instalación:
 1. Verifica dependencias del sistema

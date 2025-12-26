@@ -141,6 +141,13 @@ Ejemplos de uso embed:
 - Verás badge para enlaces de galería, botón `Direct link` para copiar la URL pública tokenizada si existe.
 - Desde aquí puedes desactivar o eliminar enlaces.
 
+Nota importante sobre eliminación de comparticiones (para usuarios y administradores):
+
+- La acción "Eliminar" en el panel de administración es ahora una eliminación suave (soft-delete): desactiva el enlace (`is_active = 0`) pero mantiene la entrada en la base de datos y los archivos públicos en `public/sfiles/`. Esto permite al equipo recuperar enlaces o investigar incidentes si un enlace se borra por error.
+- Si se requiere borrado irreversible, el administrador puede usar la acción "Purgar permanentemente" desde el panel de administración, la cual eliminará la fila de la tabla `shares` y borrará los artefactos públicos asociados (token y ZIP). Esta acción es irreversible.
+
+Si eres usuario normal, ponte en contacto con un administrador si necesitas que un enlace se restaure después de una eliminación accidental.
+
 (Sugerencia de captura: `screenshots/10-my-shares.png`)
 
 

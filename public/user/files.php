@@ -330,8 +330,16 @@ renderHeader(t('my_files_section'), $user);
                                 <td>
                                     <div style="display: flex; gap: 0.5rem;">
                                             <?php if ($file['is_folder']): ?>
-                                            <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo htmlspecialchars(t('open')); ?>"><i class="fas fa-folder-open"></i></a>
-                                            <button onclick="deleteFolder(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars(addslashes($file['original_name'])); ?>')" class="btn btn-sm btn-danger" title="<?php echo htmlspecialchars(t('delete')); ?>"><i class="fas fa-trash"></i></button>
+                                                    <a href="<?php echo BASE_URL; ?>/user/files.php?folder=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo htmlspecialchars(t('open')); ?>"><i class="fas fa-folder-open"></i></a>
+                                                    <form method="POST" action="<?php echo BASE_URL; ?>/user/bulk_action.php" style="display:inline; margin:0;">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo $auth->generateCsrfToken(); ?>">
+                                                        <input type="hidden" name="action" value="download">
+                                                        <input type="hidden" name="select_all" value="1">
+                                                        <input type="hidden" name="folder" value="<?php echo $file['id']; ?>">
+                                                        <button type="submit" class="btn btn-sm btn-primary" title="<?php echo htmlspecialchars(t('download')); ?>"><i class="fas fa-download"></i></button>
+                                                    </form>
+                                                    <a href="<?php echo BASE_URL; ?>/user/share.php?file_id=<?php echo $file['id']; ?>" class="btn btn-sm btn-success" title="<?php echo htmlspecialchars(t('share')); ?>"><i class="fas fa-link"></i></a>
+                                                    <button onclick="deleteFolder(<?php echo $file['id']; ?>, '<?php echo htmlspecialchars(addslashes($file['original_name'])); ?>')" class="btn btn-sm btn-danger" title="<?php echo htmlspecialchars(t('delete')); ?>"><i class="fas fa-trash"></i></button>
                                         <?php else: ?>
                                             <a href="<?php echo BASE_URL; ?>/user/download.php?id=<?php echo $file['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo htmlspecialchars(t('download')); ?>"><i class="fas fa-download"></i></a>
                                             <a href="<?php echo BASE_URL; ?>/user/share.php?file_id=<?php echo $file['id']; ?>" class="btn btn-sm btn-success" title="<?php echo htmlspecialchars(t('share')); ?>"><i class="fas fa-link"></i></a>

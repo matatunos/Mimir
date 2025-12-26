@@ -82,7 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$storageQuotaGB = (isset($user['storage_quota']) && $user['storage_quota'] !== null) ? ($user['storage_quota'] / 1024 / 1024 / 1024) : 0;
+// Convert storage quota to GB; NULL means unlimited
+$storageQuotaGB = (isset($user['storage_quota']) && $user['storage_quota'] !== null) ? ($user['storage_quota'] / 1024 / 1024 / 1024) : null;
 
 renderPageStart(t('edit_user'), 'users', true);
 renderHeader(t('edit_user'), $adminUser);
@@ -127,6 +128,51 @@ renderHeader(t('edit_user'), $adminUser);
     <?php if ($error): ?>
         <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-chart-bar"></i> Estadísticas</h2>
+        </div>
+        <div class="card-body">
+            <?php
+            $stats = $userClass->getStatistics($userId);
+            $storageUsedGB = ($stats['total_size'] ?? 0) / 1024 / 1024 / 1024;
+            $storagePercent = $storageQuotaGB > 0 ? min(100, ($storageUsedGB / $storageQuotaGB) * 100) : 0;
+            ?>
+            
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Archivos Totales</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--primary);"><?php echo number_format($stats['total_files'] ?? 0); ?></div>
+                </div>
+                
+                <div>
+                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Almacenamiento Usado</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--primary);"><?php echo number_format($storageUsedGB, 2); ?> GB</div>
+                    <div style="margin-top: 0.5rem;">
+                        <?php if ($storageQuotaGB !== null): ?>
+                            <div style="background: var(--bg-secondary); height: 0.5rem; border-radius: 0.25rem; overflow: hidden;">
+                                <div style="width: <?php echo $storagePercent; ?>%; height: 100%; background: var(--primary);"></div>
+                            </div>
+                            <small style="color: var(--text-muted);"><?php echo number_format($storagePercent, 1); ?>% de <?php echo number_format($storageQuotaGB, 2); ?> GB</small>
+                        <?php else: ?>
+                            <small style="color: var(--text-muted);">Cuota: <strong>Ilimitado</strong></small>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div>
+                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Compartidos Activos</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--success);"><?php echo number_format($stats['active_shares'] ?? 0); ?></div>
+                </div>
+                
+                <div>
+                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Último Acceso</div>
+                    <div style="font-size: 1.25rem; font-weight: bold;"><?php if ($user['last_login']) { echo date('d/m/Y H:i', strtotime($user['last_login'])); } else { echo 'Nunca'; } ?></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="card" style="border-radius: 1rem; overflow: hidden; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
         <div class="card-header" style="padding: 1.5rem;">
@@ -200,47 +246,6 @@ renderHeader(t('edit_user'), $adminUser);
                     <a href="<?php echo BASE_URL; ?>/admin/users.php" class="btn btn-outline btn-outline--on-dark"><?php echo htmlspecialchars(t('cancel')); ?></a>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title"><i class="fas fa-chart-bar"></i> Estadísticas</h2>
-        </div>
-        <div class="card-body">
-            <?php
-            $stats = $userClass->getStatistics($userId);
-            $storageUsedGB = ($stats['total_size'] ?? 0) / 1024 / 1024 / 1024;
-            $storagePercent = $storageQuotaGB > 0 ? min(100, ($storageUsedGB / $storageQuotaGB) * 100) : 0;
-            ?>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
-                <div>
-                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Archivos Totales</div>
-                    <div style="font-size: 2rem; font-weight: bold; color: var(--primary);"><?php echo number_format($stats['file_count'] ?? 0); ?></div>
-                </div>
-                
-                <div>
-                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Almacenamiento Usado</div>
-                    <div style="font-size: 2rem; font-weight: bold; color: var(--primary);"><?php echo number_format($storageUsedGB, 2); ?> GB</div>
-                    <div style="margin-top: 0.5rem;">
-                        <div style="background: var(--bg-secondary); height: 0.5rem; border-radius: 0.25rem; overflow: hidden;">
-                            <div style="width: <?php echo $storagePercent; ?>%; height: 100%; background: var(--primary);"></div>
-                        </div>
-                        <small style="color: var(--text-muted);"><?php echo number_format($storagePercent, 1); ?>% de <?php echo number_format($storageQuotaGB, 2); ?> GB</small>
-                    </div>
-                </div>
-                
-                <div>
-                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Compartidos Activos</div>
-                    <div style="font-size: 2rem; font-weight: bold; color: var(--success);"><?php echo number_format($stats['active_shares'] ?? 0); ?></div>
-                </div>
-                
-                <div>
-                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Último Acceso</div>
-                    <div style="font-size: 1.25rem; font-weight: bold;"><?php if ($user['last_login']) { echo date('d/m/Y H:i', strtotime($user['last_login'])); } else { echo 'Nunca'; } ?></div>
-                </div>
-            </div>
         </div>
     </div>
 </div>

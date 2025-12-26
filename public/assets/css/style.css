@@ -239,6 +239,204 @@ body.mobile-menu-open .sidebar {
     transform: translateY(-1px);
 }
 
+/* Unified bulk-actions-bar overrides (match admin/users.php compact branding) */
+.app-container .main-content .bulk-actions-bar {
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    align-items: center;
+    justify-content: center;
+    max-width: calc(100% - 4rem);
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.app-container .main-content .bulk-actions-bar.show {
+    display: flex !important;
+}
+
+.app-container .main-content .bulk-actions-bar .btn {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 999px;
+    min-width: 36px;
+    height: 36px;
+    gap: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-container .main-content .bulk-actions-bar .btn .btn-label {
+    display: inline-block;
+}
+
+/* Icon sizing and spacing */
+.app-container .main-content .bulk-actions-bar i,
+.app-container .main-content .bulk-actions-bar .icon { font-size: 1.05rem; line-height: 1; }
+
+/* Responsive: hide labels on narrow screens to become icon-only */
+@media (max-width: 900px) {
+    .app-container .main-content .bulk-actions-bar { padding: 0.4rem 0.6rem; gap: 0.35rem; }
+    .app-container .main-content .bulk-actions-bar .btn { padding: 0.35rem 0.45rem; }
+    .app-container .main-content .bulk-actions-bar .btn .btn-label { display: none; }
+}
+
+/* Slight hover lift for buttons inside the bar */
+.app-container .main-content .bulk-actions-bar .btn:hover { transform: translateY(-2px); }
+
+/* Force high-specificity admin bulk bar rules to override per-page styles */
+.main-content .bulk-actions-bar,
+#bulkActionsBar,
+body .bulk-actions-bar {
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%) !important;
+    color: var(--text-on-primary) !important;
+    padding: 0.5rem 0.9rem !important;
+    border-radius: 999px !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.24) !important;
+    gap: 0.6rem !important;
+    font-size: 0.95rem !important;
+    max-width: calc(100% - 3rem) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+}
+
+.main-content .bulk-actions-bar.show,
+#bulkActionsBar.show {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.main-content .bulk-actions-bar .btn {
+    padding: 0.45rem 0.6rem !important;
+    font-size: 0.88rem !important;
+    border-radius: 999px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+}
+
+.main-content .bulk-actions-bar .btn .btn-label { display: inline-block !important; margin-left: 0.35rem !important; }
+
+@media (max-width: 900px) {
+    .main-content .bulk-actions-bar { padding: 0.35rem 0.5rem !important; gap: 0.4rem !important; }
+    .main-content .bulk-actions-bar .btn { padding: 0.35rem 0.45rem !important; }
+    .main-content .bulk-actions-bar .btn .btn-label { display: none !important; }
+}
+
+/* Ensure highly specific hover/outline variant on dark backgrounds */
+.main-content .bulk-actions-bar .btn-outline--on-dark {
+    background: rgba(255,255,255,0.08) !important;
+    color: var(--text-on-primary) !important;
+    border-color: rgba(255,255,255,0.12) !important;
+}
+
+    /* Special case: when the bulk bar is wrapped inside an outer fixed container (#floatingActions),
+       the inner bar must be positioned statically to avoid nested fixed transforms and overflow. */
+    #floatingActions .bulk-actions-bar,
+    #floatingBar .bulk-actions-bar {
+        position: static !important;
+        left: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+        display: flex !important;
+    }
+
+    /* Ensure labels visibility handled by responsive rules when inside floating container */
+    #floatingActions .bulk-actions-bar .btn .btn-label,
+    #floatingBar .bulk-actions-bar .btn .btn-label {
+        display: none !important;
+    }
+    @media (min-width: 900px) {
+        #floatingActions .bulk-actions-bar .btn .btn-label,
+        #floatingBar .bulk-actions-bar .btn .btn-label { display: inline-block !important; }
+    }
+
+    /* Fix for expired_files: force single-line layout, allow left text to shrink with ellipsis,
+       and ensure the button group stays inline so the bar does not occupy two lines. */
+    #floatingActions .bulk-actions-bar,
+    #floatingBar .bulk-actions-bar {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+
+    #floatingActions .bulk-actions-bar > span,
+    #floatingActions .bulk-actions-bar > a,
+    #floatingBar .bulk-actions-bar > span,
+    #floatingBar .bulk-actions-bar > a {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 34% !important;
+        display: inline-block !important;
+    }
+
+    #floatingActions .bulk-actions-bar > div,
+    #floatingBar .bulk-actions-bar > div {
+        flex: 0 0 auto !important;
+        display: inline-flex !important;
+        gap: 0.35rem !important;
+    }
+
+    /* Hide the "select all results" link on very small screens to guarantee single-line */
+    @media (max-width: 520px) {
+        #floatingActions .bulk-actions-bar > a#floatingSelectAllResults,
+        #floatingBar .bulk-actions-bar > a#floatingSelectAllResults { display: none !important; }
+        #floatingActions .bulk-actions-bar > span,
+        #floatingBar .bulk-actions-bar > span { max-width: 46% !important; }
+    }
+
+    /* ICONS ONLY: hide button labels inside the floatingActions/floatingBar to show icons only */
+    #floatingActions .bulk-actions-bar .btn .btn-label,
+    #floatingBar .bulk-actions-bar .btn .btn-label {
+        display: none !important;
+    }
+
+    /* Slightly tighten button padding for icon-only presentation */
+    #floatingActions .bulk-actions-bar .btn,
+    #floatingBar .bulk-actions-bar .btn {
+        padding: 0.35rem 0.45rem !important;
+    }
+
+    /* Show numeric counter, hide duplicate textual helpers (label, badge, select-all link) */
+    #floatingActions .bulk-actions-bar > span#bulkSelectedCount,
+    #floatingBar .bulk-actions-bar > span#bulkSelectedCount {
+        display: inline-block !important;
+        margin-right: 0.4rem !important;
+    }
+
+    /* Show the textual label next to the numeric counter by default (compact styling).
+       JS will still hide it when 'select all results' is active. */
+    #floatingActions .bulk-actions-bar > span#bulkSelectedLabel,
+    #floatingBar .bulk-actions-bar > span#bulkSelectedLabel {
+        display: inline-block !important;
+        margin-left: 0.35rem !important;
+        color: var(--text-on-primary) !important;
+        opacity: 0.95 !important;
+        font-weight: 500 !important;
+    }
+
+    #floatingActions .bulk-actions-bar > span#selectedAllBadge,
+    #floatingActions .bulk-actions-bar > a#floatingSelectAllResults,
+    #floatingBar .bulk-actions-bar > span#selectedAllBadge,
+    #floatingBar .bulk-actions-bar > a#floatingSelectAllResults {
+        /* keep badge and select-all link hidden to avoid duplication when JS shows the blue badge */
+        display: none !important;
+    }
+
+    /* Slightly tighten overall padding when textual helpers are hidden */
+    #floatingActions .bulk-actions-bar,
+    #floatingBar .bulk-actions-bar {
+        padding-left: 0.8rem !important;
+        padding-right: 0.8rem !important;
+    }
+
 /* Ensure period selector buttons inside brand headers are readable */
 .card-header .period-btn {
     padding: 0.42rem 0.9rem;

@@ -188,6 +188,8 @@ return array (
   'folder_created_success' => 'Carpeta creada exitosamente',
   'force' => 'Forzar',
   'forensic_analysis' => 'Análisis Forense',
+  'clear_password' => 'Borrar contraseña',
+  'confirm_clear_password' => '¿Está seguro de que desea borrar la contraseña almacenada? Esta acción no se puede deshacer.',
   'forgot_password' => '¿Olvidaste tu contraseña?',
   'gallery' => 'Galería',
   'go_to_files' => 'Ir a Archivos',

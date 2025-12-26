@@ -450,6 +450,30 @@ class File {
     }
 
     /**
+     * Get all files inside a folder recursively (returns file rows, excludes folder rows)
+     */
+    public function getFilesInFolderRecursive($userId, $folderId = null, $includeExpired = false) {
+        try {
+            $files = [];
+            $items = $this->getFolderContents($userId, $folderId, $includeExpired);
+            foreach ($items as $it) {
+                if (!empty($it['is_folder'])) {
+                    $children = $this->getFilesInFolderRecursive($userId, $it['id'], $includeExpired);
+                    if (!empty($children)) {
+                        foreach ($children as $c) $files[] = $c;
+                    }
+                } else {
+                    $files[] = $it;
+                }
+            }
+            return $files;
+        } catch (Exception $e) {
+            error_log('getFilesInFolderRecursive error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Build breadcrumb path for a folder (array of ['id'=>..., 'name'=>...])
      */
     public function getFolderPath($folderId) {

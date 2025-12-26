@@ -26,6 +26,27 @@ $file = $fileClass->getById($fileId);
     exit;
 }
 
+// If folder, compute quick item counts for display
+$isFolder = !empty($file['is_folder']);
+$folder_item_count = 0;
+if ($isFolder) {
+    // recursive count of files inside folder
+    try {
+        $stack = [$file['id']];
+        while (!empty($stack)) {
+            $curr = array_pop($stack);
+            $children = $fileClass->getFolderContents($user['id'], $curr, true);
+            foreach ($children as $c) {
+                if (!empty($c['is_folder'])) {
+                    $stack[] = $c['id'];
+                } else {
+                    $folder_item_count++;
+                }
+            }
+        }
+    } catch (Exception $e) { $folder_item_count = 0; }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$auth->validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = t('error_invalid_csrf');
@@ -101,11 +122,17 @@ renderHeader(t('share') . ': ' . htmlspecialchars($file['original_name']), $user
         <div class="card-body">
                 <div class="mb-3" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
                 <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="font-size: 2rem;"><i class="fas fa-file"></i></div>
+                    <div style="font-size: 2rem;">
+                        <?php if ($isFolder): ?><i class="fas fa-folder"></i><?php else: ?><i class="fas fa-file"></i><?php endif; ?>
+                    </div>
                     <div style="flex: 1;">
                         <div style="font-weight: 500;"><?php echo htmlspecialchars($file['original_name']); ?></div>
                         <div style="font-size: 0.8125rem; color: var(--text-muted);">
-                            <?php echo number_format($file['file_size'] / 1024 / 1024, 2); ?> MB
+                            <?php if ($isFolder): ?>
+                                <?php echo (int)$folder_item_count; ?> <?php echo htmlspecialchars(t('files')); ?> inside
+                            <?php else: ?>
+                                <?php echo number_format($file['file_size'] / 1024 / 1024, 2); ?> MB
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

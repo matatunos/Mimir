@@ -400,7 +400,7 @@ class User {
             $stmt = $this->db->prepare("
                 SELECT 
                     (SELECT COUNT(*) FROM files WHERE user_id = ?) as total_files,
-                    (SELECT SUM(file_size) FROM files WHERE user_id = ?) as total_size,
+                    (SELECT COALESCE(SUM(file_size), 0) FROM files WHERE user_id = ?) as total_size,
                     (SELECT COUNT(DISTINCT file_id) FROM shares WHERE created_by = ? AND is_active = 1) as active_shares
             ");
             $stmt->execute([$userId, $userId, $userId]);

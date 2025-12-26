@@ -168,6 +168,30 @@ class Share {
                 // ignore failures creating public copy
                 error_log('Failed to create public share file: ' . $e->getMessage());
             }
+            // If the shared item is a folder, attempt to pre-generate a public ZIP in public/sfiles/<token>.zip
+            $zip_creation_failed = false;
+            try {
+                if (!empty($file['is_folder'])) {
+                    $destDir = rtrim(constant('BASE_PATH'), '/') . '/public/sfiles';
+                    if (!is_dir($destDir)) @mkdir($destDir, 0755, true);
+                    $zipName = $shareToken . '.zip';
+                    $publicZipPath = $destDir . '/' . $zipName;
+                    // Only create if not already present
+                    if (!file_exists($publicZipPath)) {
+                        // use createZipFromFolder to write to public path
+                        $created = $this->createZipFromFolder($fileId, $userId, $publicZipPath);
+                        if ($created && file_exists($publicZipPath)) {
+                            @chmod($publicZipPath, 0644);
+                        } else {
+                            error_log('Failed to pre-create ZIP for folder share id=' . $shareId);
+                            $zip_creation_failed = true;
+                        }
+                    }
+                }
+            } catch (Exception $e) {
+                error_log('Error creating public ZIP for folder share: ' . $e->getMessage());
+                $zip_creation_failed = true;
+            }
             
             // Determine share type for logging (gallery vs download)
             $shareType = 'download';
@@ -186,11 +210,13 @@ class Share {
             }
 
             // If a recipient email was provided, send the share link by email
-            if (!empty($recipientEmail)) {
+            // For folder shares, only send the email if the ZIP was successfully pre-created
+            if (!empty($recipientEmail) && (empty($file['is_folder']) || (!$zip_creation_failed))) {
                     try {
                     require_once __DIR__ . '/Notification.php';
                     $email = new Notification();
                     $shareUrl = BASE_URL . '/s/' . $shareToken;
+                    $shareUrlDownload = $shareUrl . '?download=1';
 
                     // Fetch owner info
                     $ownerName = '';
@@ -241,14 +267,27 @@ class Share {
                     if (!empty($ownerEmail)) $body .= '<div style="font-size:12px;color:#666;">' . htmlspecialchars($ownerEmail) . '</div>';
                     $body .= '</div></div>';
 
-                    $body .= '<h3 style="margin:0 0 8px 0;color:#222;font-size:18px;">Se ha compartido: ' . htmlspecialchars($file['original_name']) . '</h3>';
+                    $body .= "<h3 style=\"margin:0 0 8px 0;color:#222;font-size:18px;\">Se ha compartido: " . htmlspecialchars($file['original_name']) . "</h3>";
                     if (!empty($recipientMessage)) {
                         $body .= '<div style="margin:8px 0 12px 0;color:#444;">' . nl2br(htmlspecialchars($recipientMessage)) . '</div>';
                     }
+                    // If folder share and public zip exists, include download size
+                    if (!empty($file['is_folder']) && !empty($publicZipPath) && file_exists($publicZipPath)) {
+                        $sizeMb = number_format(filesize($publicZipPath) / 1024 / 1024, 2);
+                        $body .= '<div style="margin:6px 0 12px 0;color:#555;font-size:13px;">Tamaño aproximado de la descarga: ' . $sizeMb . ' MB</div>';
+                    }
                     $body .= '<div style="text-align:center;margin:18px 0;">';
                     $body .= '<a href="' . $shareUrl . '" target="_blank" style="display:inline-block;padding:12px 22px;background:' . $btnColor . ';color:#000;text-decoration:none;border-radius:6px;font-weight:700;">Abrir enlace de descarga</a>';
+                    if (!empty($file['is_folder'])) {
+                        $body .= '&nbsp;&nbsp;';
+                        $body .= '<a href="' . $shareUrlDownload . '" target="_blank" style="display:inline-block;padding:12px 22px;background:#6b8b3b;color:#000;text-decoration:none;border-radius:6px;font-weight:700;">Descarga directa (ZIP)</a>';
+                    }
                     $body .= '</div>';
-                    $body .= '<div style="font-size:12px;color:#666;word-break:break-all;">Enlace directo: <a href="' . $shareUrl . '" target="_blank">' . $shareUrl . '</a></div>';
+                    $body .= '<div style="font-size:12px;color:#666;word-break:break-all;">Enlace directo: <a href="' . $shareUrl . '" target="_blank">' . $shareUrl . '</a>';
+                    if (!empty($file['is_folder'])) {
+                        $body .= ' — Descarga ZIP: <a href="' . $shareUrlDownload . '" target="_blank">' . $shareUrlDownload . '</a>';
+                    }
+                    $body .= '</div>';
                     $body .= '<div style="margin-top:18px;font-size:12px;color:#999;">Si no ha solicitado este correo, ignórelo.</div>';
                     // Append configured email signature if present
                     try {
@@ -628,34 +667,27 @@ class Share {
             if (!$share) {
                 return false;
             }
-            
-            $stmt = $this->db->prepare("DELETE FROM shares WHERE id = ?");
-            $stmt->execute([$id]);
-            
-            // Update file shared status
+            // Soft-delete: mark as inactive instead of removing DB row so recovery is possible
+            try {
+                $stmt = $this->db->prepare("UPDATE shares SET is_active = 0 WHERE id = ?");
+                $stmt->execute([$id]);
+            } catch (Exception $e) {
+                error_log('Share soft-delete failed: ' . $e->getMessage());
+                return false;
+            }
+
+            // Update file shared status (keep public artifacts on disk for recovery)
             $this->fileClass->updateSharedStatus($share['file_id']);
-            
+
+            // Log a deactivation event rather than a hard delete
             $this->logger->log(
                 $userId ?? $share['created_by'],
-                'share_deleted',
+                'share_deactivate',
                 'share',
                 $id,
-                "Share deleted: {$share['share_name']}"
+                "Share deactivated (soft-delete): {$share['share_name']}"
             );
 
-            // Remove public hardlink/copy if present
-            try {
-                $destDir = rtrim(constant('BASE_PATH'), '/') . '/public/sfiles';
-                $ext = pathinfo($share['file_path'] ?? '', PATHINFO_EXTENSION);
-                $publicName = $share['share_token'] . ($ext ? '.' . $ext : '');
-                $publicPath = $destDir . '/' . $publicName;
-                if (file_exists($publicPath)) {
-                    @unlink($publicPath);
-                }
-            } catch (Exception $e) {
-                // ignore
-            }
-            
             return true;
         } catch (Exception $e) {
             error_log("Share delete error: " . $e->getMessage());
@@ -693,6 +725,60 @@ class Share {
             return true;
         } catch (Exception $e) {
             error_log("Share deactivate error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Permanently remove a share and associated public artifacts.
+     * Use with caution; this will DELETE the DB row.
+     */
+    public function purge($id, $userId = null) {
+        try {
+            $share = $this->getById($id, $userId);
+            if (!$share) {
+                return false;
+            }
+
+            // Remove public artifacts if present
+            try {
+                $destDir = rtrim(constant('BASE_PATH'), '/') . '/public/sfiles';
+                // remove any public copy named by token + extension
+                $ext = pathinfo($share['file_path'] ?? '', PATHINFO_EXTENSION);
+                $publicName = ($share['share_token'] ?? '') . ($ext ? '.' . $ext : '');
+                $publicPath = $destDir . '/' . $publicName;
+                if (file_exists($publicPath)) {
+                    @unlink($publicPath);
+                }
+                // remove token.zip for folder shares
+                $zipPath = $destDir . '/' . ($share['share_token'] ?? '') . '.zip';
+                if (file_exists($zipPath)) {
+                    @unlink($zipPath);
+                }
+            } catch (Exception $e) {
+                // continue even if file cleanup fails
+                error_log('Share purge: failed to remove public artifacts: ' . $e->getMessage());
+            }
+
+            // Permanently delete DB row
+            $stmt = $this->db->prepare("DELETE FROM shares WHERE id = ?");
+            $stmt->execute([$id]);
+
+            // Update file shared status
+            $this->fileClass->updateSharedStatus($share['file_id']);
+
+            // Log permanent deletion
+            $this->logger->log(
+                $userId ?? $share['created_by'],
+                'share_deleted',
+                'share',
+                $id,
+                "Share permanently deleted: {$share['share_name']}"
+            );
+
+            return true;
+        } catch (Exception $e) {
+            error_log('Share purge error: ' . $e->getMessage());
             return false;
         }
     }
@@ -774,7 +860,72 @@ class Share {
             }
             
             $share = $validation['share'];
-            
+
+            // If this share points to a folder, attempt to stream an existing public ZIP or create one on-demand
+            if (!empty($share['is_folder']) && (int)$share['is_folder'] === 1) {
+                $destDir = rtrim(constant('BASE_PATH'), '/') . '/public/sfiles';
+                $token = $share['share_token'] ?? ($share['token'] ?? null);
+                $publicZipPath = $token ? ($destDir . '/' . $token . '.zip') : null;
+
+                $zipPath = null;
+                $shouldCleanup = false;
+                // prefer existing public ZIP
+                if ($publicZipPath && file_exists($publicZipPath)) {
+                    $zipPath = $publicZipPath;
+                } else {
+                    // build zip in temp file and stream
+                    $zipPath = $this->createZipFromFolder($share['file_id'], $share['user_id'] ?? $share['created_by'] ?? null);
+                    $shouldCleanup = true;
+                }
+
+                if ($zipPath && file_exists($zipPath)) {
+                    // Increment download count and log access
+                    $stmt = $this->db->prepare("UPDATE shares SET download_count = download_count + 1, last_accessed = NOW() WHERE id = ?");
+                    $stmt->execute([$share['id']]);
+                    $this->logger->logShareAccess($share['id'], 'download');
+                    // Increment download count and log access
+                    $stmt = $this->db->prepare("UPDATE shares SET download_count = download_count + 1, last_accessed = NOW() WHERE id = ?");
+                    $stmt->execute([$share['id']]);
+                    $this->logger->logShareAccess($share['id'], 'download');
+
+                    $fileSize = filesize($zipPath);
+                    header('X-Robots-Tag: noindex, nofollow');
+                    header('Content-Type: application/zip');
+                    header('Content-Disposition: attachment; filename="' . preg_replace('/[^A-Za-z0-9_\-\.]/','_', ($share['original_name'] ?: 'folder')) . '.zip"');
+                    header('Content-Length: ' . $fileSize);
+                    header('Cache-Control: no-cache');
+
+                    ignore_user_abort(true);
+                    set_time_limit(0);
+
+                    $chunkSize = 8192;
+                    $handle = fopen($zipPath, 'rb');
+                    if ($handle !== false) {
+                        while (!feof($handle)) {
+                            echo fread($handle, $chunkSize);
+                            flush();
+                        }
+                        fclose($handle);
+                    }
+
+                    // cleanup temporary zip if we created it on-demand
+                    if ($shouldCleanup) @unlink($zipPath);
+
+                    // complete forensic log if present
+                    if (!empty($downloadLogId)) {
+                        try {
+                            $forensic = new ForensicLogger();
+                            $forensic->completeDownload($downloadLogId, $fileSize, 200);
+                        } catch (Exception $e) {
+                            error_log('Error completing forensic download (folder zip): ' . $e->getMessage());
+                        }
+                    }
+
+                    exit;
+                }
+                return ['valid' => false, 'error' => 'Unable to package folder'];
+            }
+
             // Normalize file path: support relative paths stored in DB (e.g., 'uploads/...')
             $filePath = $share['file_path'];
             if (!empty($filePath) && !preg_match('#^(\/|[A-Za-z]:\\\\)#', $filePath)) {
@@ -1113,6 +1264,109 @@ class Share {
         } catch (Exception $e) {
             error_log('Resend notification error: ' . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Create a ZIP file from a folder (recursively) and return the temporary zip path.
+     * Returns false on failure.
+     */
+    private function createZipFromFolder($folderId, $ownerId = null, $outPath = null) {
+        try {
+            $folder = $this->fileClass->getById($folderId);
+            if (!$folder || empty($folder['is_folder'])) return false;
+            // If ownerId was not provided, derive it from the folder record so on-demand zips
+            // created by anonymous/public flows can locate the folder contents correctly.
+            if (empty($ownerId) && !empty($folder['user_id'])) {
+                $ownerId = $folder['user_id'];
+            }
+
+            $baseName = preg_replace('/[^A-Za-z0-9_\-]/', '_', ($folder['original_name'] ?: 'folder'));
+            $tmp = null;
+            if (empty($outPath)) {
+                $tmp = tempnam(sys_get_temp_dir(), 'mimir_zip_');
+                if ($tmp === false) return false;
+                $zipPath = $tmp . '.zip';
+            } else {
+                $zipPath = $outPath;
+                // ensure directory exists
+                $dir = dirname($zipPath);
+                if (!is_dir($dir)) @mkdir($dir, 0755, true);
+            }
+
+            $zip = new ZipArchive();
+            if ($zip->open($zipPath, ZipArchive::CREATE) !== true) {
+                // cleanup
+                if ($tmp) @unlink($tmp);
+                // Log failure to create zip for diagnostics
+                try {
+                    $this->logger->log(null, 'zip_creation_failed', 'folder', $folderId, 'Failed to open zip archive at ' . $zipPath);
+                } catch (Throwable $e) { /* best-effort */ }
+                try {
+                    $forensic = new ForensicLogger();
+                    $forensic->logSecurityEvent('zip_creation_failed', 'medium', 'ZIP creation failed for folder', ['folder_id' => $folderId, 'path' => $zipPath], $ownerId ?? null);
+                } catch (Throwable $e) { /* best-effort */ }
+
+                return false;
+            }
+
+            // recursive add
+            $this->addFolderToZip($zip, $folderId, $ownerId, $baseName);
+
+            $zip->close();
+
+            // remove tempname placeholder if present
+            if ($tmp) @unlink($tmp);
+            return $zipPath;
+        } catch (Exception $e) {
+            error_log('createZipFromFolder error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Recursively add folder contents to a ZipArchive instance.
+     */
+    private function addFolderToZip($zip, $folderId, $ownerId, $prefix = '') {
+        try {
+            $items = $this->fileClass->getFolderContents($ownerId, $folderId, true);
+            foreach ($items as $item) {
+                $nameSafe = $item['original_name'] ?? ('item_' . $item['id']);
+                $localPath = $prefix !== '' ? rtrim($prefix, '/') . '/' . $nameSafe : $nameSafe;
+                if (!empty($item['is_folder'])) {
+                    // add folder entry (zip folders should end with /)
+                    $zip->addEmptyDir($localPath);
+                    // recurse
+                    $this->addFolderToZip($zip, $item['id'], $ownerId, $localPath);
+                } else {
+                    // resolve absolute path similar to download code
+                    $filePath = $item['file_path'] ?? '';
+                    if (!empty($filePath) && !preg_match('#^(\/|[A-Za-z]:\\\\)#', $filePath)) {
+                        if (defined('UPLOADS_PATH') && UPLOADS_PATH) {
+                            $filePath = rtrim(UPLOADS_PATH, '/') . '/' . ltrim($filePath, '/');
+                        } else {
+                            $filePath = rtrim(constant('BASE_PATH'), '/') . '/' . ltrim($filePath, '/');
+                        }
+                    }
+                    if (!empty($filePath) && file_exists($filePath) && is_readable($filePath)) {
+                        // add file under localPath
+                        $zip->addFile($filePath, $localPath);
+                    } else {
+                        // skip missing files but log
+                        $msg = "addFolderToZip: skipping missing file id={$item['id']} path={$filePath}";
+                        error_log($msg);
+                        try {
+                            $this->logger->log(null, 'zip_missing_file', 'file', $item['id'], $msg);
+                        } catch (Throwable $e) { /* best-effort */ }
+                        try {
+                            $forensic = new ForensicLogger();
+                            $forensic->logSecurityEvent('zip_missing_file', 'low', 'File missing while creating ZIP', ['file_id' => $item['id'], 'path' => $filePath], $ownerId ?? null);
+                        } catch (Throwable $e) { /* best-effort */ }
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log('addFolderToZip error: ' . $e->getMessage());
         }
     }
 }

@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && !empty(
 
     try {
         $db->beginTransaction();
-        foreach ($shareIds as $sid) {
+            foreach ($shareIds as $sid) {
             $share = $shareClass->getById($sid);
             if (!$share) { $errors++; continue; }
 
@@ -42,19 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action']) && !empty(
                         $errors++;
                     }
                     break;
-                case 'delete':
-                    $stmt = $db->prepare("DELETE FROM shares WHERE id = ?");
-                    if ($stmt->execute([$sid])) {
-                        // Update file shared status
-                        $fileClass = new File();
-                        $fileClass->updateSharedStatus($share['file_id']);
-                        $logger = new Logger();
-                        $logger->log($user['id'], 'share_deleted', 'share', $sid, 'Admin eliminó share: ' . $share['share_name']);
-                        $success++;
-                    } else {
-                        $errors++;
-                    }
-                    break;
+                // NOTE: 'delete' (soft) and 'purge' (permanent) actions removed per admin policy request.
                 case 'resend_notification':
                     // Allow admin to pass an override recipient via POST (override_recipient)
                         $override = trim($_POST['override_recipient'] ?? '');
@@ -415,13 +403,12 @@ renderHeader('Comparticiones del Sistema', $user);
                     </table>
                 </form>
 
-                <div class="bulk-actions-bar" id="adminSharesBulkBar">
-                    <span id="adminSharesCount">0</span> comparticiones seleccionadas
-                    <button type="button" class="btn btn-warning" onclick="adminSharesDoAction('unshare')"><i class="fas fa-ban"></i> Desactivar seleccionadas</button>
-                    <button type="button" class="btn btn-danger" onclick="adminSharesDoAction('delete')"><i class="fas fa-trash"></i> Eliminar seleccionadas</button>
-                    <button type="button" class="btn btn-outline btn-outline--on-dark" onclick="adminSharesClearSelection()"><?php echo htmlspecialchars(t('cancel')); ?></button>
-                    <button type="button" class="btn btn-info" onclick="adminSharesDoAction('resend_notification')"><i class="fas fa-envelope"></i> <?php echo t('resend_notification'); ?></button>
-                    <button type="button" class="btn btn-secondary" onclick="adminSharesDoAction('set_infinite')"><i class="fas fa-infinity"></i> <?php echo htmlspecialchars(t('set_infinite')); ?></button>
+                <div class="bulk-actions-bar" id="bulkActionsBar">
+                    <span id="bulkSelectedCount">0</span> comparticiones seleccionadas
+                    <button type="button" class="btn btn-warning" title="<?php echo htmlspecialchars(t('confirm_action_shares')); ?>" onclick="adminSharesDoAction('unshare')"><i class="fas fa-ban"></i> <span class="btn-label">Desactivar seleccionadas</span></button>
+                    <button type="button" class="btn btn-outline btn-outline--on-dark" title="<?php echo htmlspecialchars(t('cancel')); ?>" onclick="adminSharesClearSelection()"><i class="fas fa-times"></i> <span class="btn-label"><?php echo htmlspecialchars(t('cancel')); ?></span></button>
+                    <button type="button" class="btn btn-info" title="<?php echo htmlspecialchars(t('resend_notification')); ?>" onclick="adminSharesDoAction('resend_notification')"><i class="fas fa-envelope"></i> <span class="btn-label"><?php echo t('resend_notification'); ?></span></button>
+                    <button type="button" class="btn btn-secondary" title="<?php echo htmlspecialchars(t('set_infinite')); ?>" onclick="adminSharesDoAction('set_infinite')"><i class="fas fa-infinity"></i> <span class="btn-label"><?php echo htmlspecialchars(t('set_infinite')); ?></span></button>
                 </div>
                 
                 <!-- Resend override modal -->
@@ -516,8 +503,8 @@ renderHeader('Comparticiones del Sistema', $user);
                 document.addEventListener('DOMContentLoaded', function() {
                     const selectAll = document.getElementById('selectAllShares');
                     const items = Array.from(document.querySelectorAll('.share-item'));
-                    const bulkBar = document.getElementById('adminSharesBulkBar');
-                    const countEl = document.getElementById('adminSharesCount');
+                    const bulkBar = document.getElementById('bulkActionsBar');
+                    const countEl = document.getElementById('bulkSelectedCount');
 
                     function updateBar() {
                         const checked = document.querySelectorAll('.share-item:checked').length;
@@ -531,6 +518,20 @@ renderHeader('Comparticiones del Sistema', $user);
                     items.forEach(i => i.addEventListener('change', updateBar));
                 });
 
+                // Hide button labels when the bulk bar overflows its container
+                function adjustBulkBarCompact() {
+                    const bar = document.getElementById('bulkActionsBar');
+                    if (!bar) return;
+                    // If scrollWidth is greater than clientWidth (overflow), enable compact mode
+                    if (bar.scrollWidth > bar.clientWidth + 2) {
+                        bar.classList.add('compact');
+                    } else {
+                        bar.classList.remove('compact');
+                    }
+                }
+
+                window.addEventListener('resize', function() { adjustBulkBarCompact(); });
+
                     function adminSharesSetInfiniteSingle(shareId) {
                         // Uncheck all and check only the provided share, then trigger bulk action
                         document.querySelectorAll('.share-item').forEach(i => i.checked = false);
@@ -542,8 +543,8 @@ renderHeader('Comparticiones del Sistema', $user);
 
                     function updateAdminCountAndShowBar() {
                         const checked = document.querySelectorAll('.share-item:checked').length;
-                        document.getElementById('adminSharesCount').textContent = checked;
-                        if (checked > 0) document.getElementById('adminSharesBulkBar').classList.add('show'); else document.getElementById('adminSharesBulkBar').classList.remove('show');
+                        document.getElementById('bulkSelectedCount').textContent = checked;
+                        if (checked > 0) document.getElementById('bulkActionsBar').classList.add('show'); else document.getElementById('bulkActionsBar').classList.remove('show');
                     }
 
                 function openResendModal() {
@@ -566,8 +567,8 @@ renderHeader('Comparticiones del Sistema', $user);
                     if (checkbox) checkbox.checked = true;
                     // Update count and bulk bar
                     const checked = document.querySelectorAll('.share-item:checked').length;
-                    document.getElementById('adminSharesCount').textContent = checked;
-                    if (checked > 0) document.getElementById('adminSharesBulkBar').classList.add('show');
+                    document.getElementById('bulkSelectedCount').textContent = checked;
+                    if (checked > 0) document.getElementById('bulkActionsBar').classList.add('show');
                     // Prefill override email if we have it on the checkbox
                     let pre = '';
                     try { pre = checkbox ? (checkbox.dataset ? checkbox.dataset.recipient || '' : checkbox.getAttribute('data-recipient') || '') : ''; } catch (e) { pre = ''; }
@@ -683,7 +684,7 @@ renderHeader('Comparticiones del Sistema', $user);
                 function adminSharesClearSelection() {
                     document.querySelectorAll('.share-item').forEach(i => i.checked = false);
                     document.getElementById('selectAllShares').checked = false;
-                    document.getElementById('adminSharesBulkBar').classList.remove('show');
+                    document.getElementById('bulkActionsBar').classList.remove('show');
                 }
                 
                 // Perform a GET search without nesting forms: preserve existing query params, set q and page=1
