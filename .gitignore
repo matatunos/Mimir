@@ -41,3 +41,6 @@ backup_*
 /public/uploads/*
 # Ignore generated favicons
 /public/favicon*
+
+# Ignore public shared files folder (generated ZIPs and public copies)
+public/sfiles/
