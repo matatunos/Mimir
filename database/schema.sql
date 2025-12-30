@@ -86,9 +86,7 @@ LOCK TABLES `activity_log` WRITE;
 set autocommit=0;
 INSERT INTO `activity_log` VALUES
 (1,1,'password_changed','user',1,'Password changed','192.168.1.24','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',NULL,'2025-12-17 20:57:27'),
-(2,1,'login_success','user',1,'Successful login','192.168.1.24','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',NULL,'2025-12-17 20:57:27'),
-(3,1,'user_created','user',3,'User created: nacho','192.168.1.24','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',NULL,'2025-12-17 21:09:25'),
-(4,1,'user_create','user',3,'Usuario creado: nacho','192.168.1.24','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',NULL,'2025-12-17 21:09:25');
+(2,1,'login_success','user',1,'Successful login','192.168.1.24','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',NULL,'2025-12-17 20:57:27');
 /*!40000 ALTER TABLE `activity_log` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -131,12 +129,12 @@ INSERT INTO `config` VALUES
 (8,'enable_registration','0','boolean','Allow user self-registration',1,'2025-12-17 20:56:55'),
 (9,'footer_links','[]','json','Footer links as JSON array',0,'2025-12-17 20:56:55'),
 (10,'enable_email','1','boolean','Enable email notifications',1,'2025-12-17 21:07:45'),
-(11,'smtp_host','smtp.dondominio.com','string','SMTP server host',0,'2025-12-17 21:07:45'),
+(11,'smtp_host','smtp.dominio.com','string','SMTP server host',0,'2025-12-17 21:07:45'),
 (12,'smtp_port','587','number','SMTP server port',0,'2025-12-17 20:56:55'),
-(13,'smtp_username','noreply@favala.es','string','SMTP username',0,'2025-12-17 21:07:45'),
-(14,'smtp_password','Satriani@69.','string','SMTP password',0,'2025-12-17 21:07:45'),
+(13,'smtp_username','noreply@dominio.com','string','SMTP username',0,'2025-12-17 21:07:45'),
+(14,'smtp_password','password','string','SMTP password',0,'2025-12-17 21:07:45'),
 (15,'smtp_encryption','tls','string','SMTP encryption (tls/ssl)',0,'2025-12-17 20:56:55'),
-(16,'email_from_address','noreply@favala.es','string','From email address',0,'2025-12-17 21:07:45'),
+(16,'email_from_address','noreply@dominio.com','string','From email address',0,'2025-12-17 21:07:45'),
 (17,'email_from_name','Admin Favala','string','From name',0,'2025-12-17 21:07:45'),
 (18,'enable_ldap','0','boolean','Enable LDAP authentication',1,'2025-12-17 20:56:55'),
 (19,'ldap_host','','string','LDAP server host',0,'2025-12-17 20:56:55'),
@@ -646,7 +644,7 @@ LOCK TABLES `sessions` WRITE;
 /*!40000 ALTER TABLE `sessions` DISABLE KEYS */;
 set autocommit=0;
 INSERT INTO `sessions` VALUES
-('ac6b40d51011af2fc0fd60a27d2602ea',1,'192.168.1.24','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36','{\"created\":1766005047,\"user_id\":1,\"username\":\"admin\",\"email\":\"admin@doc.favala.es\",\"full_name\":\"Administrator\",\"role\":\"admin\",\"is_ldap\":0}','2025-12-17 20:57:27','2025-12-17 20:57:27');
+('ac6b40d51011af2fc0fd60a27d2602ea',1,'192.168.1.24','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36','{\"created\":1766005047,\"user_id\":1,\"username\":\"admin\",\"email\":\"admin@doc.dominio.com\",\"full_name\":\"Administrator\",\"role\":\"admin\",\"is_ldap\":0}','2025-12-17 20:57:27','2025-12-17 20:57:27');
 /*!40000 ALTER TABLE `sessions` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -809,8 +807,7 @@ LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 set autocommit=0;
 INSERT INTO `users` (`id`,`username`,`email`,`language`,`password`,`full_name`,`role`,`is_active`,`is_ldap`,`storage_quota`,`storage_used`,`require_2fa`,`force_password_change`,`trusted_devices`,`last_login`,`locked_until`,`created_at`) VALUES
-(1,'admin','admin@doc.favala.es',NULL,'$2y$12$Izr2MVWgyhXQaTUMpUYdW.5stZPIPTNtdQjr8KbXVy5qEKw4UPI6S','Administrator','admin',1,0,NULL,0,0,0,NULL,'2025-12-17 20:57:27','2025-12-17 20:56:55','2025-12-17 20:57:27'),
-(3,'nacho','nacho@favala.es',NULL,'$2y$12$gI.VXCMBqlZOJb.tmMbY6OXKyLn52jys2vll9//Ps8i2AFVreaa/m','ignacio vargas','admin',1,0,10737418240,0,0,0,NULL,NULL,'2025-12-17 21:09:25','2025-12-17 21:09:25');
+(1,'admin','admin@dominio.com',NULL,'password','Administrator','admin',1,0,NULL,0,0,0,NULL,'2025-12-17 20:57:27','2025-12-17 20:56:55','2025-12-17 20:57:27');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
